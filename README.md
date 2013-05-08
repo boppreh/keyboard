@@ -2,7 +2,7 @@ keyboard
 ========
 
 *keyboard* is a small Python library to capture keyboard events in Windows. It
-is meant as a replacement for the keyboard functions of pyHook, but simpler,
+is meant as a replacement for the keyboard functions of [pyHook](http://sourceforge.net/apps/mediawiki/pyhook/index.php?title=Main_Page), but simpler,
 100% Python and without the dead-keys bug.
 
 To use it just call `add_handler(function)` and `remove_handler(function)`.
