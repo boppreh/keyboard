@@ -1,10 +1,15 @@
-from collections import namedtuple
+from collections import namedtuple, defaultdict
+from threading import Thread
 
 KeyboardEvent = namedtuple('KeyboardEvent', ['event_type', 'key_code',
                                              'scan_code', 'alt_pressed',
                                              'time'])
 
+KEY_DOWN = 'key down'
+KEY_UP = 'key up'
+
 handlers = []
+states = defaultdict(lambda: KEY_UP)
 
 def listen():
     """
@@ -14,18 +19,25 @@ def listen():
     from ctypes import windll, CFUNCTYPE, POINTER, c_int, c_void_p, byref
     import win32con, win32api, win32gui, atexit
 
-    event_types = {win32con.WM_KEYDOWN: 'key down',
-                   win32con.WM_KEYUP: 'key up',
-                   0x104: 'key down', # WM_SYSKEYDOWN, used for Alt key.
-                   0x105: 'key up', # WM_SYSKEYUP, used for Alt key.
+    event_types = {win32con.WM_KEYDOWN: KEY_DOWN,
+                   win32con.WM_KEYUP: KEY_UP,
+                   0x104: KEY_DOWN, # WM_SYSKEYDOWN, used for Alt key.
+                   0x105: KEY_UP, # WM_SYSKEYUP, used for Alt key.
                   }
 
     def low_level_handler(nCode, wParam, lParam):
         """
         Processes a low level Windows keyboard event.
         """
-        event = KeyboardEvent(event_types[wParam], lParam[0], lParam[1],
-                              lParam[2] == 32, lParam[3])
+        type = event_types[wParam]
+        key_code = lParam[0]
+        scan_code = lParam[1]
+        alt_pressed = lParam[2] == 32
+        time = lParam[3]
+
+        states[key_code] = type
+
+        event = KeyboardEvent(type, key_code, scan_code, alt_pressed, time)
         for handler in handlers:
             handler(event)
 
@@ -50,9 +62,22 @@ def listen():
         win32gui.TranslateMessage(byref(msg))
         win32gui.DispatchMessage(byref(msg))
 
+listening_thread = Thread(target=listen)
+
+def add_handler(handler):
+    handlers.append(handler)
+
+    if not listening_thread.is_alive():
+        listening_thread.start()
+
+def remove_handler(handler):
+    handlers.remove(handler)
+
+def is_pressed(key_code):
+    return states[key_code] == KEY_DOWN
+
 if __name__ == '__main__':
     def print_event(e):
         print e
 
-    handlers.append(print_event)
-    listen()
+    add_handler(print_event)
