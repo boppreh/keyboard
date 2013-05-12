@@ -19,6 +19,7 @@ def _update_state(event):
 
 handlers = [_update_state]
 listening_thread = Thread(target=listen, args=(handlers,))
+listening_thread.is_daemon = True
 
 def add_handler(handler):
     """ Adds a function to receive each keyboard event captured. """
