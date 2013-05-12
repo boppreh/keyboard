@@ -75,7 +75,15 @@ def register_hotkey(hotkey, callback, args=()):
     keycodes = set(map(name_to_keycode, hotkey.split('+')))
 
     def handler(event):
-        if keycodes == pressed_keys:
+        # There are two important conditions here:
+        # 1. The pressed keys must be exactly the same as the desired keycodes.
+        # If it's not, it'll match combinations that *contain* the hotkey,
+        # which is undesired behavior.
+        # 2. The event must be related to the hotkey. If it's not, the user can
+        # hold the hotkey combination and press something else, and in the
+        # release event the keycodes and pressed keys will be equal and a false
+        # positive will be perceived.
+        if event.keycode in keycodes and keycodes == pressed_keys:
             callback(*args) 
 
     add_handler(handler)
