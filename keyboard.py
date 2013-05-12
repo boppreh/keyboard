@@ -113,12 +113,14 @@ def send_keys(keycodes):
         press_keycode(keycode)
         release_keycode(keycode)
 
-def record(until='escape'):
+def record(until='escape', exclude=()):
     """
     Records and returns all keyboard events until the user presses the given
     key combination.
     """
     from threading import Lock
+
+    exclude_keycodes = set(map(name_to_keycode, exclude))
 
     actions = []
     lock = Lock()
@@ -135,7 +137,7 @@ def record(until='escape'):
             remove_handler(handler)
             remove_handler(hotkey_id)
             lock.release()
-        else:
+        elif event.keycode not in exclude_keycodes:
             actions.append(event)
 
     add_handler(handler)
