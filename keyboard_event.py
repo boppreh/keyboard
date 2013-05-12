@@ -88,6 +88,7 @@ name_to_keycode = {
     'd': 68,
     'decimal': 110,
     'delete': 46,
+    'del': 46,
     'divide': 111,
     'down': 40,
     'e': 69,
