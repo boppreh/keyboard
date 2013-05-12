@@ -37,7 +37,10 @@ def is_pressed(key):
     return states[code] == KEY_DOWN
 
 def add_word_handler(word_handler):
-    """ Invokes the given function each time a word is typed. """
+    """
+    Invokes the given function each time a word is typed.
+    Returns a handler that can be used to stop.
+    """
     # TODO: caps lock, shift + number
     letters = []
 
@@ -60,11 +63,12 @@ def add_word_handler(word_handler):
             letters.append(char)
 
     add_handler(handler)
+    return handler
 
 def register_hotkey(hotkey, callback, args=()):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
-    detected. Returns a hotkey id that can be used to unregister it later.
+    detected. Returns a handler that can be used to unregister it later.
     """
     keycodes = map(name_to_keycode, hotkey.split('+') )
 
@@ -75,8 +79,6 @@ def register_hotkey(hotkey, callback, args=()):
 
     add_handler(handler)
     return handler
-
-unregister_hotkey = remove_handler
 
 def write(text):
     """
@@ -130,7 +132,7 @@ def record(until='escape'):
     def handler(event):
         if should_stop[0]:
             remove_handler(handler)
-            unregister_hotkey(hotkey_id)
+            remove_handler(hotkey_id)
             lock.release()
         else:
             actions.append(event)
@@ -166,9 +168,9 @@ def wait(combination):
     from threading import Lock
     lock = Lock()
     lock.acquire()
-    hotkey_id = register_hotkey(combination, lock.release)
+    hotkey_handler = register_hotkey(combination, lock.release)
     lock.acquire()
-    unregister_hotkey(hotkey_id)
+    remove_handler(hotkey_handler)
 
 if __name__ == '__main__':
     play(record(), 3)
