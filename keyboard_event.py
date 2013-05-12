@@ -127,6 +127,7 @@ name_to_keycode = {
     'lmenu': 164,
     'lshift': 160,
     'lwin': 91,
+    'win': 91,
     'm': 77,
     'mbutton': 4,
     'media next track': 176,
