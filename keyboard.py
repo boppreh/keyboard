@@ -1,5 +1,3 @@
-from itertools import imap
-from collections import defaultdict
 from threading import Thread
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 from keyboard_event import name_to_keycode, keycode_to_name
@@ -13,9 +11,12 @@ try:
 except:
     raise NotImplementedError('Windows support only for the moment.')
 
-states = defaultdict(lambda: KEY_UP)
+pressed_keys = set()
 def _update_state(event):
-    states[event.keycode] = event.event_type
+    if event.event_type == KEY_UP:
+        pressed_keys.remove(event.keycode)
+    else:
+        pressed_keys.add(event.keycode)
 
 handlers = [_update_state]
 listening_thread = Thread(target=listen, args=(handlers,))
@@ -35,7 +36,7 @@ def remove_handler(handler):
 def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
     code = key if isinstance(key, int) else name_to_keycode(key)
-    return states[code] == KEY_DOWN
+    return code in pressed_keys
 
 def add_word_handler(word_handler):
     """
@@ -71,12 +72,11 @@ def register_hotkey(hotkey, callback, args=()):
     Adds a hotkey handler that invokes callback each time the hotkey is
     detected. Returns a handler that can be used to unregister it later.
     """
-    keycodes = map(name_to_keycode, hotkey.split('+') )
+    keycodes = set(map(name_to_keycode, hotkey.split('+')))
 
     def handler(event):
-        if event.event_type == KEY_DOWN:
-            if all(imap(is_pressed, keycodes)):
-               callback(*args) 
+        if keycodes == pressed_keys:
+            callback(*args) 
 
     add_handler(handler)
     return handler
