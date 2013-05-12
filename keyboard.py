@@ -110,21 +110,26 @@ def send_keys(keycodes):
 def record(until='escape'):
     """
     Records and returns all keyboard events until the user presses the given
-    key.
+    key combination.
     """
     from threading import Lock
 
     actions = []
-    until_keycode = name_to_keycode(until)
     lock = Lock()
     lock.acquire()
 
+    should_stop = [False]
+
+    def stop():
+        should_stop[0] = True
+    register_hotkey(until, stop)
+
     def handler(event):
-        if event.keycode == until_keycode:
+        if should_stop[0]:
             remove_handler(handler)
             lock.release()
-
-        actions.append(event)
+        else:
+            actions.append(event)
 
     add_handler(handler)
     lock.acquire()
@@ -151,7 +156,9 @@ def play(events):
             press_keycode(event.keycode)
 
 if __name__ == '__main__':
-    actions = record()
+    actions = record('ctrl+escape')
+    print 'stopped recording'
     import time
     time.sleep(5)
+    print 'playing back'
     play(actions)
