@@ -1,3 +1,4 @@
+from itertools import imap
 from collections import defaultdict
 from threading import Thread
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
@@ -20,21 +21,24 @@ handlers = [_update_state]
 listening_thread = Thread(target=listen, args=(handlers,))
 
 def add_handler(handler):
+    """ Adds a function to receive each keyboard event captured. """
     handlers.append(handler)
 
     if not listening_thread.is_alive():
         listening_thread.start()
 
 def remove_handler(handler):
+    """ Removes a previously added keyboard event handler. """
     handlers.remove(handler)
 
 def is_pressed(key):
-    if isinstance(key, int):
-        return states[key] == KEY_DOWN
-    else:
-        return states[name_to_keycode(key)] == KEY_DOWN
+    """ Returns True if the key (by name or code) is pressed. """
+    code = key if isinstance(key, int) else name_to_keycode(key)
+    return states[code] == KEY_DOWN
 
 def add_word_handler(word_handler):
+    """ Invokes the given function each time a word is typed. """
+    # TODO: caps lock, shift + number
     letters = []
 
     def handler(event):
@@ -57,6 +61,20 @@ def add_word_handler(word_handler):
 
     add_handler(handler)
 
+def register_hotkey(hotkey, callback):
+    """
+    Adds a hotkey handler that invokes callback each time the hotkey is
+    detected.
+    """
+    keycodes = map(name_to_keycode, hotkey.split('+') )
+
+    def handler(event):
+        if event.event_type == KEY_DOWN:
+            if all(imap(is_pressed, keycodes)):
+               callback() 
+
+    add_handler(handler)
+
 if __name__ == '__main__':
-    def p(word): print word
-    add_word_handler(p)
+    def p(s='Hello'): print s
+    register_hotkey('ctrl+shift+alt+a', p)
