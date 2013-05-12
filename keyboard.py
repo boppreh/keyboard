@@ -61,7 +61,7 @@ def add_word_handler(word_handler):
 
     add_handler(handler)
 
-def register_hotkey(hotkey, callback):
+def register_hotkey(hotkey, callback, args=()):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
     detected.
@@ -71,7 +71,7 @@ def register_hotkey(hotkey, callback):
     def handler(event):
         if event.event_type == KEY_DOWN:
             if all(imap(is_pressed, keycodes)):
-               callback() 
+               callback(*args) 
 
     add_handler(handler)
 
