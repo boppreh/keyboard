@@ -26,6 +26,11 @@ class KeyboardEvent(object):
         self.char = KeyboardEvent.keycode_to_char(keycode)
         self.name = KeyboardEvent.keycode_to_name(keycode)
 
+    def __str__(self):
+        return 'KeyboardEvent({} {})'.format(self.name,
+                                             'up' if self.event_type
+                                             == KEY_UP else 'down')
+
 KEY_DOWN = 'key down'
 KEY_UP = 'key up'
 
