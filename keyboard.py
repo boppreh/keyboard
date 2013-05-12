@@ -64,7 +64,7 @@ def add_word_handler(word_handler):
 def register_hotkey(hotkey, callback, args=()):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
-    detected.
+    detected. Returns a hotkey id that can be used to unregister it later.
     """
     keycodes = map(name_to_keycode, hotkey.split('+') )
 
@@ -74,6 +74,9 @@ def register_hotkey(hotkey, callback, args=()):
                callback(*args) 
 
     add_handler(handler)
+    return handler
+
+unregister_hotkey = remove_handler
 
 def write(text):
     """
@@ -122,11 +125,12 @@ def record(until='escape'):
 
     def stop():
         should_stop[0] = True
-    register_hotkey(until, stop)
+    hotkey_id = register_hotkey(until, stop)
 
     def handler(event):
         if should_stop[0]:
             remove_handler(handler)
+            unregister_hotkey(hotkey_id)
             lock.release()
         else:
             actions.append(event)
@@ -156,9 +160,6 @@ def play(events):
             press_keycode(event.keycode)
 
 if __name__ == '__main__':
-    actions = record('ctrl+escape')
-    print 'stopped recording'
-    import time
-    time.sleep(5)
-    print 'playing back'
-    play(actions)
+    def p(s): print 'hello', s
+    register_hotkey('escape', p, ('world',))
+    raw_input()
