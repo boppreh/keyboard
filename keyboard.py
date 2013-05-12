@@ -159,7 +159,17 @@ def play(events):
         else:
             press_keycode(event.keycode)
 
+def wait(combination):
+    """
+    Blocks the program execution until a key combination is activated.
+    """
+    from threading import Lock
+    lock = Lock()
+    lock.acquire()
+    hotkey_id = register_hotkey(combination, lock.release)
+    lock.acquire()
+    unregister_hotkey(hotkey_id)
+
 if __name__ == '__main__':
-    def p(s): print 'hello', s
-    register_hotkey('escape', p, ('world',))
-    raw_input()
+    wait('escape')
+    print 'finished'
