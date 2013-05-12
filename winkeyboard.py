@@ -1,14 +1,7 @@
 # Adapted from http://www.hackerthreads.org/Topic-42395
 from ctypes import windll, CFUNCTYPE, POINTER, c_int, c_void_p, byref
-from collections import namedtuple
 import win32con, win32api, win32gui, atexit
-
-KeyboardEvent = namedtuple('KeyboardEvent', ['type', 'key_code',
-                                             'scan_code', 'alt_pressed',
-                                             'time'])
-
-KEY_DOWN = 'key down'
-KEY_UP = 'key up'
+from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 
 def listen(handlers):
     """
@@ -24,13 +17,15 @@ def listen(handlers):
         """
         Processes a low level Windows keyboard event.
         """
-        type = event_types[wParam]
+        event_type = event_types[wParam]
         key_code = lParam[0]
         scan_code = lParam[1]
         alt_pressed = lParam[2] == 32
         time = lParam[3]
 
-        event = KeyboardEvent(type, key_code, scan_code, alt_pressed, time)
+        event = KeyboardEvent(event_type, key_code, scan_code,
+                              alt_pressed, time)
+
         for handler in handlers:
             handler(event)
 
