@@ -9,7 +9,7 @@ keycode_to_name = KeyboardEvent.keycode_to_name
 name_to_keycode = KeyboardEvent.name_to_keycode
 
 try:
-    from winkeyboard import listen
+    from winkeyboard import listen, press_keycode, release_keycode
 except:
     raise NotImplementedError('Windows support only for the moment.')
 
@@ -75,6 +75,29 @@ def register_hotkey(hotkey, callback):
 
     add_handler(handler)
 
+def write(text):
+    for letter in text:
+        if letter.isalpha() and letter == letter.upper():
+            send('shift+' + letter)
+        else:
+            press_keycode(name_to_keycode(letter))
+            release_keycode(name_to_keycode(letter))
+
+def send(combination):
+    names = combination.replace(' ', '').split('+')
+    for name in names:
+        press_keycode(name_to_keycode(name))
+    for name in reversed(names):
+        release_keycode(name_to_keycode(name))
+
+def send_keys(keycodes):
+    for keycode in keycodes:
+        press_keycode(keycode)
+        release_keycode(keycode)
+
 if __name__ == '__main__':
-    def p(s='Hello'): print s
-    register_hotkey('ctrl+shift+alt+a', p)
+    import time
+    time.sleep(5)
+    #press_combination('alt+f4')
+    write('This is only a test')
+    raw_input()

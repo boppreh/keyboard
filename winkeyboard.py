@@ -49,3 +49,9 @@ def listen(handlers):
         msg = win32gui.GetMessage(None, 0, 0)
         win32gui.TranslateMessage(byref(msg))
         win32gui.DispatchMessage(byref(msg))
+
+def press_keycode(keycode):
+    win32api.keybd_event(keycode, 0, 0, 0)
+
+def release_keycode(keycode):
+    win32api.keybd_event(keycode, 0, 0x2, 0)
