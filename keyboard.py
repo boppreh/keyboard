@@ -139,7 +139,7 @@ def record(until='escape'):
     lock.acquire()
     return actions
 
-def play(events):
+def play(events, speed_factor=1.0):
     """
     Plays a sequence of recorded events, maintaining the relative time
     intervals.
@@ -151,7 +151,7 @@ def play(events):
 
     last_time = events[0].time
     for event in events:
-        time.sleep((event.time - last_time) / 1000.0)
+        time.sleep((event.time - last_time) / 1000.0 / speed_factor)
         last_time = event.time
 
         if event.event_type == KEY_UP:
@@ -171,5 +171,4 @@ def wait(combination):
     unregister_hotkey(hotkey_id)
 
 if __name__ == '__main__':
-    wait('escape')
-    print 'finished'
+    play(record(), 3)
