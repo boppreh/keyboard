@@ -107,9 +107,51 @@ def send_keys(keycodes):
         press_keycode(keycode)
         release_keycode(keycode)
 
+def record(until='escape'):
+    """
+    Records and returns all keyboard events until the user presses the given
+    key.
+    """
+    from threading import Lock
+
+    actions = []
+    until_keycode = name_to_keycode(until)
+    lock = Lock()
+    lock.acquire()
+
+    def handler(event):
+        if event.keycode == until_keycode:
+            remove_handler(handler)
+            lock.release()
+
+        actions.append(event)
+
+    add_handler(handler)
+    lock.acquire()
+    return actions
+
+def play(events):
+    """
+    Plays a sequence of recorded events, maintaining the relative time
+    intervals.
+    """
+    import time
+
+    if not events:
+        return
+
+    last_time = events[0].time
+    for event in events:
+        time.sleep((event.time - last_time) / 1000.0)
+        last_time = event.time
+
+        if event.event_type == KEY_UP:
+            release_keycode(event.keycode)
+        else:
+            press_keycode(event.keycode)
+
 if __name__ == '__main__':
+    actions = record()
     import time
     time.sleep(5)
-    #press_combination('alt+f4')
-    write('This is only a test')
-    raw_input()
+    play(actions)
