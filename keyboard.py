@@ -76,6 +76,10 @@ def register_hotkey(hotkey, callback):
     add_handler(handler)
 
 def write(text):
+    """
+    Sends artifical keyboard events to the OS, simulating the typing of a given
+    text. Very limited character set.
+    """
     for letter in text:
         if letter.isalpha() and letter == letter.upper():
             send('shift+' + letter)
@@ -84,6 +88,11 @@ def write(text):
             release_keycode(name_to_keycode(letter))
 
 def send(combination):
+    """
+    Performs a given hotkey combination.
+
+    Ex: "ctrl+alt+del", "alt+F4", "shift+s"
+    """
     names = combination.replace(' ', '').split('+')
     for name in names:
         press_keycode(name_to_keycode(name))
@@ -91,6 +100,9 @@ def send(combination):
         release_keycode(name_to_keycode(name))
 
 def send_keys(keycodes):
+    """
+    Simulates the sequential pressing and releasing of a list of keycodes.
+    """
     for keycode in keycodes:
         press_keycode(keycode)
         release_keycode(keycode)
