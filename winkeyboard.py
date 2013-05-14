@@ -46,7 +46,6 @@ def listen(handlers):
         alt_pressed = lParam[2] == 32
         time = lParam[3]
         char = _to_ascii(keycode, scancode)
-        print is_keycode_pressed(keycode)
 
         event = KeyboardEvent(event_type, keycode, scancode, char,
                               alt_pressed, time)
