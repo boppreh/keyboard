@@ -1,9 +1,6 @@
 from threading import Thread
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
-from keyboard_event import name_to_keycode, keycode_to_name
 
-keycode_to_char = KeyboardEvent.keycode_to_char
-keycode_to_name = KeyboardEvent.keycode_to_name
 name_to_keycode = KeyboardEvent.name_to_keycode
 
 try:
@@ -14,7 +11,9 @@ except:
 pressed_keys = set()
 def _update_state(event):
     if event.event_type == KEY_UP:
-        pressed_keys.remove(event.keycode)
+        try:
+            pressed_keys.remove(event.keycode)
+        except KeyError: pass
     else:
         pressed_keys.add(event.keycode)
 
@@ -48,13 +47,12 @@ def add_word_handler(word_handler):
 
     def handler(event):
         char = event.char
-        l = letters
 
         if event.event_type == KEY_UP or event.char is None:
             return
-        elif char.isspace() and len(l):
-            word_handler(''.join(l))
-            l[:] = []
+        elif char.isspace() and len(letters):
+            word_handler(''.join(letters))
+            letters[:] = []
             return
         else:
             if is_pressed('lshift') or is_pressed('rshift'):
@@ -167,10 +165,10 @@ def play(events, speed_factor=1.0):
         time.sleep((event.time - last_time) / 1000.0 / speed_factor)
         last_time = event.time
 
-        if event.event_type == KEY_UP:
-            release_keycode(event.keycode)
-        else:
+        if event.event_type == KEY_DOWN:
             press_keycode(event.keycode)
+        else:
+            release_keycode(event.keycode)
 
 def wait(combination):
     """
@@ -184,4 +182,6 @@ def wait(combination):
     remove_handler(hotkey_handler)
 
 if __name__ == '__main__':
-    play(record(), 3)
+    def a(s): print s
+    add_word_handler(a)
+    #play(record(), 3)
