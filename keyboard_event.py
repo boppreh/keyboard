@@ -1,30 +1,19 @@
 class KeyboardEvent(object):
     @staticmethod
-    def keycode_to_char(keycode):
-        if 32 <= keycode < 128:
-            return chr(keycode)
-        else:
-            return None
-
-    @staticmethod
-    def keycode_to_name(keycode):
-        try:
-            return keycode_to_name[keycode]
-        except KeyError:
-            return KeyboardEvent.keycode_to_char(keycode)
-
-    @staticmethod
     def name_to_keycode(name):
         return name_to_keycode[name.lower()]
 
-    def __init__(self, event_type, keycode, scan_code, alt_pressed, time):
+    def __init__(self, event_type, keycode, scan_code, char, alt_pressed, time):
         self.event_type = event_type
         self.keycode = keycode
         self.scan_code = scan_code
+        self.char = char
         self.alt_pressed = alt_pressed
         self.time = time
-        self.char = KeyboardEvent.keycode_to_char(keycode)
-        self.name = KeyboardEvent.keycode_to_name(keycode)
+        try:
+            self.name = keycode_to_name[keycode]
+        except KeyError:
+            self.name = char
 
     def __str__(self):
         return 'KeyboardEvent({} {})'.format(self.name,
