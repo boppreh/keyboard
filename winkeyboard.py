@@ -1,30 +1,7 @@
 # Adapted from http://www.hackerthreads.org/Topic-42395
-from ctypes import windll, CFUNCTYPE, POINTER, c_int, c_void_p, byref, c_char, c_uint, addressof
+from ctypes import windll, CFUNCTYPE, POINTER, c_int, c_void_p, byref
 import win32con, win32api, win32gui, atexit
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
-
-def press_keycode(keycode):
-    win32api.keybd_event(keycode, 0, 0, 0)
-
-def release_keycode(keycode):
-    win32api.keybd_event(keycode, 0, 0x2, 0)
-
-def _to_ascii(keycode, scancode):
-    state = (c_char * 256)()
-    windll.user32.GetKeyboardState(byref(state))
-    lpChar = (c_char * 2)()
-    #nSize = windll.user32.ToAsciiEx(c_uint(keycode),
-    nSize = windll.user32.ToAscii(c_uint(keycode),
-                                  c_uint(scancode),
-                                  addressof(state),
-                                  addressof(lpChar),
-                                   #c_uint(windll.user32.GetKeyboardLayout(0)),
-                                  None)
-
-    if nSize >= 1:
-        return u''.join(map(unichr, filter(lambda i: i, map(ord, lpChar))))
-    else:
-        return None
 
 def listen(handlers):
     """
@@ -41,13 +18,12 @@ def listen(handlers):
         Processes a low level Windows keyboard event.
         """
         event_type = event_types[wParam]
-        keycode = lParam[0]
-        scancode = lParam[1]
+        key_code = lParam[0]
+        scan_code = lParam[1]
         alt_pressed = lParam[2] == 32
         time = lParam[3]
-        char = _to_ascii(keycode, scancode)
 
-        event = KeyboardEvent(event_type, keycode, scancode, char,
+        event = KeyboardEvent(event_type, key_code, scan_code,
                               alt_pressed, time)
 
         for handler in handlers:
@@ -73,3 +49,9 @@ def listen(handlers):
         msg = win32gui.GetMessage(None, 0, 0)
         win32gui.TranslateMessage(byref(msg))
         win32gui.DispatchMessage(byref(msg))
+
+def press_keycode(keycode):
+    win32api.keybd_event(keycode, 0, 0, 0)
+
+def release_keycode(keycode):
+    win32api.keybd_event(keycode, 0, 0x2, 0)
