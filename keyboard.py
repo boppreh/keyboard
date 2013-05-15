@@ -73,15 +73,7 @@ def register_hotkey(hotkey, callback, args=()):
     keycodes = set(map(name_to_keycode, hotkey.split('+')))
 
     def handler(event):
-        # There are two important conditions here:
-        # 1. The pressed keys must be exactly the same as the desired keycodes.
-        # If it's not, it'll match combinations that *contain* the hotkey,
-        # which is undesired behavior.
-        # 2. The event must be related to the hotkey. If it's not, the user can
-        # hold the hotkey combination and press something else, and in the
-        # release event the keycodes and pressed keys will be equal and a false
-        # positive will be perceived.
-        if event.keycode in keycodes and keycodes == pressed_keys:
+        if event.keycode in keycodes and pressed_keys.issuperset(keycodes):
             callback(*args) 
 
     add_handler(handler)
@@ -182,6 +174,4 @@ def wait(combination):
     remove_handler(hotkey_handler)
 
 if __name__ == '__main__':
-    def a(s): print s
-    add_word_handler(a)
-    #play(record(), 3)
+    play(record(), 3)
