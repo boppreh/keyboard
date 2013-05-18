@@ -68,13 +68,34 @@ def add_word_handler(word_handler):
 def register_hotkey(hotkey, callback, args=()):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
-    detected. Returns a handler that can be used to unregister it later.
+    detected. Returns a handler that can be used to unregister it later. The
+    hotkey must be in the format "ctrl+shift+a, s". This would trigger when the
+    user presses "ctrl+shift+a" and then "s".
     """
-    keycodes = set(map(name_to_keycode, hotkey.split('+')))
+    keycode_combinations = []
+    for combination in hotkey.replace(' ', '').split(','):
+        keycode_combination = set(map(name_to_keycode, combination.split('+')))
+        keycode_combinations.append(keycode_combination)
+
+    current_combination = [0]
 
     def handler(event):
-        if event.keycode in keycodes and pressed_keys.issuperset(keycodes):
-            callback(*args) 
+        if event.event_type == KEY_UP:
+            return
+
+        keycodes = keycode_combinations[current_combination[0]]
+        if event.keycode in keycodes:
+            if pressed_keys.issuperset(keycodes):
+                current_combination[0] += 1
+                if current_combination[0] == len(keycode_combinations):
+                    callback(*args) 
+                    current_combination[0] = 0
+        else:
+            current_combination[0] = 0
+            # The key pressed was not part of the current combination, but it
+            # could be of the first combination, so we have to try again.
+            if event.keycode in keycode_combinations[0]:
+                handler(event)
 
     add_handler(handler)
     return handler
