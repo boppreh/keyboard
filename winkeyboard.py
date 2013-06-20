@@ -27,9 +27,11 @@ def listen(handlers):
                               alt_pressed, time)
 
         for handler in handlers:
-            handler(event)
+            if handler(event):
+                # Stop processing this hotkey.
+                return 1
 
-        # Be a good neighbor and call the next hook.
+        # Continue processing of this hotkey.
         return windll.user32.CallNextHookEx(hook_id, nCode, wParam, lParam)
        
     # Our low level handler signature.

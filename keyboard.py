@@ -65,12 +65,15 @@ def add_word_handler(word_handler):
     add_handler(handler)
     return handler
 
-def register_hotkey(hotkey, callback, args=()):
+def register_hotkey(hotkey, callback, args=(), blocking=True):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
     detected. Returns a handler that can be used to unregister it later. The
     hotkey must be in the format "ctrl+shift+a, s". This would trigger when the
     user presses "ctrl+shift+a" and then "s".
+
+    blocking defines if the system should continue processing other hotkeys
+    after a match is found.
     """
     keycode_combinations = []
     for combination in hotkey.replace(' ', '').split(','):
@@ -90,6 +93,7 @@ def register_hotkey(hotkey, callback, args=()):
                 if current_combination[0] == len(keycode_combinations):
                     callback(*args) 
                     current_combination[0] = 0
+                    return blocking
         else:
             current_combination[0] = 0
             # The key pressed was not part of the current combination, but it
@@ -195,4 +199,4 @@ def wait(combination):
     remove_handler(hotkey_handler)
 
 if __name__ == '__main__':
-    play(record(), 3)
+    play(record())
