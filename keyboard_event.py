@@ -17,14 +17,17 @@ class KeyboardEvent(object):
     def name_to_keycode(name):
         return name_to_keycode[name.lower()]
 
-    def __init__(self, event_type, keycode, scan_code, alt_pressed, time):
+    def __init__(self, event_type, keycode, scan_code, alt_pressed, time, char=None):
         self.event_type = event_type
         self.keycode = keycode
         self.scan_code = scan_code
         self.alt_pressed = alt_pressed
         self.time = time
-        self.char = KeyboardEvent.keycode_to_char(keycode)
         self.name = KeyboardEvent.keycode_to_name(keycode)
+        if char is None:
+            self.char = KeyboardEvent.keycode_to_char(keycode)
+        else:
+            self.char = char
 
     def __str__(self):
         return 'KeyboardEvent({} {})'.format(self.name,

@@ -1,12 +1,11 @@
 from threading import Thread
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
-
-name_to_keycode = KeyboardEvent.name_to_keycode
-
 try:
     from winkeyboard import listen, press_keycode, release_keycode
 except:
-    raise NotImplementedError('Windows support only for the moment.')
+    from nixkeyboard import listen, press_keycode, release_keycode
+from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+
+name_to_keycode = KeyboardEvent.name_to_keycode
 
 pressed_keys = set()
 def _update_state(event):
@@ -87,6 +86,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True):
             return
 
         keycodes = keycode_combinations[current_combination[0]]
+        print keycodes, event.keycode
         if event.keycode in keycodes:
             if pressed_keys.issuperset(keycodes):
                 current_combination[0] += 1
@@ -199,4 +199,5 @@ def wait(combination):
     remove_handler(hotkey_handler)
 
 if __name__ == '__main__':
-    play(record())
+    write('oi')
+    #play(record())
