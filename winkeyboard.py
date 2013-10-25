@@ -18,7 +18,8 @@ def listen(handlers):
         Processes a low level Windows keyboard event.
         """
         event_type = event_types[wParam]
-        key_code = lParam[0]
+        # 64-bit systems return a much larger number.
+        key_code = lParam[0] & 0xFFFFFFFF
         scan_code = lParam[1]
         alt_pressed = lParam[2] == 32
         time = lParam[3]
