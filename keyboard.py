@@ -199,5 +199,5 @@ def wait(combination):
     remove_handler(hotkey_handler)
 
 if __name__ == '__main__':
-    write('oi')
-    #play(record())
+    print('Press esc to replay actions.')
+    play(record())
