@@ -86,7 +86,6 @@ def register_hotkey(hotkey, callback, args=(), blocking=True):
             return
 
         keycodes = keycode_combinations[current_combination[0]]
-        print keycodes, event.keycode
         if event.keycode in keycodes:
             if pressed_keys.issuperset(keycodes):
                 current_combination[0] += 1
