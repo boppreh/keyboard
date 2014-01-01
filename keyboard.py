@@ -75,7 +75,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True):
     after a match is found.
     """
     keycode_combinations = []
-    for combination in hotkey.replace(' ', '').split(','):
+    for combination in hotkey.lower().replace(' ', '').split(','):
         keycode_combination = set(map(name_to_keycode, combination.split('+')))
         keycode_combinations.append(keycode_combination)
 
@@ -90,8 +90,8 @@ def register_hotkey(hotkey, callback, args=(), blocking=True):
             if pressed_keys.issuperset(keycodes):
                 current_combination[0] += 1
                 if current_combination[0] == len(keycode_combinations):
-                    callback(*args) 
                     current_combination[0] = 0
+                    callback(*args) 
                     return blocking
         else:
             current_combination[0] = 0
