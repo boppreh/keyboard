@@ -17,15 +17,13 @@ def _update_state(event):
         pressed_keys.add(event.keycode)
 
 handlers = [_update_state]
-listening_thread = Thread(target=listen, args=(handlers,))
-listening_thread.is_daemon = True
+
+listening_thread = Thread(target=listen, args=(handlers,), daemon=True)
+listening_thread.start()
 
 def add_handler(handler):
     """ Adds a function to receive each keyboard event captured. """
     handlers.append(handler)
-
-    if not listening_thread.is_alive():
-        listening_thread.start()
 
 def remove_handler(handler):
     """ Removes a previously added keyboard event handler. """
