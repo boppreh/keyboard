@@ -169,7 +169,8 @@ def record(until='escape', exclude=[]):
 def play(events, speed_factor=1.0):
     """
     Plays a sequence of recorded events, maintaining the relative time
-    intervals.
+    intervals. If speed_factor is invalid (<= 0) the actions are replayed
+    instantly.
     """
     import time
 
@@ -178,8 +179,9 @@ def play(events, speed_factor=1.0):
 
     last_time = events[0].time
     for event in events:
-        time.sleep((event.time - last_time) / 1000.0 / speed_factor)
-        last_time = event.time
+        if speed_factor > 0:
+            time.sleep((event.time - last_time) / 1000.0 / speed_factor)
+            last_time = event.time
 
         if event.event_type == KEY_DOWN:
             press_keycode(event.keycode)
@@ -199,4 +201,4 @@ def wait(combination):
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
-    play(record('esc, esc'))
+    play(record('esc, esc'), 0)
