@@ -103,7 +103,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True):
 
 def write(text):
     """
-    Sends artifical keyboard events to the OS, simulating the typing of a given
+    Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Very limited character set.
     """
     for letter in text:
@@ -140,7 +140,9 @@ def record(until='escape', exclude=[]):
     """
     from threading import Lock
 
-    exclude_keycodes = set(map(name_to_keycode, exclude + [until]))
+    exclude_keycodes = set(map(name_to_keycode, exclude))
+    if name_to_keycode(until) is not None:
+        exclude_keycodes.add(until)
 
     actions = []
     lock = Lock()
@@ -197,4 +199,4 @@ def wait(combination):
 
 if __name__ == '__main__':
     print('Press esc to replay actions.')
-    play(record())
+    play(record('esc, esc'))
