@@ -15,7 +15,7 @@ class KeyboardEvent(object):
 
     @staticmethod
     def name_to_keycode(name):
-        return name_to_keycode[name.lower()]
+        return name_to_keycode.get(name.lower(), None)
 
     def __init__(self, event_type, keycode, scan_code, alt_pressed, time, char=None):
         self.event_type = event_type
