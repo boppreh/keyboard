@@ -4,14 +4,14 @@ from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 event_bin_format = 'llhhi'
 
 def _read_device_file():
-    from pathlib import Path
-    event_files = Path('/dev/input/by-id').glob('*-event-kbd')
+    import glob
+    event_files = glob.glob('/dev/input/by-id/*-event-kbd')
 
     for event_file in event_files:
-        if '-if01-' not in event_file.name:
+        if '-if01-' not in event_file:
             break
 
-    with event_file.open('rb') as events:
+    with open(event_file, 'rb') as events:
         while True:
             yield events.read(struct.calcsize(event_bin_format))
 
@@ -26,8 +26,8 @@ def listen(handlers):
             # appears before the proper event, and the second has zero code and
             # value, appearing after the event. I'll just ignore them for now.
             continue
-        #char = scancode_to_char.get(scancode, '')
-        char = scancode_to_char[scancode]
+        char = scancode_to_char.get(scancode, '')
+        #char = scancode_to_char[scancode]
         keycode = KeyboardEvent.name_to_keycode(char) or 0
         time = s + ms/1e6
         event_type = KEY_DOWN if value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
@@ -42,7 +42,7 @@ def listen(handlers):
                 print(e)
 
 # Codes taken from
-# https://github.com/openstenoproject/plover/blob/master/plover/oslayer/winkeyboardcontrol.py
+# http://www.ee.bgu.ac.il/~microlab/MicroLab/Labs/ScanCodes.htm
 scancode_to_char = {
     0x01: 'ESC',
     0x02: '1',

@@ -18,7 +18,8 @@ def _update_state(event):
 
 handlers = [_update_state]
 
-listening_thread = Thread(target=listen, args=(handlers,), daemon=True)
+listening_thread = Thread(target=listen, args=(handlers,))
+listening_thread.daemon=True
 listening_thread.start()
 
 def add_handler(handler):
