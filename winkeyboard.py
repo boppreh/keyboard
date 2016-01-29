@@ -3,13 +3,14 @@ Code adapted from http://pastebin.com/wzYZGZrs
 """
 
 import ctypes
-from ctypes import c_short, c_char, c_uint8, c_int, c_uint, Structure, CFUNCTYPE, POINTER
+from ctypes import c_short, c_char, c_uint8, c_int, c_uint, c_long, Structure, CFUNCTYPE, POINTER
 from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG, LPWSTR, WCHAR
 
-user32 = ctypes.windll.user32
 import atexit
 
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+
+user32 = ctypes.windll.user32
 
 class KBDLLHOOKSTRUCT(Structure):
     _fields_ = [("vk_code", DWORD),
@@ -52,6 +53,32 @@ GetKeyboardState = user32.GetKeyboardState
 GetKeyboardState.argtypes = [keyboard_state_type]
 GetKeyboardState.restype = BOOL
 
+GetKeyNameText = user32.GetKeyNameTextW
+GetKeyNameText.argtypes = [c_long, LPWSTR, c_int]
+GetKeyNameText.restype = c_int
+
+MapVirtualKey = user32.MapVirtualKeyW
+MapVirtualKey.argtypes = [c_uint, c_uint]
+MapVirtualKey.restype = c_uint
+
+MAPVK_VSC_TO_VK = 1
+keycode_by_scan_code = {}
+scan_code_by_name = {}
+
+name_buffer = ctypes.create_unicode_buffer(32)
+for scan_code in range(2**(23-16)):
+    ret = GetKeyNameText(scan_code << 16 | 1 << 24, name_buffer, 1024)
+    if ret:
+        scan_code_by_name[name_buffer.value] = scan_code
+    ret = GetKeyNameText(scan_code << 16 | 0 << 24, name_buffer, 1024)
+    if ret:
+        scan_code_by_name[name_buffer.value] = scan_code
+
+    ret = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+    if ret:
+        keycode_by_scan_code[scan_code] = ret    
+
+
 VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
 VkKeyScan.restype = c_short
@@ -86,7 +113,18 @@ def listen(handlers):
         else:
             char = None
 
-        event = KeyboardEvent(event_types[wParam], keycode, scan_code, char=char)
+        names = [k for k, v in scan_code_by_name.items() if v == scan_code and k.isprintable()]
+        non_num_names = [name for name in names if not name.startswith('Num')]
+
+        if names:
+            if non_num_names:
+                name = non_num_names[0]
+            else:
+                name = names[0]
+        else:
+            name = None
+
+        event = KeyboardEvent(event_types[wParam], keycode, scan_code, name=name, char=char)
         
         for handler in handlers:
             try:
@@ -125,6 +163,11 @@ def get_keyshift_from_char(char):
     shift = ret & 0xFF00
     return keycode, shift
 
+def press(scan_code):
+    user32.keybd_event(keycode_by_scan_code[scan_code], 0, 0, 0)
+
+def release(scan_code):
+    user32.keybd_event(keycode_by_scan_code[scan_code], 0, 2, 0)
 
 if __name__ == '__main__':
-    listen([lambda e: print(e.char)])
+    listen([lambda e: print(e.name)])

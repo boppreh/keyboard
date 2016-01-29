@@ -1,13 +1,13 @@
 from time import time as now
 
 class KeyboardEvent(object):
-    def __init__(self, event_type, keycode, scan_code, char=None, time=None):
+    def __init__(self, event_type, keycode, scan_code, char=None, name=None, time=None):
         self.event_type = event_type
         self.keycode = keycode
         self.scan_code = scan_code
         self.time = now() if time is None else time
-        self.name = keycode_to_name.get(keycode, 'unknown key {}'.format(keycode))
         self.char = char
+        self.name = name
 
     def __str__(self):
         return 'KeyboardEvent({} {})'.format(self.name,
