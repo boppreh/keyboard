@@ -1,6 +1,6 @@
 from threading import Thread
 try:
-    from winkeyboard import listen, press_keycode, release_keycode
+    from winkeyboard import listen, press_keycode, release_keycode, get_keyshift_from_char
 except:
     from nixkeyboard import listen, press_keycode, release_keycode
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, name_to_keycode
@@ -103,14 +103,18 @@ def register_hotkey(hotkey, callback, args=(), blocking=True):
 def write(text):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
-    text. Very limited character set.
+    text. Composite characters such as à are not available. Raises ValueError
+    for unavailable characters.
     """
     for letter in text:
-        if letter.isalpha() and letter == letter.upper():
+        keycode, shift = get_keyshift_from_char(letter)
+        if shift:
+            press_keycode(name_to_keycode[shift])
+        press_keycode(keycode)
+        release_keycode(keycode)
+        if shift:
+            release_keycode(name_to_keycode[shift])
             send('shift+' + letter)
-        else:
-            press_keycode(name_to_keycode[letter])
-            release_keycode(name_to_keycode[letter])
 
 def send(combination):
     """
@@ -123,14 +127,6 @@ def send(combination):
         press_keycode(name_to_keycode[name])
     for name in reversed(names):
         release_keycode(name_to_keycode[name])
-
-def send_keys(keycodes):
-    """
-    Simulates the sequential pressing and releasing of a list of keycodes.
-    """
-    for keycode in keycodes:
-        press_keycode(keycode)
-        release_keycode(keycode)
 
 def record(until='escape', exclude=[]):
     """

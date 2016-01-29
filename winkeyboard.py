@@ -2,9 +2,11 @@
 Code adapted from http://pastebin.com/wzYZGZrs
 """
 
-from ctypes import c_int, Structure, CFUNCTYPE, POINTER, windll
-from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG
+import ctypes
+from ctypes import c_short, c_char, c_uint8, c_int, c_uint, Structure, CFUNCTYPE, POINTER
+from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG, LPWSTR, WCHAR
 
+user32 = ctypes.windll.user32
 import atexit
 
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
@@ -17,28 +19,42 @@ class KBDLLHOOKSTRUCT(Structure):
 
 LowLevelKeyboardProc = CFUNCTYPE(c_int, c_int, c_int, POINTER(KBDLLHOOKSTRUCT))
 
-SetWindowsHookEx          = windll.user32.SetWindowsHookExA
+SetWindowsHookEx = user32.SetWindowsHookExA
 SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
-SetWindowsHookEx.restype  = HHOOK
+SetWindowsHookEx.restype = HHOOK
 
-CallNextHookEx          = windll.user32.CallNextHookEx
+CallNextHookEx = user32.CallNextHookEx
 CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(KBDLLHOOKSTRUCT)]
-CallNextHookEx.restype  = c_int
+CallNextHookEx.restype = c_int
 
-UnhookWindowsHookEx          = windll.user32.UnhookWindowsHookEx
+UnhookWindowsHookEx = user32.UnhookWindowsHookEx
 UnhookWindowsHookEx.argtypes = [HHOOK]
-UnhookWindowsHookEx.restype  = BOOL
+UnhookWindowsHookEx.restype = BOOL
 
-GetMessage          = windll.user32.GetMessageW
+GetMessage = user32.GetMessageW
 GetMessage.argtypes = [LPMSG, c_int, c_int, c_int]
-GetMessage.restype  = BOOL
+GetMessage.restype = BOOL
 
-TranslateMessage          = windll.user32.TranslateMessage
+TranslateMessage = user32.TranslateMessage
 TranslateMessage.argtypes = [LPMSG]
-TranslateMessage.restype  = BOOL
+TranslateMessage.restype = BOOL
 
-DispatchMessage          = windll.user32.DispatchMessageA
+DispatchMessage = user32.DispatchMessageA
 DispatchMessage.argtypes = [LPMSG]
+
+keyboard_state_type = c_uint8 * 256
+
+ToUnicode = user32.ToUnicode
+ToUnicode.argtypes = [c_int, c_int, keyboard_state_type, LPWSTR, c_int, c_uint]
+DispatchMessage.restype = c_int
+
+GetKeyboardState = user32.GetKeyboardState
+GetKeyboardState.argtypes = [keyboard_state_type]
+GetKeyboardState.restype = BOOL
+
+VkKeyScan = user32.VkKeyScanW
+VkKeyScan.argtypes = [WCHAR]
+VkKeyScan.restype = c_short
 
 def listen(handlers):
     NULL = c_int(0)
@@ -55,10 +71,23 @@ def listen(handlers):
         WM_SYSKEYUP: KEY_UP,
     }
 
+
     def low_level_handler(ncode, wParam, lParam):
-        key_code = lParam.contents.vk_code
+        keycode = lParam.contents.vk_code
         scan_code = lParam.contents.scan_code
-        event = KeyboardEvent(event_types[wParam], key_code, scan_code)
+
+        keyboard_state = keyboard_state_type()
+        assert GetKeyboardState(keyboard_state)
+        # 32 is a completely arbitrary size that should contain any "character" typed.
+        char_buffer = ctypes.create_unicode_buffer(32)
+        chars_written = user32.ToUnicode(keycode, scan_code, keyboard_state, char_buffer, len(char_buffer), 0)
+        if chars_written > 0:
+            char = char_buffer.value
+        else:
+            char = None
+
+        event = KeyboardEvent(event_types[wParam], keycode, scan_code, char=char)
+        
         for handler in handlers:
             try:
                 if handler(event):
@@ -74,20 +103,28 @@ def listen(handlers):
 
     # Register to remove the hook when the interpreter exits. Unfortunately a
     # try/finally block doesn't seem to work here.
-    atexit.register(windll.user32.UnhookWindowsHookEx, hook)
+    atexit.register(user32.UnhookWindowsHookEx, hook)
 
-    msg  = LPMSG()
+    msg = LPMSG()
     while not GetMessage(msg, NULL, NULL, NULL):
         TranslateMessage(msg)
         DispatchMessage(msg)
     UnhookWindowsHookEx(hook)
 
 def press_keycode(keycode):
-    windll.user32.keybd_event(keycode, 0, 0, 0)
+    user32.keybd_event(keycode, 0, 0, 0)
 
 def release_keycode(keycode):
-    windll.user32.keybd_event(keycode, 0, 0x2, 0)
+    user32.keybd_event(keycode, 0, 0x2, 0)
+
+def get_keyshift_from_char(char):
+    ret = VkKeyScan(WCHAR(char))
+    if ret == -1:
+        raise ValueError('Cannot type character ' + char)
+    keycode = ret & 0x00FF
+    shift = ret & 0xFF00
+    return keycode, shift
 
 
 if __name__ == '__main__':
-    listen([print])
+    listen([lambda e: print(e.char)])
