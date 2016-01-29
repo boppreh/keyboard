@@ -1,33 +1,12 @@
+from time import time as now
+
 class KeyboardEvent(object):
-    @staticmethod
-    def keycode_to_char(keycode):
-        if 32 <= keycode < 128:
-            return chr(keycode)
-        else:
-            return None
-
-    @staticmethod
-    def keycode_to_name(keycode):
-        try:
-            return keycode_to_name[keycode]
-        except KeyError:
-            return KeyboardEvent.keycode_to_char(keycode)
-
-    @staticmethod
-    def name_to_keycode(name):
-        return name_to_keycode.get(name.lower(), None)
-
-    def __init__(self, event_type, keycode, scan_code, alt_pressed, time, char=None):
+    def __init__(self, event_type, keycode, scan_code, time=None):
         self.event_type = event_type
         self.keycode = keycode
         self.scan_code = scan_code
-        self.alt_pressed = alt_pressed
-        self.time = time
-        self.name = KeyboardEvent.keycode_to_name(keycode)
-        if char is None:
-            self.char = KeyboardEvent.keycode_to_char(keycode)
-        else:
-            self.char = char
+        self.time = now() if time is None else time
+        self.name = keycode_to_name.get(keycode, 'unknown key {}'.format(keycode))
 
     def __str__(self):
         return 'KeyboardEvent({} {})'.format(self.name,
@@ -206,6 +185,9 @@ name_to_keycode = {
     'z': 90,
     'zoom': 251,
 }
+for name in list(name_to_keycode):
+    name_to_keycode[name.upper()] = name_to_keycode[name]
+    
 
 keycode_to_name = {keycode: name for name, keycode in
-                   name_to_keycode.items()}
+                   sorted(name_to_keycode.items())}

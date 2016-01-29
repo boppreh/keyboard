@@ -3,9 +3,7 @@ try:
     from winkeyboard import listen, press_keycode, release_keycode
 except:
     from nixkeyboard import listen, press_keycode, release_keycode
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
-
-name_to_keycode = KeyboardEvent.name_to_keycode
+from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, name_to_keycode
 
 pressed_keys = set()
 def _update_state(event):
@@ -32,7 +30,7 @@ def remove_handler(handler):
 
 def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
-    code = key if isinstance(key, int) else name_to_keycode(key)
+    code = key if isinstance(key, int) else name_to_keycode[key]
     return code in pressed_keys
 
 def add_word_handler(word_handler):
@@ -75,7 +73,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True):
     """
     keycode_combinations = []
     for combination in hotkey.lower().replace(' ', '').split(','):
-        keycode_combination = set(map(name_to_keycode, combination.split('+')))
+        keycode_combination = set(map(name_to_keycode.get, combination.split('+')))
         keycode_combinations.append(keycode_combination)
 
     current_combination = [0]
@@ -111,8 +109,8 @@ def write(text):
         if letter.isalpha() and letter == letter.upper():
             send('shift+' + letter)
         else:
-            press_keycode(name_to_keycode(letter))
-            release_keycode(name_to_keycode(letter))
+            press_keycode(name_to_keycode[letter])
+            release_keycode(name_to_keycode[letter])
 
 def send(combination):
     """
@@ -122,9 +120,9 @@ def send(combination):
     """
     names = combination.replace(' ', '').split('+')
     for name in names:
-        press_keycode(name_to_keycode(name))
+        press_keycode(name_to_keycode[name])
     for name in reversed(names):
-        release_keycode(name_to_keycode(name))
+        release_keycode(name_to_keycode[name])
 
 def send_keys(keycodes):
     """
@@ -141,8 +139,8 @@ def record(until='escape', exclude=[]):
     """
     from threading import Lock
 
-    exclude_keycodes = set(map(name_to_keycode, exclude))
-    if name_to_keycode(until) is not None:
+    exclude_keycodes = set(map(name_to_keycode.get, exclude))
+    if until in name_to_keycode:
         exclude_keycodes.add(until)
 
     actions = []
@@ -181,7 +179,7 @@ def play(events, speed_factor=1.0):
     last_time = events[0].time
     for event in events:
         if speed_factor > 0:
-            time.sleep((event.time - last_time) / 1000.0 / speed_factor)
+            time.sleep((event.time - last_time) / speed_factor)
             last_time = event.time
 
         if event.event_type == KEY_DOWN:
@@ -202,4 +200,4 @@ def wait(combination):
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
-    play(record('esc, esc'), 0)
+    play(record('esc, esc'), 3)

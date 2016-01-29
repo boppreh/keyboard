@@ -1,32 +1,64 @@
-# Adapted from http://www.hackerthreads.org/Topic-42395
-from ctypes import windll, CFUNCTYPE, POINTER, c_int, c_void_p, byref
-import win32con, win32api, win32gui, atexit
+"""
+Code adapted from http://pastebin.com/wzYZGZrs
+"""
+
+from ctypes import c_int, Structure, CFUNCTYPE, POINTER, windll
+from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG
+
+import atexit
+
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 
+class KBDLLHOOKSTRUCT(Structure):
+    _fields_ = [("vk_code", DWORD),
+                ("scan_code", DWORD),
+                ("flags", DWORD),
+                ("time", c_int),]
+
+LowLevelKeyboardProc = CFUNCTYPE(c_int, c_int, c_int, POINTER(KBDLLHOOKSTRUCT))
+
+SetWindowsHookEx          = windll.user32.SetWindowsHookExA
+SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
+SetWindowsHookEx.restype  = HHOOK
+
+CallNextHookEx          = windll.user32.CallNextHookEx
+CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(KBDLLHOOKSTRUCT)]
+CallNextHookEx.restype  = c_int
+
+UnhookWindowsHookEx          = windll.user32.UnhookWindowsHookEx
+UnhookWindowsHookEx.argtypes = [HHOOK]
+UnhookWindowsHookEx.restype  = BOOL
+
+GetMessage          = windll.user32.GetMessageW
+GetMessage.argtypes = [LPMSG, c_int, c_int, c_int]
+GetMessage.restype  = BOOL
+
+TranslateMessage          = windll.user32.TranslateMessage
+TranslateMessage.argtypes = [LPMSG]
+TranslateMessage.restype  = BOOL
+
+DispatchMessage          = windll.user32.DispatchMessageA
+DispatchMessage.argtypes = [LPMSG]
+
 def listen(handlers):
-    """
-    Calls `handlers` for each keyboard event received. This is a blocking call.
-    """
-    event_types = {win32con.WM_KEYDOWN: KEY_DOWN,
-                   win32con.WM_KEYUP: KEY_UP,
-                   0x104: KEY_DOWN, # WM_SYSKEYDOWN, used for Alt key.
-                   0x105: KEY_UP, # WM_SYSKEYUP, used for Alt key.
-                  }
+    NULL = c_int(0)
 
-    def low_level_handler(nCode, wParam, lParam):
-        """
-        Processes a low level Windows keyboard event.
-        """
-        event_type = event_types[wParam]
-        # 64-bit systems return a much larger number.
-        key_code = lParam[0] & 0xFFFFFFFF
-        scan_code = lParam[1]
-        alt_pressed = lParam[2] == 32
-        time = lParam[3]
+    WM_KEYDOWN = 0x0100
+    WM_KEYUP = 0x0101
+    WM_SYSKEYDOWN = 0x104 # Used for ALT key
+    WM_SYSKEYUP = 0x105
 
-        event = KeyboardEvent(event_type, key_code, scan_code,
-                              alt_pressed, time)
+    event_types = {
+        WM_KEYDOWN: KEY_DOWN,
+        WM_KEYUP: KEY_UP,
+        WM_SYSKEYDOWN: KEY_DOWN,
+        WM_SYSKEYUP: KEY_UP,
+    }
 
+    def low_level_handler(ncode, wParam, lParam):
+        key_code = lParam.contents.vk_code
+        scan_code = lParam.contents.scan_code
+        event = KeyboardEvent(event_types[wParam], key_code, scan_code)
         for handler in handlers:
             try:
                 if handler(event):
@@ -34,30 +66,28 @@ def listen(handlers):
                     return 1
             except Exception as e:
                 print(e)
-
-        # Continue processing of this hotkey.
-        return windll.user32.CallNextHookEx(hook_id, nCode, wParam, lParam)
-       
-    # Our low level handler signature.
-    CMPFUNC = CFUNCTYPE(c_int, c_int, c_int, POINTER(c_void_p))
-    # Convert the Python handler into C pointer.
-    pointer = CMPFUNC(low_level_handler)
-
-    # Hook both key up and key down events for common keys (non-system).
-    hook_id = windll.user32.SetWindowsHookExA(win32con.WH_KEYBOARD_LL, pointer,
-                                             win32api.GetModuleHandle(None), 0)
+        return CallNextHookEx(NULL, ncode, wParam, lParam)
+    
+    callback = LowLevelKeyboardProc(low_level_handler)
+    WH_KEYBOARD_LL = c_int(13)
+    hook = SetWindowsHookEx(WH_KEYBOARD_LL, callback, NULL, NULL)
 
     # Register to remove the hook when the interpreter exits. Unfortunately a
     # try/finally block doesn't seem to work here.
-    atexit.register(windll.user32.UnhookWindowsHookEx, hook_id)
+    atexit.register(windll.user32.UnhookWindowsHookEx, hook)
 
-    while True:
-        msg = win32gui.GetMessage(None, 0, 0)
-        win32gui.TranslateMessage(byref(msg))
-        win32gui.DispatchMessage(byref(msg))
+    msg  = LPMSG()
+    while not GetMessage(msg, NULL, NULL, NULL):
+        TranslateMessage(msg)
+        DispatchMessage(msg)
+    UnhookWindowsHookEx(hook)
 
 def press_keycode(keycode):
-    win32api.keybd_event(keycode, 0, 0, 0)
+    windll.user32.keybd_event(keycode, 0, 0, 0)
 
 def release_keycode(keycode):
-    win32api.keybd_event(keycode, 0, 0x2, 0)
+    windll.user32.keybd_event(keycode, 0, 0x2, 0)
+
+
+if __name__ == '__main__':
+    listen([print])
