@@ -3,7 +3,7 @@
 
 import time
 from threading import Thread
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 try:
     from winkeyboard import listen, press, release, map_char
 except:
@@ -41,6 +41,12 @@ def is_pressed(key):
                 return True
         return False
 
+def _split_combination(hotkey):
+    if isinstance(hotkey, int) or len(hotkey) == 1:
+        return [[hotkey]]
+    else:
+        return [step.split('+') for step in hotkey.split(', ')]
+
 hotkeys = {}
 def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
@@ -55,11 +61,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     `timeout` is the amount of time allowed to pass between key strokes before
     the combination state is reset.
     """
-    if len(hotkey) == 1:
-        steps = [[hotkey]]
-    else:
-        steps = [step.split('+') for step in hotkey.split(', ')]
-
+    steps = _split_combination(hotkey)
 
     state = lambda: None
     state.step = 0
@@ -94,86 +96,37 @@ def unregister_hotkey(hotkey):
     """ Removes a previously registered hotkey. """
     remove_handler(hotkeys[hotkey])
 
-def write(text):
+def write(text, delay=0):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Composite characters such as à are not available. Raises ValueError
     for unavailable characters.
     """
     for letter in text:
-        keycode, shift = map_char(letter)
-        if shift:
-            press_keycode(name_to_keycode[shift])
-        press_keycode(keycode)
-        release_keycode(keycode)
-        if shift:
-            release_keycode(name_to_keycode[shift])
-            send('shift+' + letter)
+        if letter.isupper():
+            send('shift', True, False)
+        send(letter)
+        if letter.isupper():
+            send('shift', False, True)
+        if delay:
+            time.sleep(delay)
 
-def send(combination):
+def send(combination, press=True, release=True):
     """
     Performs a given hotkey combination.
 
-    Ex: "ctrl+alt+del", "alt+F4", "shift+s"
+    Ex: "ctrl+alt+del", "alt+F4, enter", "shift+s"
     """
-    names = combination.replace(' ', '').split('+')
-    for name in names:
-        press_keycode(name_to_keycode[name])
-    for name in reversed(names):
-        release_keycode(name_to_keycode[name])
+    for step in _split_combination(combination):
+        scan_codes = [map_name_to_scancode(normalize_name(part)) for part in step]
 
-def record(until='escape', exclude=[]):
-    """
-    Records and returns all keyboard events until the user presses the given
-    key combination.
-    """
-    from threading import Lock
+        if press:
+            for scan_code in scan_codes:
+                press(scan_code)
 
-    exclude_keycodes = set(map(name_to_keycode.get, exclude))
-    if until in name_to_keycode:
-        exclude_keycodes.add(until)
-
-    actions = []
-    lock = Lock()
-    lock.acquire()
-
-    should_stop = [False]
-
-    def stop():
-        should_stop[0] = True
-    hotkey_id = register_hotkey(until, stop)
-
-    def handler(event):
-        if should_stop[0]:
-            remove_handler(handler)
-            remove_handler(hotkey_id)
-            lock.release()
-        elif event.keycode not in exclude_keycodes:
-            actions.append(event)
-
-    add_handler(handler)
-    lock.acquire()
-    return actions
-
-def play(events, speed_factor=1.0):
-    """
-    Plays a sequence of recorded events, maintaining the relative time
-    intervals. If speed_factor is invalid (<= 0) the actions are replayed
-    instantly.
-    """
-    if not events:
-        return
-
-    last_time = events[0].time
-    for event in events:
-        if speed_factor > 0:
-            time.sleep((event.time - last_time) / speed_factor)
-            last_time = event.time
-
-        if event.event_type == KEY_DOWN:
-            press_keycode(event.keycode)
-        else:
-            release_keycode(event.keycode)
+        if release:
+            for scan_code in scan_codes:
+                release(scan_code)
 
 def wait(combination):
     """
@@ -186,8 +139,48 @@ def wait(combination):
     lock.acquire()
     remove_handler(hotkey_handler)
 
+def record(until='escape', exclude=[]):
+    """
+    Records and returns all keyboard events until the user presses the given
+    key combination.
+    """
+    from threading import Lock
+
+    recorded = []
+    lock = Lock()
+    lock.acquire()
+
+    def handler(event):
+        recorded.append(event)
+
+    def stop():
+        remove_handler(stop_handler)
+        remove_handler(handler)
+        lock.release()
+    stop_handler = register_hotkey(until, stop)
+
+    add_handler(handler)
+    lock.acquire()
+    return recorded
+
+def play(events, speed_factor=1.0):
+    """
+    Plays a sequence of recorded events, maintaining the relative time
+    intervals. If speed_factor is invalid (<= 0) the actions are replayed
+    instantly.
+    """
+    last_time = None
+    for event in events:
+        if speed_factor > 0 and last_time is not None:
+            time.sleep((event.time - last_time) / speed_factor)
+        last_time = event.time
+
+        if event.event_type == KEY_DOWN:
+            press(event.scan_code)
+        else:
+            release(event.scan_code)
+
 if __name__ == '__main__':
     #print('Press esc twice to replay keyboard actions.')
     #play(record('esc, esc'), 3)
-    wait('a, s, a')
-    print('Hey')
+    print(record('esc'))

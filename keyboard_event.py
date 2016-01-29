@@ -13,10 +13,10 @@ class KeyboardEvent(object):
         self.is_keypad = is_keypad
         self.time = now() if time is None else time
         self.char = char
-        self.names = [normalize_name(name) for name in names]
+        self.names = names
 
     def matches(self, description):
-        return normalize_name(description) in self.names
+        return self.scan_code == description or normalize_name(description) in self.names
 
     def __str__(self):
         name = self.names[0] if len(self.names) else 'Unknown {}'.format(self.scan_code)

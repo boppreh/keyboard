@@ -1,7 +1,8 @@
 import struct
+import traceback
 from time import time as now
 from collections import namedtuple
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
 import os
 if os.getuid() != 0:
@@ -30,7 +31,7 @@ def _populate_scan_code_table():
             for mod in ('Meta_', 'Control_', 'dead_', 'KP_'):
                 if name.startswith(mod):
                     name = name[len(mod):]
-            pair = (name, is_keypad)
+            pair = (normalize_name(name), is_keypad)
             if pair not in scan_code_table[scan_code]:
                 scan_code_table[scan_code].append(pair)
 _populate_scan_code_table()
@@ -55,13 +56,10 @@ class LowLevelEvent(namedtuple('LowLevelEvent', 'seconds microseconds type code 
 # Taken from include/linux/input.h
 EV_KEY = 0x01
 
-def _open_input_file(filename_pattern='*-event-kbd', mode='rb'):
+def _read_input_file(filename_pattern='*-event-kbd'):
     import glob
     event_file = glob.glob('/dev/input/by-id/' + filename_pattern)[0]
-    return open(event_file, mode)
-
-def _read_input_file():
-    with _open_input_file() as events:
+    with open(event_file, 'rb') as events:
         while True:
             yield LowLevelEvent.from_file(events)
 
@@ -90,15 +88,22 @@ def listen(handlers):
                     # Stop processing this hotkey.
                     return 1
             except Exception as e:
-                print(e)
+                traceback.print_exc()
 
 def map_char(char):
+    return map_name_to_scancode(normalize_name(char))
+
+def map_name_to_scancode(target_name):
+    for scan_code, pairs in scan_code_table.items():
+        for name, is_shift in pairs:
+            if name == target_name:
+                return scan_code
+    raise ValueError('Unknown name {}'.format(target_name))
+
+def press(scan_code):
     raise NotImplementedError()
 
-def press(keycode):
-    raise NotImplementedError()
-
-def release(keycode):
+def release(scan_code):
     raise NotImplementedError()
 
 if __name__ == '__main__':
