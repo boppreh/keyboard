@@ -41,6 +41,7 @@ def is_pressed(key):
                 return True
         return False
 
+hotkeys = {}
 def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
@@ -58,6 +59,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
         steps = [[hotkey]]
     else:
         steps = [step.split('+') for step in hotkey.split(', ')]
+
 
     state = lambda: None
     state.step = 0
@@ -84,8 +86,13 @@ def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
                     callback(*args)
                     return blocking
 
+    hotkeys[hotkey] = handler
     add_handler(handler)
     return handler
+
+def unregister_hotkey(hotkey):
+    """ Removes a previously registered hotkey. """
+    remove_handler(hotkeys[hotkey])
 
 def write(text):
     """
