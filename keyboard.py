@@ -1,16 +1,21 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import time
 from threading import Thread
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, name_to_keycode
+from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 try:
-    from winkeyboard import listen, press, relese, map_char
+    from winkeyboard import listen, press, release, map_char
 except:
-    from nixkeyboard import listen, press, relese, map_char
+    from nixkeyboard import listen, press, release, map_char
 
 _pressed_events = {}
 def _update_state(event):
     if event.event_type == KEY_UP:
-        _pressed_events.discard(event.scan_code)
+        if event.scan_code in _pressed_events:
+            del _pressed_events[event.scan_code]
     else:
-        _pressed_events.add(event.scan_code)
+        _pressed_events[event.scan_code] = event
 
 handlers = [_update_state]
 
@@ -36,41 +41,48 @@ def is_pressed(key):
                 return True
         return False
 
-def register_hotkey(hotkey, callback, args=(), blocking=True):
+def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
     detected. Returns a handler that can be used to unregister it later. The
     hotkey must be in the format "ctrl+shift+a, s". This would trigger when the
     user presses "ctrl+shift+a", releases, and then presses "s".
 
-    blocking defines if the system should continue processing other hotkeys
+    `blocking` defines if the system should continue processing other hotkeys
     after a match is found.
-    """
-    keycode_combinations = []
-    for combination in hotkey.lower().replace(' ', '').split(','):
-        keycode_combination = set(map(name_to_keycode.get, combination.split('+')))
-        keycode_combinations.append(keycode_combination)
 
-    current_combination = [0]
+    `timeout` is the amount of time allowed to pass between key strokes before
+    the combination state is reset.
+    """
+    if len(hotkey) == 1:
+        steps = [[hotkey]]
+    else:
+        steps = [step.split('+') for step in hotkey.split(', ')]
+
+    state = lambda: None
+    state.step = 0
+    state.time = time.time()
 
     def handler(event):
         if event.event_type == KEY_UP:
             return
 
-        keycodes = keycode_combinations[current_combination[0]]
-        if event.keycode in keycodes:
-            if pressed_keys.issuperset(keycodes):
-                current_combination[0] += 1
-                if current_combination[0] == len(keycode_combinations):
-                    current_combination[0] = 0
-                    callback(*args) 
-                    return blocking
-        else:
-            current_combination[0] = 0
-            # The key pressed was not part of the current combination, but it
-            # could be of the first combination, so we have to try again.
-            if event.keycode in keycode_combinations[0]:
+        timed_out = state.step > 0 and event.time - state.time > timeout
+        unexpected = not any(event.matches(part) for part in steps[state.step])
+        if unexpected or timed_out:
+            if state.step > 0:
+                state.step = 0
                 handler(event)
+            else:
+                state.step = 0
+        else:
+            state.time = event.time
+            if all(is_pressed(part) for part in steps[state.step]):
+                state.step += 1
+                if state.step == len(steps):
+                    state.step = 0
+                    callback(*args)
+                    return blocking
 
     add_handler(handler)
     return handler
@@ -142,8 +154,6 @@ def play(events, speed_factor=1.0):
     intervals. If speed_factor is invalid (<= 0) the actions are replayed
     instantly.
     """
-    import time
-
     if not events:
         return
 
@@ -170,5 +180,7 @@ def wait(combination):
     remove_handler(hotkey_handler)
 
 if __name__ == '__main__':
-    print('Press esc twice to replay keyboard actions.')
-    play(record('esc, esc'), 3)
+    #print('Press esc twice to replay keyboard actions.')
+    #play(record('esc, esc'), 3)
+    wait('a, s, a')
+    print('Hey')

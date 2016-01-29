@@ -70,7 +70,7 @@ def listen(handlers):
         if low_event.type != EV_KEY:
             continue
         
-        time = low_event.seconds + low_event.microseconds * 1e6
+        time = low_event.seconds + low_event.microseconds / 1e6
         scan_code = low_event.code
         event_type = KEY_DOWN if low_event.value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
         entries = scan_code_table[scan_code]
