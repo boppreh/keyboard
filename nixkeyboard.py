@@ -1,36 +1,88 @@
 import struct
+from time import time as now
+from collections import namedtuple
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 
-event_bin_format = 'llhhi'
+import os
+if os.getuid() != 0:
+    raise ImportError('Must be super user to use this module.')
 
-def _read_device_file():
+scan_code_table = {}
+
+def _populate_scan_code_table():
+    """
+    Use `dumpkeys --keys-only` to list all scan codes and their names. We
+    then parse the output and built a table. For each scan code we have
+    a list of names, and if each name is in the keypad or not.
+    """
+    from subprocess import check_output
+    import re
+    keycode_template = r'\nkeycode\s+(\d+) = (.+)'
+    dump = check_output(['dumpkeys', '--keys-only'], universal_newlines=True)
+    for str_scan_code, str_names in re.findall(keycode_template, dump):
+        scan_code = int(str_scan_code)
+        scan_code_table[scan_code] = []
+        for name in re.split(r'\s{2,}', str_names):
+            if not name: continue
+
+            name = name.lstrip('+')
+            is_keypad = name.startswith('KP_')
+            for mod in ('Meta_', 'Control_', 'dead_', 'KP_'):
+                if name.startswith(mod):
+                    name = name[len(mod):]
+            pair = (name, is_keypad)
+            if pair not in scan_code_table[scan_code]:
+                scan_code_table[scan_code].append(pair)
+_populate_scan_code_table()
+
+class LowLevelEvent(namedtuple('LowLevelEvent', 'seconds microseconds type code value')):
+    event_bin_format = 'llHHI'
+
+    @staticmethod
+    def from_scan_code(self, scan_code, is_down=True):
+        integer, fraction = divmod(now(), 1)
+        return LowLevelEvent(int(integer), int(fraction*1e6), EV_KEY, scan_code, is_down)
+
+    @staticmethod
+    def from_file(file):
+        data = file.read(struct.calcsize(LowLevelEvent.event_bin_format))
+        return LowLevelEvent(*struct.unpack(LowLevelEvent.event_bin_format, data))
+
+    def write_to_file(self, file):
+        data = struct.pack(LowLevelEvent.event_bin_format, self.seconds, self.microseconds, self.type, self.code, self.value)
+        return file.write(data)
+
+# Taken from include/linux/input.h
+EV_KEY = 0x01
+
+def _open_input_file(filename_pattern='*-event-kbd', mode='rb'):
     import glob
-    event_files = glob.glob('/dev/input/by-id/*-event-kbd')
+    event_file = glob.glob('/dev/input/by-id/' + filename_pattern)[0]
+    return open(event_file, mode)
 
-    for event_file in event_files:
-        if '-if01-' not in event_file:
-            break
-
-    with open(event_file, 'rb') as events:
+def _read_input_file():
+    with _open_input_file() as events:
         while True:
-            yield events.read(struct.calcsize(event_bin_format))
+            yield LowLevelEvent.from_file(events)
 
 def listen(handlers):
-    import time
-    for input in _read_device_file():
-        s, ms, type, scancode, value = struct.unpack(event_bin_format, input)
-        
-        if scancode == 0 or value > 2:
-            # Three events appear for event recognizable key event. I still
-            # don't know what are those. The first has a very large "value" and
-            # appears before the proper event, and the second has zero code and
-            # value, appearing after the event. I'll just ignore them for now.
+    for low_event in _read_input_file():
+        if low_event.type != EV_KEY:
             continue
-
-        keycode = KeyboardEvent.name_to_keycode(char) or 0
-        time = s + ms/1e6
-        event_type = KEY_DOWN if value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
-        event = KeyboardEvent(event_type, keycode, scancode, time)
+        
+        time = low_event.seconds + low_event.microseconds * 1e6
+        scan_code = low_event.code
+        event_type = KEY_DOWN if low_event.value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
+        entries = scan_code_table[scan_code]
+        is_keypad = entries[0][1]
+        names = [name for name, is_keypad in entries]
+        try:
+            char = next(name for name in names if len(name) == 1)
+        except StopIteration:
+            char = None
+        
+        
+        event = KeyboardEvent(event_type, scan_code, is_keypad, char, names, time)
         
         for handler in handlers:
             try:
@@ -40,11 +92,16 @@ def listen(handlers):
             except Exception as e:
                 print(e)
 
-def press_keycode(keycode):
+def map_char(char):
     raise NotImplementedError()
 
-def release_keycode(keycode):
+def press(keycode):
+    raise NotImplementedError()
+
+def release(keycode):
     raise NotImplementedError()
 
 if __name__ == '__main__':
-    listen([])
+    def p(e):
+        print(e)
+    listen([p])

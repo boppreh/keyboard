@@ -107,24 +107,26 @@ def listen(handlers):
         assert GetKeyboardState(keyboard_state)
         # 32 is a completely arbitrary size that should contain any "character" typed.
         char_buffer = ctypes.create_unicode_buffer(32)
-        chars_written = user32.ToUnicode(keycode, scan_code, keyboard_state, char_buffer, len(char_buffer), 0)
+        chars_written = ToUnicode(keycode, scan_code, keyboard_state, char_buffer, len(char_buffer), 0)
         if chars_written > 0:
             char = char_buffer.value
         else:
             char = None
 
         names = [k for k, v in scan_code_by_name.items() if v == scan_code and k.isprintable()]
-        non_num_names = [name for name in names if not name.startswith('Num')]
 
+        is_keypad = False
         if names:
+            non_num_names = [name for name in names if not name.startswith('Num')]
             if non_num_names:
                 name = non_num_names[0]
             else:
+                is_keypad = True
                 name = names[0]
         else:
             name = None
 
-        event = KeyboardEvent(event_types[wParam], scan_code, name=name, char=char)
+        event = KeyboardEvent(event_types[wParam], scan_code, is_keypad, char, [name])
         
         for handler in handlers:
             try:
@@ -141,7 +143,7 @@ def listen(handlers):
 
     # Register to remove the hook when the interpreter exits. Unfortunately a
     # try/finally block doesn't seem to work here.
-    atexit.register(user32.UnhookWindowsHookEx, hook)
+    atexit.register(UnhookWindowsHookEx, hook)
 
     msg = LPMSG()
     while not GetMessage(msg, NULL, NULL, NULL):

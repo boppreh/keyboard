@@ -1,18 +1,16 @@
 from threading import Thread
+from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, name_to_keycode
 try:
     from winkeyboard import listen, press, relese, map_char
 except:
-    from nixkeyboard import listen, press_keycode, release_keycode
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, name_to_keycode
+    from nixkeyboard import listen, press, relese, map_char
 
-pressed_keys = set()
+_pressed_events = {}
 def _update_state(event):
     if event.event_type == KEY_UP:
-        try:
-            pressed_keys.remove(event.keycode)
-        except KeyError: pass
+        _pressed_events.discard(event.scan_code)
     else:
-        pressed_keys.add(event.keycode)
+        _pressed_events.add(event.scan_code)
 
 handlers = [_update_state]
 
@@ -30,43 +28,20 @@ def remove_handler(handler):
 
 def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
-    code = key if isinstance(key, int) else name_to_keycode[key]
-    return code in pressed_keys
-
-def add_word_handler(word_handler):
-    """
-    Invokes the given function each time a word is typed.
-    Returns a handler that can be used to stop.
-    """
-    # TODO: caps lock, shift + number
-    letters = []
-
-    def handler(event):
-        char = event.char
-
-        if event.event_type == KEY_UP or event.char is None:
-            return
-        elif char.isspace() and len(letters):
-            word_handler(''.join(letters))
-            letters[:] = []
-            return
-        else:
-            if is_pressed('lshift') or is_pressed('rshift'):
-                char = char.upper()
-            else:
-                char = char.lower()
-
-            letters.append(char)
-
-    add_handler(handler)
-    return handler
+    if isinstance(key, int):
+        return key in _pressed_events
+    else:
+        for event in _pressed_events.values():
+            if event.matches(key):
+                return True
+        return False
 
 def register_hotkey(hotkey, callback, args=(), blocking=True):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
     detected. Returns a handler that can be used to unregister it later. The
     hotkey must be in the format "ctrl+shift+a, s". This would trigger when the
-    user presses "ctrl+shift+a" and then "s".
+    user presses "ctrl+shift+a", releases, and then presses "s".
 
     blocking defines if the system should continue processing other hotkeys
     after a match is found.
