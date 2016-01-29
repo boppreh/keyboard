@@ -124,7 +124,7 @@ def listen(handlers):
         else:
             name = None
 
-        event = KeyboardEvent(event_types[wParam], keycode, scan_code, name=name, char=char)
+        event = KeyboardEvent(event_types[wParam], scan_code, name=name, char=char)
         
         for handler in handlers:
             try:
@@ -149,19 +149,14 @@ def listen(handlers):
         DispatchMessage(msg)
     UnhookWindowsHookEx(hook)
 
-def press_keycode(keycode):
-    user32.keybd_event(keycode, 0, 0, 0)
-
-def release_keycode(keycode):
-    user32.keybd_event(keycode, 0, 0x2, 0)
-
-def get_keyshift_from_char(char):
+def map_char(char):
     ret = VkKeyScan(WCHAR(char))
     if ret == -1:
         raise ValueError('Cannot type character ' + char)
     keycode = ret & 0x00FF
     shift = ret & 0xFF00
-    return keycode, shift
+    scan_code = next(k for k, v in keycode_by_scan_code.items() if v == keycode)
+    return scan_code, shift
 
 def press(scan_code):
     user32.keybd_event(keycode_by_scan_code[scan_code], 0, 0, 0)

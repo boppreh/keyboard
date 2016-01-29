@@ -1,6 +1,6 @@
 from threading import Thread
 try:
-    from winkeyboard import listen, press_keycode, release_keycode, get_keyshift_from_char
+    from winkeyboard import listen, press, relese, map_char
 except:
     from nixkeyboard import listen, press_keycode, release_keycode
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, name_to_keycode
@@ -107,7 +107,7 @@ def write(text):
     for unavailable characters.
     """
     for letter in text:
-        keycode, shift = get_keyshift_from_char(letter)
+        keycode, shift = map_char(letter)
         if shift:
             press_keycode(name_to_keycode[shift])
         press_keycode(keycode)
