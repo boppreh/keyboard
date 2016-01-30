@@ -9,7 +9,6 @@ from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG, LPWSTR, WCHAR, WPARAM, LP
 import atexit
 
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from mouse_event import MouseEvent
 
 user32 = ctypes.windll.user32
 
@@ -19,22 +18,14 @@ class KBDLLHOOKSTRUCT(Structure):
                 ("flags", DWORD),
                 ("time", c_int),]
 
-class MSLLHOOKSTRUCT(Structure):
-    _fields_ = [("x", c_long),
-                ("y", c_long),
-                ('data', c_int32),
-                ('reserved', c_int32),
-                ("flags", DWORD),
-                ("time", c_int),
-                ]
-
 LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
-LowLevelMouseProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(MSLLHOOKSTRUCT))
 
 SetWindowsHookEx = user32.SetWindowsHookExA
+SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
 SetWindowsHookEx.restype = HHOOK
 
 CallNextHookEx = user32.CallNextHookEx
+CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(KBDLLHOOKSTRUCT)]
 CallNextHookEx.restype = c_int
 
 UnhookWindowsHookEx = user32.UnhookWindowsHookEx
@@ -51,6 +42,7 @@ TranslateMessage.restype = BOOL
 
 DispatchMessage = user32.DispatchMessageA
 DispatchMessage.argtypes = [LPMSG]
+
 
 keyboard_state_type = c_uint8 * 256
 
@@ -121,94 +113,7 @@ keyboard_event_types = {
     WM_SYSKEYUP: KEY_UP,
 }
 
-# Beware, as of 2016-01-30 the official docs have a very incomplete list.
-# This one was compiled from experience and may be incomplete.
-WM_MOUSEMOVE = 0x200
-WM_LBUTTONDOWN = 0x201
-WM_LBUTTONUP = 0x202
-WM_LBUTTONDBLCLK = 0x203
-WM_RBUTTONDOWN = 0x204
-WM_RBUTTONUP = 0x205
-WM_RBUTTONDBLCLK = 0x206
-WM_MBUTTONDOWN = 0x207
-WM_MBUTTONUP = 0x208
-WM_MBUTTONDBLCLK = 0x209
-WM_MOUSEWHEEL = 0x20A
-WM_XBUTTONDOWN = 0x20B
-WM_XBUTTONUP = 0x20C
-WM_XBUTTONDBLCLK = 0x20D
-WM_NCXBUTTONDOWN = 0x00AB
-WM_NCXBUTTONUP = 0x00AC
-WM_NCXBUTTONDBLCLK = 0x00AD
-WM_MOUSEHWHEEL = 0x20E
-WM_LBUTTONDOWN = 0x0201
-WM_LBUTTONUP = 0x0202
-WM_MOUSEMOVE = 0x0200
-WM_MOUSEWHEEL = 0x020A
-WM_MOUSEHWHEEL = 0x020E
-WM_RBUTTONDOWN = 0x0204
-WM_RBUTTONUP = 0x0205
-
-mouse_message_codes = {
-    WM_MOUSEMOVE: ('move', ''),
-
-    WM_MOUSEWHEEL: ('wheel', ''),
-    WM_MOUSEHWHEEL: ('wheel', 'horizontal'),
-
-    WM_LBUTTONDOWN: ('left', 'down'),
-    WM_LBUTTONUP: ('left', 'up'),
-    WM_LBUTTONDBLCLK: ('left', 'double click'),
-    
-    WM_RBUTTONDOWN: ('right', 'down'),
-    WM_RBUTTONUP: ('right', 'up'),
-    WM_RBUTTONDBLCLK: ('right', 'double click'),
-
-    WM_MBUTTONDOWN: ('middle', 'down'),
-    WM_MBUTTONUP: ('middle', 'up'),
-    WM_MBUTTONDBLCLK: ('middle', 'double click'),
-
-    WM_XBUTTONDOWN: ('x', 'down'),
-    WM_XBUTTONUP: ('x', 'up'),
-    WM_XBUTTONDBLCLK: ('x', 'double click'),
-
-    WM_NCXBUTTONDOWN: ('x', 'down'), # NC = non-client
-    WM_NCXBUTTONUP: ('x', 'up'),
-    WM_NCXBUTTONDBLCLK: ('x', 'double click'),
-}
-
-MOUSEEVENTF_ABSOLUTE = 0x8000
-MOUSEEVENTF_MOVE = 0x1
-MOUSEEVENTF_WHEEL = 0x800 
-MOUSEEVENTF_HWHEEL = 0x1000
-MOUSEEVENTF_LEFTDOWN = 0x2 
-MOUSEEVENTF_LEFTUP = 0x4 
-MOUSEEVENTF_RIGHTDOWN = 0x8 
-MOUSEEVENTF_RIGHTUP = 0x10 
-MOUSEEVENTF_MIDDLEDOWN = 0x20 
-MOUSEEVENTF_MIDDLEUP = 0x40 
-MOUSEEVENTF_XDOWN = 0x0080
-MOUSEEVENTF_XUP = 0x0100
-
-simulated_mouse_codes = {
-    ('move', ''): MOUSEEVENTF_MOVE,
-
-    ('wheel', ''): MOUSEEVENTF_WHEEL,
-    ('wheel', 'horizontal'): MOUSEEVENTF_HWHEEL,
-
-    ('left', 'down'): MOUSEEVENTF_LEFTDOWN,
-    ('left', 'up'): MOUSEEVENTF_LEFTUP,
-    
-    ('right', 'down'): MOUSEEVENTF_RIGHTDOWN,
-    ('right', 'up'): MOUSEEVENTF_RIGHTUP,
-
-    ('middle', 'down'): MOUSEEVENTF_MIDDLEDOWN,
-    ('middle', 'up'): MOUSEEVENTF_MIDDLEUP,
-
-    ('x', 'down'): MOUSEEVENTF_XDOWN,
-    ('x', 'up'): MOUSEEVENTF_XUP,
-}
-
-def listen(on_keyboard, on_mouse):
+def listen(handler):
     def low_level_keyboard_handler(nCode, wParam, lParam):
         # You may be tempted to use ToUnicode to extract the character from
         # this event. Do not. ToUnicode breaks dead keys.
@@ -225,41 +130,16 @@ def listen(on_keyboard, on_mouse):
 
         event = KeyboardEvent(keyboard_event_types[wParam], scan_code, is_keypad, names)
         
-        if not on_keyboard(event):
-            return CallNextHookEx(NULL, nCode, wParam, lParam)
-
-    def low_level_mouse_handler(nCode, wParam, lParam):
-        struct = lParam.contents
-
-        type, arg = mouse_message_codes.get(wParam, ('?', ''))
-
-        wheel_delta = 0
-
-        if wParam >= WM_XBUTTONDOWN:
-            # There are actually two 'X' button.
-            type = {0x10000: 'x', 0x20000: 'x2'}[struct.data]
-        elif wParam == WM_MOUSEWHEEL or wParam == WM_MOUSEHWHEEL:
-            wheel_delta = struct.data // (120 * 0x10000)
-
-        event = MouseEvent(type, arg, struct.x, struct.y, wheel_delta)
-        
-        if on_mouse(event):
-            return 1
-        else:
+        if not handler(event):
             return CallNextHookEx(NULL, nCode, wParam, lParam)
 
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
     keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, NULL, NULL)
 
-    WH_MOUSE_LL = c_int(14)
-    mouse_callback = LowLevelMouseProc(low_level_mouse_handler)
-    mouse_hook = SetWindowsHookEx(WH_MOUSE_LL, mouse_callback, NULL, NULL)
-
     # Register to remove the hook when the interpreter exits. Unfortunately a
     # try/finally block doesn't seem to work here.
     atexit.register(UnhookWindowsHookEx, keyboard_callback)
-    atexit.register(UnhookWindowsHookEx, mouse_hook)
 
     msg = LPMSG()
     while not GetMessage(msg, NULL, NULL, NULL):
@@ -281,50 +161,7 @@ def press(scan_code):
 def release(scan_code):
     user32.keybd_event(keycode_by_scan_code[scan_code], 0, 2, 0)
 
-def _translate_button(button):
-    if button == 'x' or button == 'x2':
-        return 'x', {'x': 0x10000, 'x2': 0x20000}[button]
-    else:
-        return button, 0
-
-def mouse_down(button='left'):
-    button, data = _translate_button(button)
-    code = simulated_mouse_codes[(button, 'down')]
-    user32.mouse_event(code, 0, 0, data, 0)
-
-def mouse_up(button='left'):
-    button, data = _translate_button(button)
-    code = simulated_mouse_codes[(button, 'up')]
-    user32.mouse_event(code, 0, 0, data, 0)
-
-def mouse_click(button='left'):
-    mouse_down(button)
-    mouse_up(button)
-
-def mouse_double_click(button='left'):
-    mouse_click(button)
-    mouse_click(button)
-
-def mouse_move(x, y, absolute=True):
-    if absolute:
-        user32.SetCursorPos(int(x), int(y))
-    else:
-        user32.mouse_event(MOUSEEVENTF_MOVE, int(x), int(y), 0, 0)
-
-def send_mouse_event(event):
-    pair = (event.event_type, event.arg)
-    try:
-        code = simulated_mouse_codes[pair]
-        user32.mouse_event(code, event.x, event.y, data, 0)
-    except KeyError:
-        raise ValueError('Unsupported event type ' + str(event))
-
 if __name__ == '__main__':
-    #listen(lambda e: None, print)
-    import time
-    import math
-    t = 0
-    for i in range(1000):
-        time.sleep(0.01)
-        t = (t + 0.01) % 6.28
-        mouse_move(math.cos(t) * 500 + 500, math.sin(t) * 500 + 500, True)
+    def p(e):
+        print(e)
+    listen(p)

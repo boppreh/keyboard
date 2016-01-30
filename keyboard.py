@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import time
-from threading import Thread
+
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 try:
     from winkeyboard import listen, press, release, map_char, scan_code_table
 except:
     from nixkeyboard import listen, press, release, map_char, scan_code_table
+from generic import add_handler, remove_handler, start_listening
 
 def map_name_to_scancode(target_name):
     for scan_code, pairs in scan_code_table.items():
@@ -23,29 +24,6 @@ def _update_state(event):
             del _pressed_events[event.scan_code]
     else:
         _pressed_events[event.scan_code] = event
-
-handlers = [_update_state]
-
-def _callback():
-    for handler in handlers:
-        try:
-            if handler(event):
-                # Stop processing this hotkey.
-                return 1
-        except Exception as e:
-            traceback.print_exc()
-
-listening_thread = Thread(target=listen, args=(callback,))
-listening_thread.daemon=True
-listening_thread.start()
-
-def add_handler(handler):
-    """ Adds a function to receive each keyboard event captured. """
-    handlers.append(handler)
-
-def remove_handler(handler):
-    """ Removes a previously added keyboard event handler. """
-    handlers.remove(handler)
 
 def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
@@ -201,6 +179,10 @@ def play(events, speed_factor=1.0):
             press(event.scan_code)
         else:
             release(event.scan_code)
+
+
+add_handler(_update_state)
+start_listening(listen)
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
