@@ -1,8 +1,8 @@
 import time
 try:
-    from winmouse import listen, press, release, move_to, move_relative
+    import winmouse as os_mouse
 except:
-    from nixmouse import listen, press, release, move
+    import nixmouse as os_mouse
 from mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
 from generic import add_handler, remove_handler, start_listening
 
@@ -25,10 +25,18 @@ def _update_state(event):
     elif event.event_type == DOWN:
         _pressed_events.add(event.event_type)
 
+def press(button=LEFT):
+    """ Presses the given button (but doesn't release). """
+    os_mouse.press(button)
+
+def release(button=LEFT):
+    """ Releases the given button. """
+    os_mouse.press(button)
+
 def click(button=LEFT):
     """ Sends a click with the given button. """
-    press(button)
-    release(button)
+    os_mouse.press(button)
+    os_mouse.release(button)
 
 def double_click(button=LEFT):
     """ Sends a double click with the given button. """
@@ -64,15 +72,15 @@ def move(x, y, absolute=True, duration=0):
 
         steps = 120
         for i in range(steps):
-            move(start_x + dx*i/steps, start_y + dy*i/steps, absolute=absolute)
+            move(start_x + dx*i/steps, start_y + dy*i/steps)
             time.sleep(duration/steps)
     else:
         if absolute:
-            move_to(x, y)
+            os_mouse.move_to(x, y)
             position.x = x
             position.y = y
         else:
-            move_relative(x, y)
+            os_mouse.move_relative(x, y)
             position.x += x
             position.y += y
 
@@ -120,9 +128,11 @@ def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
     remove_handler(handler)
 
 add_handler(_update_state)
-start_listening(listen)
+start_listening(os_mouse.listen)
 
 if __name__ == '__main__':
+    print('Move the cursor somewhere and left-click.')
     wait()
-    move(100, 100, True, 1)
+    move(10, 10, False, 1)
+    double_click()
     print(position)
