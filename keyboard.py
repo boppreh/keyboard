@@ -8,7 +8,33 @@ try:
     from winkeyboard import listen, press, release, map_char, scan_code_table
 except:
     from nixkeyboard import listen, press, release, map_char, scan_code_table
-from generic import add_handler, remove_handler, start_listening
+
+from threading import Thread
+import traceback
+
+_handlers = []
+
+def _callback(event):
+    for handler in _handlers:
+        try:
+            if handler(event):
+                # Stop processing this hotkey.
+                return 1
+        except Exception as e:
+            traceback.print_exc()
+
+def start_listening(listen):
+    _listening_thread = Thread(target=listen, args=(_callback,))
+    _listening_thread.daemon=True
+    _listening_thread.start()
+
+def add_handler(handler):
+    """ Adds a function to receive each keyboard event captured. """
+    _handlers.append(handler)
+
+def remove_handler(handler):
+    """ Removes a previously added keyboard event handler. """
+    _handlers.remove(handler)
 
 def map_name_to_scancode(target_name):
     for scan_code, pairs in scan_code_table.items():

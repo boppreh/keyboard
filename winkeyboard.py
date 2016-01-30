@@ -21,11 +21,11 @@ class KBDLLHOOKSTRUCT(Structure):
 LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
 
 SetWindowsHookEx = user32.SetWindowsHookExA
-SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
+#SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
 SetWindowsHookEx.restype = HHOOK
 
 CallNextHookEx = user32.CallNextHookEx
-CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(KBDLLHOOKSTRUCT)]
+#CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(KBDLLHOOKSTRUCT)]
 CallNextHookEx.restype = c_int
 
 UnhookWindowsHookEx = user32.UnhookWindowsHookEx
@@ -130,7 +130,9 @@ def listen(handler):
 
         event = KeyboardEvent(keyboard_event_types[wParam], scan_code, is_keypad, names)
         
-        if not handler(event):
+        if handler(event):
+            return 1
+        else:
             return CallNextHookEx(NULL, nCode, wParam, lParam)
 
     WH_KEYBOARD_LL = c_int(13)
