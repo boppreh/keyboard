@@ -45,10 +45,6 @@ DispatchMessage.argtypes = [LPMSG]
 
 keyboard_state_type = c_uint8 * 256
 
-ToUnicode = user32.ToUnicode
-ToUnicode.argtypes = [c_int, c_int, keyboard_state_type, LPWSTR, c_int, c_uint]
-DispatchMessage.restype = c_int
-
 GetKeyboardState = user32.GetKeyboardState
 GetKeyboardState.argtypes = [keyboard_state_type]
 GetKeyboardState.restype = BOOL
@@ -118,6 +114,9 @@ def listen(handlers):
     }
 
     def low_level_handler(ncode, wParam, lParam):
+        # You may be tempted to use ToUnicode to extract the character from
+        # this event. Do not. ToUnicode breaks dead keys.
+
         scan_code = lParam.contents.scan_code
 
         if scan_code in scan_code_table:

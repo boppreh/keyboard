@@ -72,6 +72,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
     steps = _split_combination(hotkey)
 
+    # Just a dynamic object to store attributes for the `handler` closure.
     state = lambda: None
     state.step = 0
     state.time = time.time()
@@ -85,6 +86,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
         if unexpected or timed_out:
             if state.step > 0:
                 state.step = 0
+                # Could be start of hotkey again.
                 handler(event)
             else:
                 state.step = 0
