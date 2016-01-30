@@ -5,9 +5,16 @@ import time
 from threading import Thread
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 try:
-    from winkeyboard import listen, press, release, map_char
+    from winkeyboard import listen, press, release, map_char, scan_code_table
 except:
-    from nixkeyboard import listen, press, release, map_char
+    from nixkeyboard import listen, press, release, map_char, scan_code_table
+
+def map_name_to_scancode(target_name):
+    for scan_code, pairs in scan_code_table.items():
+        for name, is_shift in pairs:
+            if name == target_name:
+                return scan_code
+    raise ValueError('Unknown name {}'.format(target_name))
 
 _pressed_events = {}
 def _update_state(event):
@@ -35,6 +42,8 @@ def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
     if isinstance(key, int):
         return key in _pressed_events
+    elif len(key) and '+' in key:
+        return all(is_pressed(part) for part in key.split('+'))
     else:
         for event in _pressed_events.values():
             if event.matches(key):
@@ -103,15 +112,17 @@ def write(text, delay=0):
     for unavailable characters.
     """
     for letter in text:
-        if letter.isupper():
+        scan_code, shift = map_char(letter)
+        if shift:
             send('shift', True, False)
-        send(letter)
-        if letter.isupper():
+        press(scan_code)
+        release(scan_code)
+        if shift:
             send('shift', False, True)
         if delay:
             time.sleep(delay)
 
-def send(combination, press=True, release=True):
+def send(combination, do_press=True, do_release=True):
     """
     Performs a given hotkey combination.
 
@@ -120,11 +131,11 @@ def send(combination, press=True, release=True):
     for step in _split_combination(combination):
         scan_codes = [map_name_to_scancode(normalize_name(part)) for part in step]
 
-        if press:
+        if do_press:
             for scan_code in scan_codes:
                 press(scan_code)
 
-        if release:
+        if do_release:
             for scan_code in scan_codes:
                 release(scan_code)
 
@@ -181,6 +192,5 @@ def play(events, speed_factor=1.0):
             release(event.scan_code)
 
 if __name__ == '__main__':
-    #print('Press esc twice to replay keyboard actions.')
-    #play(record('esc, esc'), 3)
-    print(record('esc'))
+    print('Press esc twice to replay keyboard actions.')
+    play(record('esc, esc'), 3)

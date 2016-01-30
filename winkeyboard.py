@@ -8,7 +8,7 @@ from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG, LPWSTR, WCHAR
 
 import atexit
 
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
 user32 = ctypes.windll.user32
 
@@ -62,22 +62,41 @@ MapVirtualKey.argtypes = [c_uint, c_uint]
 MapVirtualKey.restype = c_uint
 
 MAPVK_VSC_TO_VK = 1
+
+scan_code_table = {}
 keycode_by_scan_code = {}
-scan_code_by_name = {}
 
 name_buffer = ctypes.create_unicode_buffer(32)
+
+def register_names(scan_code, add, enhanced):
+    ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
+    name = normalize_name(name_buffer.value)
+    if ret and name.isprintable():
+        if name.startswith('num ') and name != 'num lock':
+            is_keypad = True
+            name = name[len('num '):]
+        else:
+            is_keypad = False
+
+        if name.startswith('left ') or name.startswith('right '):
+            side, name = name.split(' ', 1)
+            name = normalize_name(name)
+            add((name, is_keypad))
+            add((side + ' '+ name, is_keypad))
+        else:
+            add((name, is_keypad))
+
 for scan_code in range(2**(23-16)):
-    ret = GetKeyNameText(scan_code << 16 | 1 << 24, name_buffer, 1024)
-    if ret:
-        scan_code_by_name[name_buffer.value] = scan_code
-    ret = GetKeyNameText(scan_code << 16 | 0 << 24, name_buffer, 1024)
-    if ret:
-        scan_code_by_name[name_buffer.value] = scan_code
+    entries = []
+    add = lambda v: entries.append(v) if v not in entries else None
+    register_names(scan_code, add, 1)
+    register_names(scan_code, add, 0)
+    if entries:
+        scan_code_table[scan_code] = entries
 
     ret = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
     if ret:
-        keycode_by_scan_code[scan_code] = ret    
-
+        keycode_by_scan_code[scan_code] = ret
 
 VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
@@ -98,43 +117,28 @@ def listen(handlers):
         WM_SYSKEYUP: KEY_UP,
     }
 
-
     def low_level_handler(ncode, wParam, lParam):
-        keycode = lParam.contents.vk_code
         scan_code = lParam.contents.scan_code
 
-        keyboard_state = keyboard_state_type()
-        assert GetKeyboardState(keyboard_state)
-        # 32 is a completely arbitrary size that should contain any "character" typed.
-        char_buffer = ctypes.create_unicode_buffer(32)
-        chars_written = ToUnicode(keycode, scan_code, keyboard_state, char_buffer, len(char_buffer), 0)
-        if chars_written > 0:
-            char = char_buffer.value
+        if scan_code in scan_code_table:
+            entries = scan_code_table[scan_code]
+            is_keypad = entries[0][1]
+            names = [name for name, is_keypad in entries]
         else:
-            char = None
+            is_keypad = False
+            names = []
 
-        names = [k for k, v in scan_code_by_name.items() if v == scan_code and k.isprintable()]
-
-        is_keypad = False
-        if names:
-            non_num_names = [name for name in names if not name.startswith('Num')]
-            if non_num_names:
-                name = non_num_names[0]
-            else:
-                is_keypad = True
-                name = names[0]
-        else:
-            name = None
-
-        event = KeyboardEvent(event_types[wParam], scan_code, is_keypad, char, [name])
+        event = KeyboardEvent(event_types[wParam], scan_code, is_keypad, names)
         
         for handler in handlers:
             try:
                 if handler(event):
                     # Stop processing this hotkey.
-                    return 1
+                    #return 1
+                    pass
             except Exception as e:
                 print(e)
+
         return CallNextHookEx(NULL, ncode, wParam, lParam)
     
     callback = LowLevelKeyboardProc(low_level_handler)
@@ -167,4 +171,6 @@ def release(scan_code):
     user32.keybd_event(keycode_by_scan_code[scan_code], 0, 2, 0)
 
 if __name__ == '__main__':
-    listen([lambda e: print(e.name)])
+    def p(e):
+        print(e)
+    listen([p])

@@ -7,16 +7,21 @@ KEY_DOWN = 'key down'
 KEY_UP = 'key up'
 
 class KeyboardEvent(object):
-    def __init__(self, event_type, scan_code, is_keypad=False, char=None, names=[], time=None):
+    def __init__(self, event_type, scan_code, is_keypad=False, names=[], time=None):
         self.event_type = event_type
         self.scan_code = scan_code
         self.is_keypad = is_keypad
         self.time = now() if time is None else time
-        self.char = char
         self.names = names
 
     def matches(self, description):
-        return self.scan_code == description or normalize_name(description) in self.names
+        if isinstance(description, int):
+            return self.scan_code == description
+        else:
+            normalized = normalize_name(description)
+            return (normalized in self.names or 'left '
+                + normalized in self.names or 'right '
+                + normalized in self.names)
 
     def __str__(self):
         name = self.names[0] if len(self.names) else 'Unknown {}'.format(self.scan_code)
@@ -32,12 +37,16 @@ canonical_names = {
 
     'scrlk': 'scroll lock',
     'prtscn': 'print screen',
+    'prnt scrn': 'print screen',
+    'snapshot': 'print screen',
+    'ins': 'insert',
     'pause break': 'pause',
     'ctrll lock': 'caps lock',
     'number lock': 'num lock',
     'numlock:' 'num lock'
 
     ' ': 'space',
+    '\t': 'tab',
     'underscore': '_',
 
     'equal': '=',
@@ -71,8 +80,10 @@ canonical_names = {
     'diaeresis': '"',
     
     'acute': '´',
+    'agudo': '´',
     'grave': '`',
     'tilde': '~',
+    'til': '~',
     'apostrophe': '\'',
     
     'ccedilla': 'ç',

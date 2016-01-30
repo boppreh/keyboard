@@ -74,13 +74,8 @@ def listen(handlers):
         entries = scan_code_table[scan_code]
         is_keypad = entries[0][1]
         names = [name for name, is_keypad in entries]
-        try:
-            char = next(name for name in names if len(name) == 1)
-        except StopIteration:
-            char = None
         
-        
-        event = KeyboardEvent(event_type, scan_code, is_keypad, char, names, time)
+        event = KeyboardEvent(event_type, scan_code, is_keypad, names, time)
         
         for handler in handlers:
             try:
@@ -91,14 +86,7 @@ def listen(handlers):
                 traceback.print_exc()
 
 def map_char(char):
-    return map_name_to_scancode(normalize_name(char))
-
-def map_name_to_scancode(target_name):
-    for scan_code, pairs in scan_code_table.items():
-        for name, is_shift in pairs:
-            if name == target_name:
-                return scan_code
-    raise ValueError('Unknown name {}'.format(target_name))
+    return map_name_to_scancode(normalize_name(char)), char.isupper()
 
 def press(scan_code):
     raise NotImplementedError()
