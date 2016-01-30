@@ -1,14 +1,15 @@
 """
-Code adapted from http://pastebin.com/wzYZGZrs
+Code heavily adapted from http://pastebin.com/wzYZGZrs
 """
 
 import ctypes
-from ctypes import c_short, c_char, c_uint8, c_int, c_uint, c_long, Structure, CFUNCTYPE, POINTER
-from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG, LPWSTR, WCHAR
+from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_long, Structure, CFUNCTYPE, POINTER
+from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG, LPWSTR, WCHAR, WPARAM, LPARAM
 
 import atexit
 
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from mouse_event import MouseEvent
 
 user32 = ctypes.windll.user32
 
@@ -18,14 +19,22 @@ class KBDLLHOOKSTRUCT(Structure):
                 ("flags", DWORD),
                 ("time", c_int),]
 
-LowLevelKeyboardProc = CFUNCTYPE(c_int, c_int, c_int, POINTER(KBDLLHOOKSTRUCT))
+class MSLLHOOKSTRUCT(Structure):
+    _fields_ = [("x", c_long),
+                ("y", c_long),
+                ('data', c_int32),
+                ('reserved', c_int32),
+                ("flags", DWORD),
+                ("time", c_int),
+                ]
+
+LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
+LowLevelMouseProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(MSLLHOOKSTRUCT))
 
 SetWindowsHookEx = user32.SetWindowsHookExA
-SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
 SetWindowsHookEx.restype = HHOOK
 
 CallNextHookEx = user32.CallNextHookEx
-CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(KBDLLHOOKSTRUCT)]
 CallNextHookEx.restype = c_int
 
 UnhookWindowsHookEx = user32.UnhookWindowsHookEx
@@ -98,7 +107,7 @@ VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
 VkKeyScan.restype = c_short
 
-def listen(handlers):
+def listen(on_keyboard, on_mouse):
     NULL = c_int(0)
 
     WM_KEYDOWN = 0x0100
@@ -106,14 +115,70 @@ def listen(handlers):
     WM_SYSKEYDOWN = 0x104 # Used for ALT key
     WM_SYSKEYUP = 0x105
 
-    event_types = {
+    keyboard_event_types = {
         WM_KEYDOWN: KEY_DOWN,
         WM_KEYUP: KEY_UP,
         WM_SYSKEYDOWN: KEY_DOWN,
         WM_SYSKEYUP: KEY_UP,
     }
 
-    def low_level_handler(ncode, wParam, lParam):
+    # Beware, as of 2016-01-30 the official docs have a very incomplete list.
+    # This one was compiled from experience and may be incomplete.
+    WM_MOUSEMOVE = 0x200
+    WM_LBUTTONDOWN = 0x201
+    WM_LBUTTONUP = 0x202
+    WM_LBUTTONDBLCLK = 0x203
+    WM_RBUTTONDOWN = 0x204
+    WM_RBUTTONUP = 0x205
+    WM_RBUTTONDBLCLK = 0x206
+    WM_MBUTTONDOWN = 0x207
+    WM_MBUTTONUP = 0x208
+    WM_MBUTTONDBLCLK = 0x209
+    WM_MOUSEWHEEL = 0x20A
+    WM_XBUTTONDOWN = 0x20B
+    WM_XBUTTONUP = 0x20C
+    WM_XBUTTONDBLCLK = 0x20D
+    WM_NCXBUTTONDOWN = 0x00AB
+    WM_NCXBUTTONUP = 0x00AC
+    WM_NCXBUTTONDBLCLK = 0x00AD
+    WM_MOUSEHWHEEL = 0x20E
+    WM_LBUTTONDOWN = 0x0201
+    WM_LBUTTONUP = 0x0202
+    WM_MOUSEMOVE = 0x0200
+    WM_MOUSEWHEEL = 0x020A
+    WM_MOUSEHWHEEL = 0x020E
+    WM_RBUTTONDOWN = 0x0204
+    WM_RBUTTONUP = 0x0205
+
+    mouse_message_codes = {
+        WM_MOUSEMOVE: ('move', ''),
+
+        WM_MOUSEWHEEL: ('wheel', ''),
+        WM_MOUSEHWHEEL: ('wheel', 'horizontal'),
+
+        WM_LBUTTONDOWN: ('left', 'down'),
+        WM_LBUTTONUP: ('left', 'up'),
+        WM_LBUTTONDBLCLK: ('left', 'double click'),
+        
+        WM_RBUTTONDOWN: ('right', 'down'),
+        WM_RBUTTONUP: ('right', 'up'),
+        WM_RBUTTONDBLCLK: ('right', 'double click'),
+
+        WM_MBUTTONDOWN: ('middle', 'down'),
+        WM_MBUTTONUP: ('middle', 'up'),
+        WM_MBUTTONDBLCLK: ('middle', 'double click'),
+
+        WM_XBUTTONDOWN: ('x', 'down'),
+        WM_XBUTTONUP: ('x', 'up'),
+        WM_XBUTTONDBLCLK: ('x', 'double click'),
+
+        WM_NCXBUTTONDOWN: ('x', 'down'), # NC = non-client
+        WM_NCXBUTTONUP: ('x', 'up'),
+        WM_NCXBUTTONDBLCLK: ('x', 'double click'),
+    }
+
+
+    def low_level_keyboard_handler(nCode, wParam, lParam):
         # You may be tempted to use ToUnicode to extract the character from
         # this event. Do not. ToUnicode breaks dead keys.
 
@@ -127,32 +192,48 @@ def listen(handlers):
             is_keypad = False
             names = []
 
-        event = KeyboardEvent(event_types[wParam], scan_code, is_keypad, names)
+        event = KeyboardEvent(keyboard_event_types[wParam], scan_code, is_keypad, names)
         
-        for handler in handlers:
-            try:
-                if handler(event):
-                    # Stop processing this hotkey.
-                    #return 1
-                    pass
-            except Exception as e:
-                print(e)
+        if not on_keyboard(event):
+            return CallNextHookEx(NULL, nCode, wParam, lParam)
 
-        return CallNextHookEx(NULL, ncode, wParam, lParam)
-    
-    callback = LowLevelKeyboardProc(low_level_handler)
+    def low_level_mouse_handler(nCode, wParam, lParam):
+        struct = lParam.contents
+
+        type, arg = mouse_message_codes.get(wParam, ('?', ''))
+
+        wheel_delta = 0
+
+        if wParam >= WM_XBUTTONDOWN:
+            # There are actually two 'X' button.
+            type = {0x10000: 'x', 0x20000: 'x2'}[struct.data]
+        elif wParam == WM_MOUSEWHEEL or wParam == WM_MOUSEHWHEEL:
+            wheel_delta = struct.data // (120 * 0x10000)
+
+        event = MouseEvent(type, arg, struct.x, struct.y, wheel_delta)
+        
+        if on_mouse(event):
+            return 1
+        else:
+            return CallNextHookEx(NULL, nCode, wParam, lParam)
+
     WH_KEYBOARD_LL = c_int(13)
-    hook = SetWindowsHookEx(WH_KEYBOARD_LL, callback, NULL, NULL)
+    keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
+    keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, NULL, NULL)
+
+    WH_MOUSE_LL = c_int(14)
+    mouse_callback = LowLevelMouseProc(low_level_mouse_handler)
+    mouse_hook = SetWindowsHookEx(WH_MOUSE_LL, mouse_callback, NULL, NULL)
 
     # Register to remove the hook when the interpreter exits. Unfortunately a
     # try/finally block doesn't seem to work here.
-    atexit.register(UnhookWindowsHookEx, hook)
+    atexit.register(UnhookWindowsHookEx, keyboard_callback)
+    atexit.register(UnhookWindowsHookEx, mouse_hook)
 
     msg = LPMSG()
     while not GetMessage(msg, NULL, NULL, NULL):
         TranslateMessage(msg)
         DispatchMessage(msg)
-    UnhookWindowsHookEx(hook)
 
 def map_char(char):
     ret = VkKeyScan(WCHAR(char))
@@ -170,6 +251,4 @@ def release(scan_code):
     user32.keybd_event(keycode_by_scan_code[scan_code], 0, 2, 0)
 
 if __name__ == '__main__':
-    def p(e):
-        print(e)
-    listen([p])
+    listen(lambda e: None, print)

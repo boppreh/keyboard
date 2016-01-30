@@ -63,7 +63,7 @@ def _read_input_file(filename_pattern='*-event-kbd'):
         while True:
             yield LowLevelEvent.from_file(events)
 
-def listen(handlers):
+def listen(callback):
     for low_event in _read_input_file():
         if low_event.type != EV_KEY:
             continue
@@ -76,14 +76,7 @@ def listen(handlers):
         names = [name for name, is_keypad in entries]
         
         event = KeyboardEvent(event_type, scan_code, is_keypad, names, time)
-        
-        for handler in handlers:
-            try:
-                if handler(event):
-                    # Stop processing this hotkey.
-                    return 1
-            except Exception as e:
-                traceback.print_exc()
+        callback(event)
 
 def map_char(char):
     return map_name_to_scancode(normalize_name(char)), char.isupper()

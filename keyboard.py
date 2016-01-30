@@ -26,7 +26,16 @@ def _update_state(event):
 
 handlers = [_update_state]
 
-listening_thread = Thread(target=listen, args=(handlers,))
+def _callback():
+    for handler in handlers:
+        try:
+            if handler(event):
+                # Stop processing this hotkey.
+                return 1
+        except Exception as e:
+            traceback.print_exc()
+
+listening_thread = Thread(target=listen, args=(callback,))
 listening_thread.daemon=True
 listening_thread.start()
 
