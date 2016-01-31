@@ -35,6 +35,11 @@ canonical_names = {
     'control': 'ctrl',
     'altgr': 'alt gr',
 
+    '\x1b': 'esc',
+    '\x08': 'backspace',
+    '\n': 'enter',
+    '\t': 'tab',
+
     'scrlk': 'scroll lock',
     'prtscn': 'print screen',
     'prnt scrn': 'print screen',
@@ -46,7 +51,6 @@ canonical_names = {
     'numlock:' 'num lock'
 
     ' ': 'space',
-    '\t': 'tab',
     'underscore': '_',
 
     'equal': '=',

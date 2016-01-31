@@ -4,9 +4,10 @@
 import time
 
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-try:
+import platform
+if platform.system() == 'Windows':
     import winkeyboard as os_keyboard
-except:
+else:
     import nixkeyboard as os_keyboard
     
 from generic import GenericListener

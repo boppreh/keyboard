@@ -4,7 +4,8 @@ Code heavily adapted from http://pastebin.com/wzYZGZrs
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
-from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG, LPWSTR, WCHAR, WPARAM, LPARAM
+from ctypes.wintypes import DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM
+LPMSG = POINTER(MSG)
 
 import atexit
 
@@ -68,7 +69,7 @@ name_buffer = ctypes.create_unicode_buffer(32)
 def register_names(scan_code, add, enhanced):
     ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
     name = normalize_name(name_buffer.value)
-    if ret and name.isprintable():
+    if ret:
         if name.startswith('num ') and name != 'num lock':
             is_keypad = True
             name = name[len('num '):]

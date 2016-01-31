@@ -1,7 +1,8 @@
 import time
-try:
+import platform
+if platform.system() == 'Windows':
     import winmouse as os_mouse
-except:
+else:
     import nixmouse as os_mouse
 from mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
 
@@ -82,8 +83,8 @@ def move(x, y, absolute=True, duration=0):
             time.sleep(duration)
             return
 
-        steps = 120
-        for i in range(steps):
+        steps = 120.0
+        for i in range(int(steps)):
             move(start_x + dx*i/steps, start_y + dy*i/steps)
             time.sleep(duration/steps)
     else:
@@ -150,4 +151,4 @@ if __name__ == '__main__':
     wait()
     move(10, 10, False, 1)
     double_click()
-    print(get_position)
+    print(get_position())
