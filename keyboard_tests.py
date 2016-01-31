@@ -140,5 +140,22 @@ class TestKeyboard(unittest.TestCase):
         self.click('a')
         lock.acquire()
 
+    def test_record_play(self):
+        from threading import Thread, Lock
+        lock = Lock()
+        lock.acquire()
+        def t():
+            keyboard.play(keyboard.record('esc'), speed_factor=0)
+            lock.release()
+        Thread(target=t).start()
+        self.click('a')
+        self.press('shift')
+        self.press('b')
+        self.release('b')
+        self.release('shift')
+        self.click('esc')
+        lock.acquire()
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift')])
+
 if __name__ == '__main__':
     unittest.main()
