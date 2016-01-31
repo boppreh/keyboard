@@ -38,7 +38,7 @@ def press(button=LEFT):
 @listener.wrap
 def release(button=LEFT):
     """ Releases the given button. """
-    os_mouse.press(button)
+    os_mouse.release(button)
 
 @listener.wrap
 def click(button=LEFT):
@@ -55,7 +55,6 @@ def double_click(button=LEFT):
 @listener.wrap
 def right_click():
     """ Sends a right click with the given button. """
-    click(RIGHT)
     click(RIGHT)
 
 @listener.wrap
@@ -81,12 +80,13 @@ def move(x, y, absolute=True, duration=0):
 
         if dx == 0 and dy == 0:
             time.sleep(duration)
-            return
-
-        steps = 120.0
-        for i in range(int(steps)):
-            move(start_x + dx*i/steps, start_y + dy*i/steps)
-            time.sleep(duration/steps)
+        else:
+            # 120 movements per second.
+            # Round and keep float to ensure float division in Python 2
+            steps = max(1.0, float(int(duration * 120.0)))
+            for i in range(int(steps)+1):
+                move(start_x + dx*i/steps, start_y + dy*i/steps)
+                time.sleep(duration/steps)
     else:
         if absolute:
             os_mouse.move_to(x, y)
