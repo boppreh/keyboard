@@ -29,6 +29,9 @@ class FakeOsKeyboard(object):
         return scan_codes_by_name[char.lower()], char.isupper()
 
 class TestKeyboard(unittest.TestCase):
+    # Without this attribute Python2 tests fail for some unknown reason.
+    __name__ = 'what'
+
     def setUp(self):
         # We will use our own events, thank you very much.
         keyboard.listener.listening = True
@@ -47,7 +50,8 @@ class TestKeyboard(unittest.TestCase):
 
     def flush_events(self):
         events = list(self.events)
-        self.events.clear()
+        # Ugly, but requried to work in Python2. Python3 has list.clear
+        del self.events[:]
         return events
 
     def test_is_pressed(self):
@@ -130,6 +134,7 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'shift')])
 
     def test_wait(self):
+        # If this fails it blocks. Unfortunately, but I see no other way of testing.
         from threading import Thread, Lock
         lock = Lock()
         lock.acquire()
