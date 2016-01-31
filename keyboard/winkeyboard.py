@@ -176,5 +176,4 @@ def release(scan_code):
 if __name__ == '__main__':
     def p(e):
         print(e)
-    #listen(p)
-    print(map_char('k'))
+    listen(p)
