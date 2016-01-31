@@ -129,6 +129,16 @@ class TestKeyboard(unittest.TestCase):
         keyboard.release('shift+a')
         self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'shift')])
 
+    def test_wait(self):
+        from threading import Thread, Lock
+        lock = Lock()
+        lock.acquire()
+        def t():
+            keyboard.wait('a')
+            lock.release()
+        Thread(target=t).start()
+        self.click('a')
+        lock.acquire()
 
 if __name__ == '__main__':
     unittest.main()
