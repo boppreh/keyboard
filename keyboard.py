@@ -27,13 +27,6 @@ class KeyboardListener(GenericListener):
 
 listener = KeyboardListener()
 
-def map_name_to_scancode(target_name):
-    for scan_code, pairs in os_keyboard.scan_code_table.items():
-        for name, is_shift in pairs:
-            if name == target_name:
-                return scan_code
-    raise ValueError('Unknown name {}'.format(target_name))
-
 @listener.wrap
 def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
@@ -132,7 +125,8 @@ def send(combination, do_press=True, do_release=True):
     Ex: "ctrl+alt+del", "alt+F4, enter", "shift+s"
     """
     for step in _split_combination(combination):
-        scan_codes = [map_name_to_scancode(normalize_name(part)) for part in step]
+        get_scan_code = os_keyboard.scan_code_table.get_scan_code 
+        scan_codes = [get_scan_code(normalize_name(part)) for part in step]
 
         if do_press:
             for scan_code in scan_codes:
@@ -207,6 +201,4 @@ def play(events, speed_factor=1.0):
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
-    #play(record('esc, esc'), 3)
-    send('a')
-    send('a')
+    play(record('esc, esc'), 3)

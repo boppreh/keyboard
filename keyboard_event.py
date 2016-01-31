@@ -48,7 +48,7 @@ canonical_names = {
     'pause break': 'pause',
     'ctrll lock': 'caps lock',
     'number lock': 'num lock',
-    'numlock:' 'num lock'
+    'numlock:': 'num lock',
 
     ' ': 'space',
     'underscore': '_',

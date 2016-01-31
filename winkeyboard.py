@@ -61,41 +61,43 @@ MapVirtualKey.restype = c_uint
 
 MAPVK_VSC_TO_VK = 1
 
-scan_code_table = {}
-keycode_by_scan_code = {}
+class ScanCodeTable(GenericScanCodeTable):
+    def __init__(self):
+        GenericScanCodeTable.__init__(self)
+        self.keycode_by_scan_code = {}
+
+    def populate(self):
+        for scan_code in range(2**(23-16)):
+            entries = []
+            add = lambda v: entries.append(v) if v not in entries else None
+            register_names(scan_code, add, 1)
+            register_names(scan_code, add, 0)
+            if entries:
+                self.table[scan_code] = entries
+
+            ret = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+            if ret:
+                self.keycode_by_scan_code[scan_code] = ret
+
+    def register_names(scan_code, add, enhanced):
+        ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
+        name = normalize_name(name_buffer.value)
+        if ret:
+            if name.startswith('num ') and name != 'num lock':
+                is_keypad = True
+                name = name[len('num '):]
+            else:
+                is_keypad = False
+
+            if name.startswith('left ') or name.startswith('right '):
+                side, name = name.split(' ', 1)
+                name = normalize_name(name)
+                add((name, is_keypad))
+                add((side + ' '+ name, is_keypad))
+            else:
+                add((name, is_keypad))
 
 name_buffer = ctypes.create_unicode_buffer(32)
-
-def register_names(scan_code, add, enhanced):
-    ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
-    name = normalize_name(name_buffer.value)
-    if ret:
-        if name.startswith('num ') and name != 'num lock':
-            is_keypad = True
-            name = name[len('num '):]
-        else:
-            is_keypad = False
-
-        if name.startswith('left ') or name.startswith('right '):
-            side, name = name.split(' ', 1)
-            name = normalize_name(name)
-            add((name, is_keypad))
-            add((side + ' '+ name, is_keypad))
-        else:
-            add((name, is_keypad))
-
-def build_tables():
-    for scan_code in range(2**(23-16)):
-        entries = []
-        add = lambda v: entries.append(v) if v not in entries else None
-        register_names(scan_code, add, 1)
-        register_names(scan_code, add, 0)
-        if entries:
-            scan_code_table[scan_code] = entries
-
-        ret = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-        if ret:
-            keycode_by_scan_code[scan_code] = ret
 
 VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
@@ -116,8 +118,6 @@ keyboard_event_types = {
 }
 
 def listen(handler):
-    build_tables()
-    
     def low_level_keyboard_handler(nCode, wParam, lParam):
         # You may be tempted to use ToUnicode to extract the character from
         # this event. Do not. ToUnicode breaks dead keys.
@@ -125,7 +125,7 @@ def listen(handler):
         scan_code = lParam.contents.scan_code
 
         if scan_code in scan_code_table:
-            entries = scan_code_table[scan_code]
+            entries = scan_code_table.get_name_keypad(scan_code)
             is_keypad = entries[0][1]
             names = [name for name, is_keypad in entries]
         else:
@@ -158,14 +158,14 @@ def map_char(char):
         raise ValueError('Cannot type character ' + char)
     keycode = ret & 0x00FF
     shift = ret & 0xFF00
-    scan_code = next(k for k, v in keycode_by_scan_code.items() if v == keycode)
+    scan_code = next(k for k, v in scan_code_table.keycode_by_scan_code.items() if v == keycode)
     return scan_code, shift
 
 def press(scan_code):
-    user32.keybd_event(keycode_by_scan_code[scan_code], 0, 0, 0)
+    user32.keybd_event(scan_code_table.keycode_by_scan_code[scan_code], 0, 0, 0)
 
 def release(scan_code):
-    user32.keybd_event(keycode_by_scan_code[scan_code], 0, 2, 0)
+    user32.keybd_event(scan_code_table.keycode_by_scan_code[scan_code], 0, 2, 0)
 
 if __name__ == '__main__':
     def p(e):
