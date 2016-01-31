@@ -1,5 +1,5 @@
 import ctypes
-from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
+from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, byref, Structure, CFUNCTYPE, POINTER
 from ctypes.wintypes import DWORD, BOOL, HHOOK, LPMSG, LPWSTR, WCHAR, WPARAM, LPARAM
 
 import atexit
@@ -195,6 +195,14 @@ def move_to(x, y):
 
 def move_relative(x, y):
     user32.mouse_event(MOUSEEVENTF_MOVE, int(x), int(y), 0, 0)
+
+class POINT(Structure):
+    _fields_ = [("x", c_long), ("y", c_long)]
+
+def get_position():
+    point = POINT()
+    user32.GetCursorPos(byref(point))
+    return (point.x, point.y)
 
 if __name__ == '__main__':
     def p(e):
