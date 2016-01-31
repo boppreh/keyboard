@@ -6,6 +6,7 @@ import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
 from ctypes.wintypes import DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM
 LPMSG = POINTER(MSG)
+from generic import GenericScanCodeTable
 
 import atexit
 
@@ -70,8 +71,8 @@ class ScanCodeTable(GenericScanCodeTable):
         for scan_code in range(2**(23-16)):
             entries = []
             add = lambda v: entries.append(v) if v not in entries else None
-            register_names(scan_code, add, 1)
-            register_names(scan_code, add, 0)
+            self.register_names(scan_code, add, 1)
+            self.register_names(scan_code, add, 0)
             if entries:
                 self.table[scan_code] = entries
 
@@ -79,7 +80,7 @@ class ScanCodeTable(GenericScanCodeTable):
             if ret:
                 self.keycode_by_scan_code[scan_code] = ret
 
-    def register_names(scan_code, add, enhanced):
+    def register_names(self, scan_code, add, enhanced):
         ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
         name = normalize_name(name_buffer.value)
         if ret:
@@ -96,6 +97,8 @@ class ScanCodeTable(GenericScanCodeTable):
                 add((side + ' '+ name, is_keypad))
             else:
                 add((name, is_keypad))
+
+scan_code_table = ScanCodeTable()
 
 name_buffer = ctypes.create_unicode_buffer(32)
 

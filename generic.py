@@ -64,5 +64,6 @@ class GenericScanCodeTable(object):
                     return scan_code
         raise ValueError('Char not not found ' + repr(name))
 
-    def __in__(self, scan_code):
+    def __contains__(self, scan_code):
+        self.ensure_populated()
         return scan_code in self.table
