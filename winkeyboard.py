@@ -98,6 +98,16 @@ class ScanCodeTable(GenericScanCodeTable):
             else:
                 add((name, is_keypad))
 
+    def map_char(self, char):
+        self.ensure_populated()
+        ret = VkKeyScan(WCHAR(char))
+        if ret == -1:
+            raise ValueError('Cannot type character ' + char)
+        keycode = ret & 0x00FF
+        shift = ret & 0xFF00
+        scan_code = next(k for k, v in self.keycode_by_scan_code.items() if v == keycode)
+        return scan_code, shift
+
 scan_code_table = ScanCodeTable()
 
 name_buffer = ctypes.create_unicode_buffer(32)
@@ -155,14 +165,7 @@ def listen(handler):
         TranslateMessage(msg)
         DispatchMessage(msg)
 
-def map_char(char):
-    ret = VkKeyScan(WCHAR(char))
-    if ret == -1:
-        raise ValueError('Cannot type character ' + char)
-    keycode = ret & 0x00FF
-    shift = ret & 0xFF00
-    scan_code = next(k for k, v in scan_code_table.keycode_by_scan_code.items() if v == keycode)
-    return scan_code, shift
+map_char = scan_code_table.map_char
 
 def press(scan_code):
     user32.keybd_event(scan_code_table.keycode_by_scan_code[scan_code], 0, 0, 0)
@@ -173,4 +176,5 @@ def release(scan_code):
 if __name__ == '__main__':
     def p(e):
         print(e)
-    listen(p)
+    #listen(p)
+    print(map_char('k'))
