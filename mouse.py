@@ -4,82 +4,65 @@ try:
 except:
     import nixmouse as os_mouse
 from mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
-from generic import add_handler, remove_handler, start_listening
 
 from threading import Thread
 import traceback
+from generic import GenericListener
 
-_handlers = []
 listening = False
+
+_pressed_events = set()
+class MouseListener(GenericListener):
+    def callback(self, event):
+        if event.event_type in (UP, DOUBLE):
+            _pressed_events.discard(event.event_type)
+        elif event.event_type == DOWN:
+            _pressed_events.add(event.event_type)
+
+        return self.invoke_handlers(event)
+
+    def listen(self):
+        os_mouse.listen(self.callback)
+
+listener = MouseListener()
 
 def add_handler(handler):
     """ Adds a function to receive each keyboard event captured. """
-    _handlers.append(handler)
+    listener.handlers.append(handler)
 
 def remove_handler(handler):
     """ Removes a previously added keyboard event handler. """
-    _handlers.remove(handler)
+    listener.handlers.remove(handler)
 
-_pressed_events = set()
-def _callback(event):
-    if event.event_type in (UP, DOUBLE):
-        _pressed_events.discard(event.event_type)
-    elif event.event_type == DOWN:
-        _pressed_events.add(event.event_type)
-
-    for handler in _handlers:
-        try:
-            if handler(event):
-                # Stop processing this hotkey.
-                return 1
-        except Exception as e:
-            traceback.print_exc()
-
-import functools
-def _ensure_listening(func):
-    """
-    Wraps a function ensuring the listener thread is active.
-    """
-    @functools.wraps(func)
-    def wrapper(*args, **kwds):
-        global listening
-        if not listening:
-            listening = True
-            _listening_thread = Thread(target=os_mouse.listen, args=(_callback,))
-            _listening_thread.daemon=True
-            _listening_thread.start()
-        return func(*args, **kwds)
-    return wrapper
-
-@_ensure_listening
+@listener.wrap
 def press(button=LEFT):
     """ Presses the given button (but doesn't release). """
     os_mouse.press(button)
 
-@_ensure_listening
+@listener.wrap
 def release(button=LEFT):
     """ Releases the given button. """
     os_mouse.press(button)
 
-@_ensure_listening
+@listener.wrap
 def click(button=LEFT):
     """ Sends a click with the given button. """
     os_mouse.press(button)
     os_mouse.release(button)
 
-@_ensure_listening
+@listener.wrap
 def double_click(button=LEFT):
     """ Sends a double click with the given button. """
     click(button)
     click(button)
 
-@_ensure_listening
+@listener.wrap
 def right_click():
     """ Sends a right click with the given button. """
     click(RIGHT)
     click(RIGHT)
 
-@_ensure_listening
+@listener.wrap
 def move(x, y, absolute=True, duration=0):
     """
     Moves the mouse. If `absolute`, to position (x, y), otherwise move relative
@@ -114,7 +97,7 @@ def move(x, y, absolute=True, duration=0):
         else:
             os_mouse.move_relative(x, y)
 
-@_ensure_listening
+@listener.wrap
 def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), target_types=(UP, DOWN, DOUBLE)):
     """ Invokes `callback` with `args` when the specified event happens. """
     if not isinstance(buttons, (tuple, list)):
@@ -128,29 +111,29 @@ def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), target_ty
     add_handler(handler)
     return handler
 
-@_ensure_listening
+@listener.wrap
 def on_click(callback, args=()):
     """ Invokes `callback` with `args` when the left button is clicked. """
     return on_button(callback, args, [LEFT], target_types=[DOWN])
 
-@_ensure_listening
+@listener.wrap
 def on_double_click(callback, args=()):
     """
     Invokes `callback` with `args` when the left button is double clicked.
     """
     return on_button(callback, args, [LEFT], target_types=[DOUBLE])
 
-@_ensure_listening
+@listener.wrap
 def on_right_click(callback, args=()):
     """ Invokes `callback` with `args` when the right button is clicked. """
     return on_button(callback, args, [RIGHT], target_types=[DOWN])
 
-@_ensure_listening
+@listener.wrap
 def on_middle_click(callback, args=()):
     """ Invokes `callback` with `args` when the middle button is clicked. """
     return on_button(callback, args, [MIDDLE], target_types=[DOWN])
 
-@_ensure_listening
+@listener.wrap
 def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
     """
     Blocks program execution until the given button performs an event.
