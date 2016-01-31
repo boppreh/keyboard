@@ -94,15 +94,15 @@ def move(x, y, absolute=True, duration=0):
             os_mouse.move_relative(x, y)
 
 @listener.wrap
-def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), target_types=(UP, DOWN, DOUBLE)):
+def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP, DOWN, DOUBLE)):
     """ Invokes `callback` with `args` when the specified event happens. """
     if not isinstance(buttons, (tuple, list)):
         buttons = (buttons,)
-    if not isinstance(target_types, (tuple, list)):
-        target_types = (target_types,)
+    if not isinstance(types, (tuple, list)):
+        types = (types,)
 
     def handler(event):
-        if event.event_type in target_types and event.arg in buttons:
+        if event.event_type in types and event.arg in buttons:
             callback(*args)
     listener.add_handler(handler)
     return handler
@@ -110,24 +110,24 @@ def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), target_ty
 @listener.wrap
 def on_click(callback, args=()):
     """ Invokes `callback` with `args` when the left button is clicked. """
-    return on_button(callback, args, [LEFT], target_types=[DOWN])
+    return on_button(callback, args, [LEFT], [UP])
 
 @listener.wrap
 def on_double_click(callback, args=()):
     """
     Invokes `callback` with `args` when the left button is double clicked.
     """
-    return on_button(callback, args, [LEFT], target_types=[DOUBLE])
+    return on_button(callback, args, [LEFT], [DOUBLE])
 
 @listener.wrap
 def on_right_click(callback, args=()):
     """ Invokes `callback` with `args` when the right button is clicked. """
-    return on_button(callback, args, [RIGHT], target_types=[DOWN])
+    return on_button(callback, args, [RIGHT], [UP])
 
 @listener.wrap
 def on_middle_click(callback, args=()):
     """ Invokes `callback` with `args` when the middle button is clicked. """
-    return on_button(callback, args, [MIDDLE], target_types=[DOWN])
+    return on_button(callback, args, [MIDDLE], [UP])
 
 @listener.wrap
 def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):

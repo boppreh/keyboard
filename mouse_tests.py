@@ -28,6 +28,8 @@ class TestMouse(unittest.TestCase):
         mouse.listener.listening = True
         self.events = []
         mouse.os_mouse = FakeOsMouse(self.events.append)
+        for button in (LEFT, RIGHT, MIDDLE, X, X2):
+            self.release(button)
 
     def flush_events(self):
         events = list(self.events)
@@ -40,6 +42,9 @@ class TestMouse(unittest.TestCase):
 
     def release(self, button=LEFT):
         mouse.listener.callback(MouseEvent(UP, button))
+
+    def double_click(self, button=LEFT):
+        mouse.listener.callback(MouseEvent(DOUBLE, button))
 
     def click(self, button=LEFT):
         self.press(button)
@@ -94,6 +99,65 @@ class TestMouse(unittest.TestCase):
         self.assertEqual(mouse.os_mouse.get_position(), (200, 500))
         mouse.move(0, 0, False, duration=0.01)
         self.assertEqual(mouse.os_mouse.get_position(), (200, 500))
+
+    def triggers(self, fn, events, **kwargs):
+        self.triggered = False
+        def callback():
+            self.triggered = True
+        handler = fn(callback, **kwargs)
+
+        for event_type, arg in events:
+            if event_type == DOWN:
+                self.press(arg)
+            elif event_type == UP:
+                self.release(arg)
+            elif event_type == DOUBLE:
+                self.double_click(arg)
+
+        mouse.listener.remove_handler(handler)
+        return self.triggered
+
+    def test_on_button(self):
+        self.assertTrue(self.triggers(mouse.on_button, [(DOWN, LEFT)]))
+        self.assertTrue(self.triggers(mouse.on_button, [(DOWN, RIGHT)]))
+        self.assertTrue(self.triggers(mouse.on_button, [(DOWN, X)]))
+
+        self.assertFalse(self.triggers(mouse.on_button, [(WHEEL, '')]))
+
+        self.assertFalse(self.triggers(mouse.on_button, [(DOWN, X)], buttons=MIDDLE))
+        self.assertTrue(self.triggers(mouse.on_button, [(DOWN, MIDDLE)], buttons=MIDDLE))
+        self.assertTrue(self.triggers(mouse.on_button, [(DOWN, MIDDLE)], buttons=MIDDLE))
+        self.assertFalse(self.triggers(mouse.on_button, [(DOWN, MIDDLE)], buttons=MIDDLE, types=UP))
+        self.assertTrue(self.triggers(mouse.on_button, [(UP, MIDDLE)], buttons=MIDDLE, types=UP))
+
+        self.assertTrue(self.triggers(mouse.on_button, [(UP, MIDDLE)], buttons=[MIDDLE, LEFT], types=[UP, DOWN]))
+        self.assertTrue(self.triggers(mouse.on_button, [(DOWN, LEFT)], buttons=[MIDDLE, LEFT], types=[UP, DOWN]))
+        self.assertFalse(self.triggers(mouse.on_button, [(UP, X)], buttons=[MIDDLE, LEFT], types=[UP, DOWN]))
+
+    def test_ons(self):
+        self.assertTrue(self.triggers(mouse.on_click, [(UP, LEFT)]))
+        self.assertFalse(self.triggers(mouse.on_click, [(UP, RIGHT)]))
+        self.assertFalse(self.triggers(mouse.on_click, [(DOWN, LEFT)]))
+        self.assertFalse(self.triggers(mouse.on_click, [(DOWN, RIGHT)]))
+
+        self.assertTrue(self.triggers(mouse.on_double_click, [(DOUBLE, LEFT)]))
+        self.assertFalse(self.triggers(mouse.on_double_click, [(DOUBLE, RIGHT)]))
+        self.assertFalse(self.triggers(mouse.on_double_click, [(DOWN, RIGHT)]))
+
+        self.assertTrue(self.triggers(mouse.on_right_click, [(UP, RIGHT)]))
+        self.assertTrue(self.triggers(mouse.on_middle_click, [(UP, MIDDLE)]))
+
+    def test_wait(self):
+        # If this fails it blocks. Unfortunately, but I see no other way of testing.
+        from threading import Thread, Lock
+        lock = Lock()
+        lock.acquire()
+        def t():
+            mouse.wait()
+            lock.release()
+        Thread(target=t).start()
+        self.press()
+        lock.acquire()
 
 
 if __name__ == '__main__':
