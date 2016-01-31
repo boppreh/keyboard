@@ -1,10 +1,9 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from time import time as now
 
-KEY_DOWN = 'key down'
-KEY_UP = 'key up'
+KEY_DOWN = 'down'
+KEY_UP = 'up'
 
 class KeyboardEvent(object):
     def __init__(self, event_type, scan_code, is_keypad=False, names=[], time=None):
@@ -19,14 +18,15 @@ class KeyboardEvent(object):
             return self.scan_code == description
         else:
             normalized = normalize_name(description)
-            return (normalized in self.names or 'left '
-                + normalized in self.names or 'right '
-                + normalized in self.names)
+            return (
+                normalized in self.names
+                or 'left ' + normalized in self.names
+                or 'right ' + normalized in self.names
+            )
 
     def __str__(self):
         name = self.names[0] if len(self.names) else 'Unknown {}'.format(self.scan_code)
-        type = 'up' if self.event_type == KEY_UP else 'down'
-        return 'KeyboardEvent({} {})'.format(name, type)
+        return 'KeyboardEvent({} {})'.format(name, self.event_type)
 
 canonical_names = {
     'escape': 'esc',
