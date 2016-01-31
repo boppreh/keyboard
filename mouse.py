@@ -5,8 +5,6 @@ except:
     import nixmouse as os_mouse
 from mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
 
-from threading import Thread
-import traceback
 from generic import GenericListener
 
 listening = False
