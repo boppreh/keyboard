@@ -55,7 +55,7 @@ def _split_combination(hotkey):
 
 hotkeys = {}
 @listener.wrap
-def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
+def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
     detected. Returns a handler that can be used to unregister it later. The
@@ -102,7 +102,7 @@ def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     return handler
 
 @listener.wrap
-def unregister_hotkey(hotkey):
+def remove_hotkey(hotkey):
     """ Removes a previously registered hotkey. """
     listener.remove_handler(hotkeys[hotkey])
 
@@ -158,7 +158,7 @@ def wait(combination):
     from threading import Lock
     lock = Lock()
     lock.acquire()
-    hotkey_handler = register_hotkey(combination, lock.release)
+    hotkey_handler = add_hotkey(combination, lock.release)
     lock.acquire()
     listener.remove_handler(hotkey_handler)
 
@@ -181,7 +181,7 @@ def record(until='escape', exclude=[]):
         listener.remove_handler(stop_handler)
         listener.remove_handler(handler)
         lock.release()
-    stop_handler = register_hotkey(until, stop)
+    stop_handler = add_hotkey(until, stop)
 
     listener.add_handler(handler)
     lock.acquire()
