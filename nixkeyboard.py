@@ -36,38 +36,61 @@ def _populate_scan_code_table():
                 scan_code_table[scan_code].append(pair)
 _populate_scan_code_table()
 
-class LowLevelEvent(namedtuple('LowLevelEvent', 'seconds microseconds type code value')):
-    event_bin_format = 'llHHI'
-
-    @staticmethod
-    def from_scan_code(self, scan_code, is_down=True):
-        integer, fraction = divmod(now(), 1)
-        return LowLevelEvent(int(integer), int(fraction*1e6), EV_KEY, scan_code, is_down)
-
-    @staticmethod
-    def from_file(file):
-        data = file.read(struct.calcsize(LowLevelEvent.event_bin_format))
-        return LowLevelEvent(*struct.unpack(LowLevelEvent.event_bin_format, data))
-
-    def write_to_file(self, file):
-        data = struct.pack(LowLevelEvent.event_bin_format, self.seconds, self.microseconds, self.type, self.code, self.value)
-        return file.write(data)
-
 # Taken from include/linux/input.h
+EV_SYN = 0x01
 EV_KEY = 0x01
 
-def _read_input_file(filename_pattern='*-event-kbd'):
-    import glob
-    event_file = glob.glob('/dev/input/by-id/' + filename_pattern)[0]
-    with open(event_file, 'rb') as events:
+import glob
+import atexit
+LowLevelEvent = namedtuple('LowLevelEvent', 'seconds microseconds type code value')
+class InputFile(object):
+    event_bin_format = 'llHHI'
+
+    instances = {}
+
+    @staticmethod
+    def instance(filepath='/dev/input/by-id/*-event-kbd'):
+        if not filepath in InputFile.instances:
+            input_file = InputFile(filepath)
+            InputFile.instances[filepath] = input_file
+            atexit.register(input_file.close)
+        return InputFile.instances[filepath]
+
+    def __init__(self, filepath):
+        full_path =  glob.glob(filepath)[0]
+        self.file_read = open(full_path, 'rb')
+        self.file_write = open(full_path, 'wb')
+
+    def close(self, *args):
+        self.file_read.close()
+        self.file_write.close()
+
+    def read_one(self):
+        data = self.file_read.read(struct.calcsize(InputFile.event_bin_format))
+        return LowLevelEvent(*struct.unpack(InputFile.event_bin_format, data))
+
+    def read_all(self, type=EV_KEY):
         while True:
-            yield LowLevelEvent.from_file(events)
+            event = self.read_one()
+            print(event)
+            if event.type == EV_KEY:
+                yield event
+
+    def write(self, scan_code, is_down):
+        time = now()
+        value = int(is_down)
+        integer, fraction = divmod(now(), 1)
+        seconds = int(integer)
+        microseconds = int(fraction * 1e6)
+        data = struct.pack(InputFile.event_bin_format, seconds, microseconds, EV_KEY, scan_code, value)
+        self.file_write.write(data)
+
+        # Send a sync event to ensure other programs update.
+        data = struct.pack(InputFile.event_bin_format, seconds, microseconds, EV_SYN, 0, 0)
+        self.file_write.write(data)
 
 def listen(callback):
-    for low_event in _read_input_file():
-        if low_event.type != EV_KEY:
-            continue
-        
+    for low_event in InputFile.instance().read_all():
         time = low_event.seconds + low_event.microseconds / 1e6
         scan_code = low_event.code
         event_type = KEY_DOWN if low_event.value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
@@ -79,13 +102,13 @@ def listen(callback):
         callback(event)
 
 def map_char(char):
-    return map_name_to_scancode(normalize_name(char)), char.isupper()
+    return scan_code_table[normalize_name(char)][0][0], char.isupper()
 
 def press(scan_code):
-    raise NotImplementedError()
+    InputFile.instance().write(scan_code, True)
 
 def release(scan_code):
-    raise NotImplementedError()
+    InputFile.instance().write(scan_code, False)
 
 if __name__ == '__main__':
     def p(e):

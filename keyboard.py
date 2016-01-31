@@ -207,4 +207,6 @@ def play(events, speed_factor=1.0):
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
-    play(record('esc, esc'), 3)
+    #play(record('esc, esc'), 3)
+    send('a')
+    send('a')
