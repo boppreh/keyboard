@@ -139,7 +139,7 @@ def send(combination, do_press=True, do_release=True):
                 os_keyboard.press(scan_code)
 
         if do_release:
-            for scan_code in scan_codes:
+            for scan_code in reversed(scan_codes):
                 os_keyboard.release(scan_code)
 
 @listener.wrap
