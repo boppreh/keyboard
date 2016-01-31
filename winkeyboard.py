@@ -83,17 +83,18 @@ def register_names(scan_code, add, enhanced):
         else:
             add((name, is_keypad))
 
-for scan_code in range(2**(23-16)):
-    entries = []
-    add = lambda v: entries.append(v) if v not in entries else None
-    register_names(scan_code, add, 1)
-    register_names(scan_code, add, 0)
-    if entries:
-        scan_code_table[scan_code] = entries
+def build_tables():
+    for scan_code in range(2**(23-16)):
+        entries = []
+        add = lambda v: entries.append(v) if v not in entries else None
+        register_names(scan_code, add, 1)
+        register_names(scan_code, add, 0)
+        if entries:
+            scan_code_table[scan_code] = entries
 
-    ret = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-    if ret:
-        keycode_by_scan_code[scan_code] = ret
+        ret = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+        if ret:
+            keycode_by_scan_code[scan_code] = ret
 
 VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
@@ -114,6 +115,8 @@ keyboard_event_types = {
 }
 
 def listen(handler):
+    build_tables()
+    
     def low_level_keyboard_handler(nCode, wParam, lParam):
         # You may be tempted to use ToUnicode to extract the character from
         # this event. Do not. ToUnicode breaks dead keys.
