@@ -5,10 +5,10 @@ import time
 
 from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 try:
-    from winkeyboard import listen, press, release, map_char, scan_code_table
+    import winkeyboard as os_keyboard
 except:
-    from nixkeyboard import listen, press, release, map_char, scan_code_table
-
+    import nixkeyboard as os_keyboard
+    
 from generic import GenericListener
 
 _pressed_events = {}
@@ -22,12 +22,12 @@ class KeyboardListener(GenericListener):
         return self.invoke_handlers(event)
 
     def listen(self):
-        listen(self.callback)
+        os_keyboard.listen(self.callback)
 
 listener = KeyboardListener()
 
 def map_name_to_scancode(target_name):
-    for scan_code, pairs in scan_code_table.items():
+    for scan_code, pairs in os_keyboard.scan_code_table.items():
         for name, is_shift in pairs:
             if name == target_name:
                 return scan_code
@@ -113,11 +113,11 @@ def write(text, delay=0):
     for unavailable characters.
     """
     for letter in text:
-        scan_code, shift = map_char(letter)
+        scan_code, shift = os_keyboard.map_char(letter)
         if shift:
             send('shift', True, False)
-        press(scan_code)
-        release(scan_code)
+        os_keyboard.press(scan_code)
+        os_keyboard.release(scan_code)
         if shift:
             send('shift', False, True)
         if delay:
@@ -135,11 +135,19 @@ def send(combination, do_press=True, do_release=True):
 
         if do_press:
             for scan_code in scan_codes:
-                press(scan_code)
+                os_keyboard.press(scan_code)
 
         if do_release:
             for scan_code in scan_codes:
-                release(scan_code)
+                os_keyboard.release(scan_code)
+
+@listener.wrap
+def press(combination):
+    send(combination, True, False)
+
+@listener.wrap
+def release(combination):
+    send(combination, False, True)
 
 @listener.wrap
 def wait(combination):
@@ -192,9 +200,9 @@ def play(events, speed_factor=1.0):
         last_time = event.time
 
         if event.event_type == KEY_DOWN:
-            press(event.scan_code)
+            os_keyboard.press(event.scan_code)
         else:
-            release(event.scan_code)
+            os_keyboard.release(event.scan_code)
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
