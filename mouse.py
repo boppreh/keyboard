@@ -24,14 +24,6 @@ class MouseListener(GenericListener):
 
 listener = MouseListener()
 
-def add_handler(handler):
-    """ Adds a function to receive each keyboard event captured. """
-    listener.handlers.append(handler)
-
-def remove_handler(handler):
-    """ Removes a previously added keyboard event handler. """
-    listener.handlers.remove(handler)
-
 @listener.wrap
 def press(button=LEFT):
     """ Presses the given button (but doesn't release). """
@@ -106,7 +98,7 @@ def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), target_ty
     def handler(event):
         if event.event_type in target_types and event.arg in buttons:
             callback(*args)
-    add_handler(handler)
+    listener.add_handler(handler)
     return handler
 
 @listener.wrap
@@ -141,7 +133,7 @@ def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
     lock.acquire()
     handler = on_button(lock.release, (), [button], target_types)
     lock.acquire()
-    remove_handler(handler)
+    listener.remove_handler(handler)
 
 def get_position():
     """ Returns the (x, y) mouse position. """

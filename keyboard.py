@@ -9,32 +9,22 @@ try:
 except:
     from nixkeyboard import listen, press, release, map_char, scan_code_table
 
-from threading import Thread
-import traceback
+from generic import GenericListener
 
-_handlers = []
+_pressed_events = {}
+class KeyboardListener(GenericListener):
+    def callback(self, event):
+        if event.event_type == KEY_UP:
+            if event.scan_code in _pressed_events:
+                del _pressed_events[event.scan_code]
+        else:
+            _pressed_events[event.scan_code] = event
+        return self.invoke_handlers(event)
 
-def _callback(event):
-    for handler in _handlers:
-        try:
-            if handler(event):
-                # Stop processing this hotkey.
-                return 1
-        except Exception as e:
-            traceback.print_exc()
+    def listen(self):
+        listen(self.callback)
 
-def start_listening(listen):
-    _listening_thread = Thread(target=listen, args=(_callback,))
-    _listening_thread.daemon=True
-    _listening_thread.start()
-
-def add_handler(handler):
-    """ Adds a function to receive each keyboard event captured. """
-    _handlers.append(handler)
-
-def remove_handler(handler):
-    """ Removes a previously added keyboard event handler. """
-    _handlers.remove(handler)
+listener = KeyboardListener()
 
 def map_name_to_scancode(target_name):
     for scan_code, pairs in scan_code_table.items():
@@ -43,14 +33,7 @@ def map_name_to_scancode(target_name):
                 return scan_code
     raise ValueError('Unknown name {}'.format(target_name))
 
-_pressed_events = {}
-def _update_state(event):
-    if event.event_type == KEY_UP:
-        if event.scan_code in _pressed_events:
-            del _pressed_events[event.scan_code]
-    else:
-        _pressed_events[event.scan_code] = event
-
+@listener.wrap
 def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
     if isinstance(key, int):
@@ -70,6 +53,7 @@ def _split_combination(hotkey):
         return [step.split('+') for step in hotkey.split(', ')]
 
 hotkeys = {}
+@listener.wrap
 def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
@@ -113,13 +97,15 @@ def register_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
                     return blocking
 
     hotkeys[hotkey] = handler
-    add_handler(handler)
+    listener.add_handler(handler)
     return handler
 
+@listener.wrap
 def unregister_hotkey(hotkey):
     """ Removes a previously registered hotkey. """
-    remove_handler(hotkeys[hotkey])
+    listener.remove_handler(hotkeys[hotkey])
 
+@listener.wrap
 def write(text, delay=0):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
@@ -137,6 +123,7 @@ def write(text, delay=0):
         if delay:
             time.sleep(delay)
 
+@listener.wrap
 def send(combination, do_press=True, do_release=True):
     """
     Performs a given hotkey combination.
@@ -154,6 +141,7 @@ def send(combination, do_press=True, do_release=True):
             for scan_code in scan_codes:
                 release(scan_code)
 
+@listener.wrap
 def wait(combination):
     """
     Blocks the program execution until a key combination is activated.
@@ -163,8 +151,9 @@ def wait(combination):
     lock.acquire()
     hotkey_handler = register_hotkey(combination, lock.release)
     lock.acquire()
-    remove_handler(hotkey_handler)
+    listener.remove_handler(hotkey_handler)
 
+@listener.wrap
 def record(until='escape', exclude=[]):
     """
     Records and returns all keyboard events until the user presses the given
@@ -180,15 +169,16 @@ def record(until='escape', exclude=[]):
         recorded.append(event)
 
     def stop():
-        remove_handler(stop_handler)
-        remove_handler(handler)
+        listener.remove_handler(stop_handler)
+        listener.remove_handler(handler)
         lock.release()
     stop_handler = register_hotkey(until, stop)
 
-    add_handler(handler)
+    listener.add_handler(handler)
     lock.acquire()
     return recorded
 
+@listener.wrap
 def play(events, speed_factor=1.0):
     """
     Plays a sequence of recorded events, maintaining the relative time
@@ -205,10 +195,6 @@ def play(events, speed_factor=1.0):
             press(event.scan_code)
         else:
             release(event.scan_code)
-
-
-add_handler(_update_state)
-start_listening(listen)
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')

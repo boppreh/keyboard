@@ -29,3 +29,11 @@ class GenericListener(object):
                 self.listening_thread.start()
             return func(*args, **kwds)
         return wrapper
+
+    def add_handler(self, handler):
+        """ Adds a function to receive each event captured. """
+        self.handlers.append(handler)
+
+    def remove_handler(self, handler):
+        """ Removes a previously added event handler. """
+        self.handlers.remove(handler)
