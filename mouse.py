@@ -13,9 +13,9 @@ _pressed_events = set()
 class MouseListener(GenericListener):
     def callback(self, event):
         if event.event_type in (UP, DOUBLE):
-            _pressed_events.discard(event.event_type)
+            _pressed_events.discard(event.arg)
         elif event.event_type == DOWN:
-            _pressed_events.add(event.event_type)
+            _pressed_events.add(event.arg)
 
         return self.invoke_handlers(event)
 
@@ -23,6 +23,11 @@ class MouseListener(GenericListener):
         os_mouse.listen(self.callback)
 
 listener = MouseListener()
+
+@listener.wrap
+def is_pressed(button=LEFT):
+    """ Returns True if the given button is currently pressed. """
+    return button in _pressed_events
 
 @listener.wrap
 def press(button=LEFT):
@@ -135,6 +140,7 @@ def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
     lock.acquire()
     listener.remove_handler(handler)
 
+@listener.wrap
 def get_position():
     """ Returns the (x, y) mouse position. """
     return os_mouse.get_position()
