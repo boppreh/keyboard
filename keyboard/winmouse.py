@@ -71,12 +71,7 @@ WM_MOUSEHWHEEL = 0x020E
 WM_RBUTTONDOWN = 0x0204
 WM_RBUTTONUP = 0x0205
 
-mouse_message_codes = {
-    WM_MOUSEMOVE: (MOVE, ''),
-
-    WM_MOUSEWHEEL: (WHEEL, 0),
-    #WM_MOUSEHWHEEL: (WHEEL, HORIZONTAL),
-
+buttons_by_wm_code = {
     WM_LBUTTONDOWN: (DOWN, LEFT),
     WM_LBUTTONUP: (UP, LEFT),
     WM_LBUTTONDBLCLK: (DOUBLE, LEFT),
@@ -92,10 +87,6 @@ mouse_message_codes = {
     WM_XBUTTONDOWN: (DOWN, X),
     WM_XBUTTONUP: (UP, X),
     WM_XBUTTONDBLCLK: (DOUBLE, X),
-
-    WM_NCXBUTTONDOWN: (DOWN, X), # NC = non-client
-    WM_NCXBUTTONUP: (UP, X),
-    WM_NCXBUTTONDBLCLK: (DOUBLE, X),
 }
 
 MOUSEEVENTF_ABSOLUTE = 0x8000
@@ -138,15 +129,17 @@ def listen(handler):
     def low_level_mouse_handler(nCode, wParam, lParam):
         struct = lParam.contents
 
-        type, arg = mouse_message_codes.get(wParam, ('?', ''))
-
-        if wParam >= WM_XBUTTONDOWN:
-            # There are actually two X button.
-            arg = {0x10000: X, 0x20000: X2}[struct.data]
-        elif wParam == WM_MOUSEWHEEL or wParam == WM_MOUSEHWHEEL:
-            arg = struct.data / (WHEEL_DELTA * (2<<15))
-
-        event = MouseEvent(type, arg, struct.x, struct.y)
+        if wParam == WM_MOUSEMOVE:
+            event = MoveEvent(struct.x, struct.y)
+        elif wParam == WM_MOUSEWHEEL:
+            event = WheelEvent(struct.data / (WHEEL_DELTA * (2<<15)))
+        elif wParam in buttons_by_wm_code:
+            type, button = buttons_by_wm_code.get(wParam, ('?', '?'))
+            if wParam >= WM_XBUTTONDOWN:
+                button = {0x10000: X, 0x20000: X2}[struct.data]
+            event = ButtonEvent(type, button)
+        else:
+            continue
         
         if handler(event):
             return 1
