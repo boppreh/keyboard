@@ -4,6 +4,7 @@ from time import time as now
 from collections import namedtuple
 from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 from .generic import GenericScanCodeTable
+from .nixcommon import EventDevice, EV_KEY
 
 class ScanCodeTable(GenericScanCodeTable):
     def populate(self):
@@ -34,46 +35,31 @@ class ScanCodeTable(GenericScanCodeTable):
 
 scan_code_table = ScanCodeTable()
 
-# Taken from include/linux/input.h
-EV_SYN = 0x01
-EV_KEY = 0x01
-
-event_bin_format = 'llHHI'
 
 from glob import glob
 paths = glob('/dev/input/by-id/*-event-kbd')
-KEYBOARD_PATH = paths[0] if paths else None
+if paths:
+    device = EventDevice(paths[0])
+else:
+    device = None
 
 def listen(callback):
-    with open(KEYBOARD_PATH, 'rb') as events_file:
-        while True:
-            data = events_file.read(struct.calcsize(event_bin_format))
-            seconds, microseconds, type, code, value = struct.unpack(event_bin_format, data)
-            if type != EV_KEY:
-                continue
+    while True:
+        time, type, code, value = device.read_event()
+        if type != EV_KEY:
+            continue
 
-            time = seconds + microseconds / 1e6
-            scan_code = code
-            event_type = KEY_DOWN if value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
-            entries = scan_code_table.get_name_keypad(scan_code)
-            is_keypad = entries[0][1]
-            names = [name for name, is_keypad in entries]
-            
-            event = KeyboardEvent(event_type, scan_code, is_keypad, names, time)
-            callback(event)
+        scan_code = code
+        event_type = KEY_DOWN if value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
+        entries = scan_code_table.get_name_keypad(scan_code)
+        is_keypad = entries[0][1]
+        names = [name for name, is_keypad in entries]
+        
+        event = KeyboardEvent(event_type, scan_code, is_keypad, names, time)
+        callback(event)
 
 def write_event(scan_code, is_down):
-    with open(KEYBOARD_PATH, 'wb') as events_file:
-        value = int(is_down)
-        integer, fraction = divmod(now(), 1)
-        seconds = int(integer)
-        microseconds = int(fraction * 1e6)
-        data = struct.pack(event_bin_format, seconds, microseconds, EV_KEY, scan_code, value)
-        events_file.write(data)
-
-        # Send a sync event to ensure other programs update.
-        data = struct.pack(event_bin_format, seconds, microseconds, EV_SYN, 0, 0)
-        events_file.write(data)
+    device.write_event(EV_KEY, scan_code, int(is_down))
 
 def map_char(char):
     return scan_code_table.get_scan_code(char), char.isupper()

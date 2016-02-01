@@ -5,7 +5,7 @@ LPMSG = POINTER(MSG)
 
 import atexit
 
-from .mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
+from .mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
 
 user32 = ctypes.windll.user32
 
@@ -74,8 +74,8 @@ WM_RBUTTONUP = 0x0205
 mouse_message_codes = {
     WM_MOUSEMOVE: (MOVE, ''),
 
-    WM_MOUSEWHEEL: (WHEEL, ''),
-    WM_MOUSEHWHEEL: (WHEEL, HORIZONTAL),
+    WM_MOUSEWHEEL: (WHEEL, 0),
+    #WM_MOUSEHWHEEL: (WHEEL, HORIZONTAL),
 
     WM_LBUTTONDOWN: (DOWN, LEFT),
     WM_LBUTTONUP: (UP, LEFT),
@@ -114,8 +114,8 @@ MOUSEEVENTF_XUP = 0x0100
 simulated_mouse_codes = {
     (MOVE, ''): MOUSEEVENTF_MOVE,
 
-    (WHEEL, ''): MOUSEEVENTF_WHEEL,
-    (WHEEL, HORIZONTAL): MOUSEEVENTF_HWHEEL,
+    (WHEEL, 0): MOUSEEVENTF_WHEEL,
+    #(WHEEL, HORIZONTAL): MOUSEEVENTF_HWHEEL,
 
     (DOWN, LEFT): MOUSEEVENTF_LEFTDOWN,
     (UP, LEFT): MOUSEEVENTF_LEFTUP,
@@ -140,15 +140,13 @@ def listen(handler):
 
         type, arg = mouse_message_codes.get(wParam, ('?', ''))
 
-        wheel_delta = 0
-
         if wParam >= WM_XBUTTONDOWN:
             # There are actually two X button.
             arg = {0x10000: X, 0x20000: X2}[struct.data]
         elif wParam == WM_MOUSEWHEEL or wParam == WM_MOUSEHWHEEL:
-            wheel_delta = struct.data / (WHEEL_DELTA * (2<<15))
+            arg = struct.data / (WHEEL_DELTA * (2<<15))
 
-        event = MouseEvent(type, arg, struct.x, struct.y, wheel_delta)
+        event = MouseEvent(type, arg, struct.x, struct.y)
         
         if handler(event):
             return 1
@@ -184,11 +182,8 @@ def release(button=LEFT):
     code = simulated_mouse_codes[(UP, button)]
     user32.mouse_event(code, 0, 0, data, 0)
 
-def wheel(delta=1, horizontal=False):
-    if horizontal:
-        code = simulated_mouse_codes[(WHEEL, HORIZONTAL)]
-    else:
-        code = simulated_mouse_codes[(WHEEL, '')]
+def wheel(delta=1):
+    code = simulated_mouse_codes[(WHEEL, 0)]
     user32.mouse_event(code, 0, 0, delta * WHEEL_DELTA, 0)
 
 def move_to(x, y):

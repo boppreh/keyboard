@@ -6,7 +6,7 @@ if platform.system() == 'Windows':
 else:
     import keyboard.nixmouse as os_mouse
 
-from .mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
+from .mouse_event import ButtonEvent, MoveEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
 from .generic import GenericListener
 
 listening = False
@@ -14,10 +14,11 @@ listening = False
 _pressed_events = set()
 class MouseListener(GenericListener):
     def callback(self, event):
-        if event.event_type in (UP, DOUBLE):
-            _pressed_events.discard(event.arg)
-        elif event.event_type == DOWN:
-            _pressed_events.add(event.arg)
+        if isinstance(event, ButtonEvent):
+            if event.type in (UP, DOUBLE):
+                _pressed_events.discard(event.button)
+            elif event.type == DOWN:
+                _pressed_events.add(event.button)
 
         return self.invoke_handlers(event)
 
@@ -103,8 +104,9 @@ def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP
         types = (types,)
 
     def handler(event):
-        if event.event_type in types and event.arg in buttons:
-            callback(*args)
+        if isinstance(event, ButtonEvent):
+            if event.type in types and event.button in buttons:
+                callback(*args)
     listener.add_handler(handler)
     return handler
 
@@ -150,6 +152,6 @@ def get_position():
 if __name__ == '__main__':
     print('Move the cursor somewhere and left-click.')
     wait()
-    move(10, 10, False, 1)
+    move(100, 100, False)
     double_click()
     print(get_position())
