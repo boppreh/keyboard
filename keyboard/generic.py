@@ -1,7 +1,7 @@
 from threading import Thread
 import traceback
 import functools
-from keyboard_event import normalize_name
+from .keyboard_event import normalize_name
 
 class GenericListener(object):
     def __init__(self):

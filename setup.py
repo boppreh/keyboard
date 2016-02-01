@@ -1,14 +1,24 @@
+"""
+Usage instructions:
+
+- If you are installing: `python setup.py install`
+- If you are developing: `python setup.py sdist upload`
+"""
+
 try:
     import pypandoc
     long_description = pypandoc.convert('README.md', 'rst')
-except(IOError, ImportError):
-    long_description = open('README.md').read()
+except:
+    try:
+        long_description = open('README.md').read()
+    except:
+        long_description = ''
 
 from setuptools import setup
 
 setup(
     name='keyboard',
-    version='0.6.1',
+    version='0.6.2',
     author='BoppreH',
     author_email='boppreh@gmail.com',
     packages=['keyboard'],

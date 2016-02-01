@@ -1,12 +1,13 @@
 import time
+
 import platform
 if platform.system() == 'Windows':
-    import winmouse as os_mouse
+    import keyboard.winmouse as os_mouse
 else:
-    import nixmouse as os_mouse
-from mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
+    import keyboard.nixmouse as os_mouse
 
-from generic import GenericListener
+from .mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
+from .generic import GenericListener
 
 listening = False
 

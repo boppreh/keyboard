@@ -2,8 +2,8 @@ import struct
 import traceback
 from time import time as now
 from collections import namedtuple
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from generic import GenericScanCodeTable
+from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from .generic import GenericScanCodeTable
 
 class ScanCodeTable(GenericScanCodeTable):
     def populate(self):

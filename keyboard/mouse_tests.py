@@ -1,6 +1,7 @@
 import unittest
-from mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
-import mouse
+
+from .mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
+from keyboard import mouse
 
 class FakeOsMouse(object):
     def __init__(self, append):

@@ -1,16 +1,15 @@
 """
 Code heavily adapted from http://pastebin.com/wzYZGZrs
 """
+import atexit
+
+from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from .generic import GenericScanCodeTable
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
 from ctypes.wintypes import DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM
 LPMSG = POINTER(MSG)
-from generic import GenericScanCodeTable
-
-import atexit
-
-from keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
 user32 = ctypes.windll.user32
 
