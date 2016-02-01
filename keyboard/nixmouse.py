@@ -1,7 +1,7 @@
 import struct
 from subprocess import check_output
 import re
-from .nixcommon import EventDevice, EV_KEY, EV_REL, EV_MSC, EV_SYN
+from .nixcommon import EventDevice, EV_KEY, EV_REL, EV_MSC, EV_SYN, EV_ABS
 from .mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN
 
 REL_X = 0x00
@@ -9,6 +9,9 @@ REL_Y = 0x01
 REL_Z = 0x02
 REL_HWHEEL = 0x06
 REL_WHEEL = 0x08
+
+ABS_X = 0x00
+ABS_Y = 0x01
 
 BTN_MOUSE = 0x110
 BTN_LEFT = 0x110
@@ -90,6 +93,7 @@ def release(button=LEFT):
     device.write_event(EV_KEY, code_by_button[button], 0x00)
 
 def move_relative(x, y):
+    # Note relative events are not in terms of pixels, but millimeters.
     if x < 0:
         x += 2**32
     if y < 0:
@@ -102,6 +106,12 @@ def move_to(x, y):
     # there's no way to be sure of the destination.
     #cur_x, cur_y = get_position()
     #move_relative(x - cur_x, y - cur_y)
+
+    # Or we can try to send ABS events, but in my machine those doesn't work
+    # either.
+    #device.write_event(EV_ABS, ABS_X, x)
+    #device.write_event(EV_ABS, ABS_Y, y)
+
     raise NotImplementedError('Absolute mouse movement not available at the moment.')
 
 def wheel(delta=1):
@@ -111,4 +121,5 @@ def wheel(delta=1):
     
 
 if __name__ == '__main__':
-    listen(print)
+    #listen(print)
+    move_to(100, 100)

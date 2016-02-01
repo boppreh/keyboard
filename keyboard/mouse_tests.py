@@ -1,6 +1,6 @@
 import unittest
 
-from .mouse_event import MouseEvent, MOVE, WHEEL, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, HORIZONTAL, DOUBLE
+from .mouse_event import MoveEvent, ButtonEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
 from keyboard import mouse
 
 class FakeOsMouse(object):
@@ -39,17 +39,20 @@ class TestMouse(unittest.TestCase):
         return events
 
     def press(self, button=LEFT):
-        mouse.listener.callback(MouseEvent(DOWN, button))
+        mouse.listener.callback(ButtonEvent(DOWN, button))
 
     def release(self, button=LEFT):
-        mouse.listener.callback(MouseEvent(UP, button))
+        mouse.listener.callback(ButtonEvent(UP, button))
 
     def double_click(self, button=LEFT):
-        mouse.listener.callback(MouseEvent(DOUBLE, button))
+        mouse.listener.callback(ButtonEvent(DOUBLE, button))
 
     def click(self, button=LEFT):
         self.press(button)
         self.release(button)
+
+    def wheel(self, delta=1):
+        mouse.listener.callback(WheelEvent(delta))
 
     def test_is_pressed(self):
         self.assertFalse(mouse.is_pressed())
@@ -114,6 +117,8 @@ class TestMouse(unittest.TestCase):
                 self.release(arg)
             elif event_type == DOUBLE:
                 self.double_click(arg)
+            elif event_type == 'WHEEL':
+                self.wheel()
 
         mouse.listener.remove_handler(handler)
         return self.triggered
@@ -123,7 +128,7 @@ class TestMouse(unittest.TestCase):
         self.assertTrue(self.triggers(mouse.on_button, [(DOWN, RIGHT)]))
         self.assertTrue(self.triggers(mouse.on_button, [(DOWN, X)]))
 
-        self.assertFalse(self.triggers(mouse.on_button, [(WHEEL, '')]))
+        self.assertFalse(self.triggers(mouse.on_button, [('WHEEL', '')]))
 
         self.assertFalse(self.triggers(mouse.on_button, [(DOWN, X)], buttons=MIDDLE))
         self.assertTrue(self.triggers(mouse.on_button, [(DOWN, MIDDLE)], buttons=MIDDLE))
