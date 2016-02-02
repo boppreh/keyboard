@@ -103,9 +103,6 @@ MOUSEEVENTF_XDOWN = 0x0080
 MOUSEEVENTF_XUP = 0x0100
 
 simulated_mouse_codes = {
-    (MOVE, ''): MOUSEEVENTF_MOVE,
-
-    (WHEEL, 0): MOUSEEVENTF_WHEEL,
     #(WHEEL, HORIZONTAL): MOUSEEVENTF_HWHEEL,
 
     (DOWN, LEFT): MOUSEEVENTF_LEFTDOWN,
@@ -138,10 +135,8 @@ def listen(handler):
             if wParam >= WM_XBUTTONDOWN:
                 button = {0x10000: X, 0x20000: X2}[struct.data]
             event = ButtonEvent(type, button)
-        else:
-            continue
         
-        if handler(event):
+        if event and handler(event):
             return 1
         else:
             return CallNextHookEx(NULL, nCode, wParam, lParam)
