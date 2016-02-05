@@ -7,7 +7,7 @@ import platform
 if platform.system() == 'Windows':
     import keyboard.winkeyboard as os_keyboard
 else:
-    import keyboard.nixkeyboard as os_keyboard
+    from. import nixkeyboard as os_keyboard
 
 from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name    
 from .generic import GenericListener
