@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(
     name='keyboard',
-    version='0.6.2',
+    version='0.6.4',
     author='BoppreH',
     author_email='boppreh@gmail.com',
     packages=['keyboard'],
