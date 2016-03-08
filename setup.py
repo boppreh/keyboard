@@ -2,13 +2,14 @@
 Usage instructions:
 
 - If you are installing: `python setup.py install`
-- If you are developing: `python setup.py sdist upload`
+- If you are developing: `python setup.py sdist bdist --format=zip bdist_wheel --universal`
 """
 
 try:
     import pypandoc
     long_description = pypandoc.convert('README.md', 'rst')
-except:
+except ImportError:
+    print('Failed to convert README to rst.')
     try:
         long_description = open('README.md').read()
     except:
@@ -18,7 +19,7 @@ from setuptools import setup
 
 setup(
     name='keyboard',
-    version='0.6.4',
+    version='0.6.5',
     author='BoppreH',
     author_email='boppreh@gmail.com',
     packages=['keyboard'],
