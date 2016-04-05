@@ -37,7 +37,7 @@ scan_code_table = ScanCodeTable()
 
 
 from glob import glob
-paths = glob('/dev/input/by-id/*-event-kbd')
+paths = glob('/dev/input/by-path/*-event-kbd')
 if paths:
     device = EventDevice(paths[0])
 else:
