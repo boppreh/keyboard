@@ -9,17 +9,20 @@ try:
     import pypandoc
     long_description = pypandoc.convert('README.md', 'rst')
 except ImportError:
-    print('Failed to convert README to rst.')
     try:
         long_description = open('README.md').read()
     except:
-        long_description = ''
+        try:
+            long_description = open('README.rst').read()
+        except:
+            print('Failed to convert README to rst.')
+            long_description = ''
 
 from setuptools import setup
 
 setup(
     name='keyboard',
-    version='0.6.5',
+    version='0.6.7',
     author='BoppreH',
     author_email='boppreh@gmail.com',
     packages=['keyboard'],
