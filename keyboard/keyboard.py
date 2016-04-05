@@ -5,7 +5,7 @@ import time
 
 import platform
 if platform.system() == 'Windows':
-    import keyboard.winkeyboard as os_keyboard
+    from. import winkeyboard as os_keyboard
 else:
     from. import nixkeyboard as os_keyboard
 
