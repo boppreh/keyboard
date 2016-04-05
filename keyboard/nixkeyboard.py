@@ -41,7 +41,7 @@ paths = glob('/dev/input/by-path/*-event-kbd')
 if paths:
     device = EventDevice(paths[0])
 else:
-    device = None
+    raise ImportError('No keyboard files found (/dev/input/by-path/*-event-kbd).')
 
 def listen(callback):
     while True:
