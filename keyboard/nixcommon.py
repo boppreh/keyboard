@@ -21,8 +21,19 @@ class EventDevice(object):
     @property
     def input_file(self):
         if self._input_file is None:
-            self._input_file = open(self.path, 'rb')
-            atexit.register(self._input_file.close)
+            try:
+                self._input_file = open(self.path, 'rb')
+            except IOError as e:
+                if e.strerror == 'Permission denied':
+                    print('Permission denied ({}). You must be sudo to access global events.'.format(self.path))
+                    exit()
+
+            def try_close():
+                try:
+                    self._input_file.close
+                except:
+                    pass
+            atexit.register(try_close)
         return self._input_file
 
     @property
