@@ -157,28 +157,15 @@ def wait(combination):
     listener.remove_handler(hotkey_handler)
 
 @listener.wrap
-def record(until='escape', exclude=[]):
+def record(until='escape'):
     """
     Records and returns all keyboard events until the user presses the given
     key combination.
     """
-    from threading import Lock
-
     recorded = []
-    lock = Lock()
-    lock.acquire()
-
-    def handler(event):
-        recorded.append(event)
-
-    def stop():
-        listener.remove_handler(stop_handler)
-        listener.remove_handler(handler)
-        lock.release()
-    stop_handler = add_hotkey(until, stop)
-
-    listener.add_handler(handler)
-    lock.acquire()
+    listener.add_handler(recorded.append)
+    wait(until)
+    listener.remove_handler(recorded.append)
     return recorded
 
 @listener.wrap
@@ -198,6 +185,7 @@ def play(events, speed_factor=1.0):
             os_keyboard.press(event.scan_code)
         else:
             os_keyboard.release(event.scan_code)
+
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
