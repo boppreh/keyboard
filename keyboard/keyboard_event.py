@@ -24,7 +24,7 @@ class KeyboardEvent(object):
                 or 'right ' + normalized in self.names
             )
 
-    def __str__(self):
+    def __repr__(self):
         name = self.names[0] if len(self.names) else 'Unknown {}'.format(self.scan_code)
         return 'KeyboardEvent({} {})'.format(name, self.event_type)
 
