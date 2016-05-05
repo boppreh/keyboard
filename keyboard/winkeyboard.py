@@ -67,6 +67,7 @@ class ScanCodeTable(GenericScanCodeTable):
         self.keycode_by_scan_code = {}
 
     def populate(self):
+        self.table[541] = [('alt gr', False)]
         for scan_code in range(2**(23-16)):
             entries = []
             add = lambda v: entries.append(v) if v not in entries else None
