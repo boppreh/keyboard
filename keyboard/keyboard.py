@@ -15,6 +15,9 @@ from .generic import GenericListener
 _pressed_events = {}
 class KeyboardListener(GenericListener):
     def callback(self, event):
+        if not event.scan_code:
+            return
+
         if event.event_type == KEY_UP:
             if event.scan_code in _pressed_events:
                 del _pressed_events[event.scan_code]
@@ -55,7 +58,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     hotkey must be in the format "ctrl+shift+a, s". This would trigger when the
     user presses "ctrl+shift+a", releases, and then presses "s".
 
-    `blocking` defines if the system should continue processing other hotkeys
+    `blocking` defines if the system should block processing other hotkeys
     after a match is found.
 
     `timeout` is the amount of time allowed to pass between key strokes before
