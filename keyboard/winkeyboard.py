@@ -70,9 +70,10 @@ class ScanCodeTable(GenericScanCodeTable):
         self.table[541] = [('alt gr', False)]
         for scan_code in range(2**(23-16)):
             entries = []
-            add = lambda v: entries.append(v) if v not in entries else None
-            self.register_names(scan_code, add, 1)
-            self.register_names(scan_code, add, 0)
+            for entry in self.get_descriptions(scan_code):
+                if entry not in entries:
+                    entries.append(entry)
+            
             if entries:
                 self.table[scan_code] = entries
 
@@ -80,23 +81,24 @@ class ScanCodeTable(GenericScanCodeTable):
             if ret:
                 self.keycode_by_scan_code[scan_code] = ret
 
-    def register_names(self, scan_code, add, enhanced):
-        ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
-        name = normalize_name(name_buffer.value)
-        if ret:
-            if name.startswith('num ') and name != 'num lock':
-                is_keypad = True
-                name = name[len('num '):]
-            else:
-                is_keypad = False
+    def get_descriptions(self, scan_code):
+        for enhanced in 0, 1:
+            ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
+            name = normalize_name(name_buffer.value)
+            if ret:
+                if name.startswith('num ') and name != 'num lock':
+                    is_keypad = True
+                    name = name[len('num '):]
+                else:
+                    is_keypad = False
 
-            if name.startswith('left ') or name.startswith('right '):
-                side, name = name.split(' ', 1)
-                name = normalize_name(name)
-                add((name, is_keypad))
-                add((side + ' '+ name, is_keypad))
-            else:
-                add((name, is_keypad))
+                if name.startswith('left ') or name.startswith('right '):
+                    side, name = name.split(' ', 1)
+                    name = normalize_name(name)
+                    yield (name, is_keypad)
+                    yield (side + ' '+ name, is_keypad)
+                else:
+                    yield (name, is_keypad)
 
     def map_char(self, char):
         self.ensure_populated()
@@ -136,14 +138,9 @@ def listen(handler):
         # this event. Do not. ToUnicode breaks dead keys.
 
         scan_code = lParam.contents.scan_code
-
-        if scan_code in scan_code_table:
-            entries = scan_code_table.get_name_keypad(scan_code)
-            is_keypad = entries[0][1]
-            names = [name for name, is_keypad in entries]
-        else:
-            is_keypad = False
-            names = []
+        entries = list(scan_code_table.get_descriptions(scan_code))
+        names = [name for name, is_keypad in entries]
+        is_keypad = len(entries) and entries[0][1]
 
         event = KeyboardEvent(keyboard_event_types[wParam], scan_code, is_keypad, names)
         
@@ -168,9 +165,11 @@ def listen(handler):
 map_char = scan_code_table.map_char
 
 def press(scan_code):
+    scan_code_table.ensure_populated()
     user32.keybd_event(scan_code_table.keycode_by_scan_code[scan_code], 0, 0, 0)
 
 def release(scan_code):
+    scan_code_table.ensure_populated()
     user32.keybd_event(scan_code_table.keycode_by_scan_code[scan_code], 0, 2, 0)
 
 if __name__ == '__main__':
