@@ -189,7 +189,38 @@ def play(events, speed_factor=1.0):
         else:
             os_keyboard.release(event.scan_code)
 
+def get_typed_strings(events, allow_backspace=True):
+    """
+    Given a sequence of events, tries to deduce what strings were typed.
+    Strings are separated when an unencodable key is pressed (such as tab
+    or enter). Characters are converted to uppercase according to shift
+    and capslock status. If `allow_backspace` is True, it also erases the
+    last character typed upon a backspace.
+
+    get_type_strings(record()) -> ['', 'This is what', 'I recorded', '']
+    """
+    shift_pressed = False
+    capslock_pressed = False
+    strings = ['']
+    for event in events:
+        if event.matches('shift'):
+            shift_pressed = event.event_type == 'down'
+        elif event.matches('caps lock') and event.event_type == 'down':
+            capslock_pressed = not capslock_pressed
+        elif event.matches('backspace') and event.event_type == 'down':
+            strings[-1] = strings[-1][:-1]
+        elif event.event_type == 'down':
+            try:
+                single_char = next(name for name in event.names if len(name) == 1)
+                if shift_pressed ^ capslock_pressed:
+                    single_char = single_char.upper()
+                strings[-1] = strings[-1] + single_char
+            except StopIteration:
+                strings.append('')
+    return strings
+
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
     play(record('esc, esc'), 3)
+    #print(get_typed_strings(record()))
