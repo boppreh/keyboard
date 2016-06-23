@@ -22,7 +22,7 @@ from setuptools import setup
 
 setup(
     name='keyboard',
-    version='0.6.7',
+    version='0.6.8',
     author='BoppreH',
     author_email='boppreh@gmail.com',
     packages=['keyboard'],
