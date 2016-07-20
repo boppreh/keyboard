@@ -2,9 +2,9 @@ import time
 
 import platform
 if platform.system() == 'Windows':
-    import keyboard.winmouse as os_mouse
+    from. import winmouse as os_mouse
 else:
-    import keyboard.nixmouse as os_mouse
+    from. import nixmouse as os_mouse
 
 from .mouse_event import ButtonEvent, MoveEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
 from .generic import GenericListener

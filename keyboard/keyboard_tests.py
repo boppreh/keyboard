@@ -2,7 +2,7 @@ import time
 import unittest
 import string
 
-from keyboard import keyboard
+from. import keyboard
 
 from keyboard.keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
 from keyboard.generic import GenericScanCodeTable
