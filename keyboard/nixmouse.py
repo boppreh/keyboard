@@ -9,6 +9,9 @@ import ctypes.util
 from ctypes import c_uint32, c_uint, c_int, byref
 
 x11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library('X11'))
+# Required because we will have multiple threads calling x11,
+# such as the listener thread and then main using "move_to".
+x11.XInitThreads()
 display = x11.XOpenDisplay(None)
 # Known to cause segafult in Fedora 23 64bits
 # http://stackoverflow.com/questions/35137007/get-mouse-position-on-linux-pure-python

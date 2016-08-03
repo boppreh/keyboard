@@ -152,6 +152,6 @@ def get_position():
 if __name__ == '__main__':
     print('Move the cursor somewhere and left-click.')
     wait()
-    move(100, 100, False)
+    move(100, 100, absolute=True, duration=3)
     double_click()
     print(get_position())
