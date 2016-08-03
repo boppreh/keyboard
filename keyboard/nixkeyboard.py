@@ -70,7 +70,26 @@ def press(scan_code):
 def release(scan_code):
     write_event(scan_code, False)
 
+def type_unicode(character):
+    codepoint = ord(character)
+    hexadecimal = hex(codepoint)[len('0x'):]
+
+    for key in ['ctrl', 'shift', 'u']:
+        scan_code, _ = map_char(key)
+        press(scan_code)
+
+    for key in hexadecimal:
+        scan_code, _ = map_char(key)
+        press(scan_code)
+        release(scan_code)
+
+    for key in ['ctrl', 'shift', 'u']:
+        scan_code, _ = map_char(key)
+        release(scan_code)
+
 if __name__ == '__main__':
+    print(scan_code_table.table)
+    exit()
     def p(e):
         print(e)
     listen(p)
