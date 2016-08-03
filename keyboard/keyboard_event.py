@@ -6,12 +6,12 @@ KEY_DOWN = 'down'
 KEY_UP = 'up'
 
 class KeyboardEvent(object):
-    def __init__(self, event_type, scan_code, is_keypad=False, names=[], time=None):
+    def __init__(self, event_type, scan_code, is_keypad=False, name=None, time=None):
         self.event_type = event_type
         self.scan_code = scan_code
         self.is_keypad = is_keypad
         self.time = now() if time is None else time
-        self.names = names
+        self.name = normalize_name(name)
 
     def matches(self, description):
         if isinstance(description, int):
@@ -19,14 +19,13 @@ class KeyboardEvent(object):
         else:
             normalized = normalize_name(description)
             return (
-                normalized in self.names
-                or 'left ' + normalized in self.names
-                or 'right ' + normalized in self.names
+                normalized == self.name
+                or 'left ' + normalized == self.name
+                or 'right ' + normalized == self.name
             )
 
     def __repr__(self):
-        name = self.names[0] if len(self.names) else 'Unknown {}'.format(self.scan_code)
-        return 'KeyboardEvent({} {})'.format(name, self.event_type)
+        return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
 
 canonical_names = {
     'escape': 'esc',
@@ -49,15 +48,19 @@ canonical_names = {
     'ctrll lock': 'caps lock',
     'number lock': 'num lock',
     'numlock:': 'num lock',
+    'space bar': 'space',
 
     ' ': 'space',
     'underscore': '_',
 
     'equal': '=',
+    'minplus': '+',
+    'plus': '+',
     'add': '+',
     'subtract': '-',
     'minus': '-',
     'multiply': '*',
+    'asterisk': '*',
     'divide': '/',
 
     'question': '?',
@@ -68,6 +71,8 @@ canonical_names = {
     'braceright': '}',
     'bracketleft': '[',
     'bracketright': ']',
+    'parenleft': '(',
+    'parenright': ')',
 
     'period': '.',
     'comma': ',',
@@ -83,6 +88,7 @@ canonical_names = {
     'hashtag': '#',
     'dollar': '$',
     'sterling': '£',
+    'pound': '£',
     'cent': '¢',
     'notsign': '¬',
     'percent': '%',
@@ -94,6 +100,7 @@ canonical_names = {
     'grave': '`',
     'tilde': '~',
     'til': '~',
+    'circumflex': '^',
     'apostrophe': '\'',
     
     'ccedilla': 'ç',

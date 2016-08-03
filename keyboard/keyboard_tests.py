@@ -5,7 +5,6 @@ import string
 from. import keyboard
 
 from keyboard.keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
-from keyboard.generic import GenericScanCodeTable
 
 # Fake events with fake scan codes for a totally deterministic test.
 all_names = list(canonical_names.values()) + list(string.ascii_lowercase) + ['shift']
@@ -13,18 +12,13 @@ scan_codes_by_name = {name: i for i, name in enumerate(all_names)}
 class FakeEvent(KeyboardEvent):
     def __init__(self, event_type, name):
         self.event_type = event_type
-        self.names = [name]
+        self.name = name
         self.scan_code = scan_codes_by_name[name]
         self.time = time.time()
-
-class FakeScanCodeTable(GenericScanCodeTable):
-    def populate(self):
-        self.table = {code: [(name, False)] for name, code in scan_codes_by_name.items()}
 
 class FakeOsKeyboard(object):
     def __init__(self, append):
         self.append = append
-        self.scan_code_table = FakeScanCodeTable()
 
     def press(self, scan_code):
         self.append((KEY_DOWN, next(name for name, i in scan_codes_by_name.items() if i == scan_code)))

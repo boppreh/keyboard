@@ -4,7 +4,6 @@ Code heavily adapted from http://pastebin.com/wzYZGZrs
 import atexit
 
 from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from .generic import GenericScanCodeTable
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
@@ -61,6 +60,36 @@ MapVirtualKey.restype = c_uint
 
 MAPVK_VSC_TO_VK = 1
 
+
+class GenericScanCodeTable(object):
+    def __init__(self):
+        self.table = None
+
+    def populate(self):
+        raise NotImplementedError()
+
+    def get_name_keypad(self, scan_code):
+        self.ensure_populated()
+        return self.table[scan_code]
+
+    def ensure_populated(self):
+        if self.table is None:
+            self.table = {}
+            self.populate()
+
+    def get_scan_code(self, name):
+        self.ensure_populated()
+        normalized = normalize_name(name)
+        for scan_code, entries in self.table.items():
+            for other_name, is_keypad in entries:
+                if other_name == normalized:
+                    return scan_code
+        raise ValueError('Char not not found ' + repr(name))
+
+    def __contains__(self, scan_code):
+        self.ensure_populated()
+        return scan_code in self.table
+
 class ScanCodeTable(GenericScanCodeTable):
     def __init__(self):
         GenericScanCodeTable.__init__(self)
@@ -81,7 +110,7 @@ class ScanCodeTable(GenericScanCodeTable):
             if ret:
                 self.keycode_by_scan_code[scan_code] = ret
 
-    def get_descriptions(self, scan_code):
+    def get_description(self, scan_code):
         for enhanced in 0, 1:
             ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
             name = normalize_name(name_buffer.value)
@@ -92,13 +121,7 @@ class ScanCodeTable(GenericScanCodeTable):
                 else:
                     is_keypad = False
 
-                if name.startswith('left ') or name.startswith('right '):
-                    side, name = name.split(' ', 1)
-                    name = normalize_name(name)
-                    yield (name, is_keypad)
-                    yield (side + ' '+ name, is_keypad)
-                else:
-                    yield (name, is_keypad)
+                return name, is_keypad
 
     def map_char(self, char):
         self.ensure_populated()
@@ -138,11 +161,9 @@ def listen(handler):
         # this event. Do not. ToUnicode breaks dead keys.
 
         scan_code = lParam.contents.scan_code
-        entries = list(scan_code_table.get_descriptions(scan_code))
-        names = [name for name, is_keypad in entries]
-        is_keypad = len(entries) and entries[0][1]
+        name, is_keypad = scan_code_table.get_description(scan_code)
 
-        event = KeyboardEvent(keyboard_event_types[wParam], scan_code, is_keypad, names)
+        event = KeyboardEvent(keyboard_event_types[wParam], scan_code, is_keypad, name)
         
         if handler(event):
             return 1

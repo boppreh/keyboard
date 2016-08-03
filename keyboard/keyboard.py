@@ -106,17 +106,28 @@ def remove_hotkey(hotkey):
 def write(text, delay=0):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
-    text. Composite characters such as à are not available. Raises ValueError
-    for unavailable characters.
+    text. Characters not available on the keyboard are typed as explicit unicode
+    characters using OS-specific functionality, such as alt+codepoint.
+
+    Delay is a number of seconds to wait between keypresses.
     """
     for letter in text:
-        scan_code, shift = os_keyboard.map_char(letter)
-        if shift:
-            send('shift', True, False)
-        os_keyboard.press(scan_code)
-        os_keyboard.release(scan_code)
-        if shift:
-            send('shift', False, True)
+        try:
+            if letter.isspace():
+                letter = normalize_name(letter)
+            scan_code, shifted = os_keyboard.map_char(letter)
+
+            if shifted:
+                send('shift', True, False)
+
+            os_keyboard.press(scan_code)
+            os_keyboard.release(scan_code)
+
+            if shifted:
+                send('shift', False, True)
+        except ValueError:
+            os_keyboard.type_unicode(letter)
+
         if delay:
             time.sleep(delay)
 
@@ -128,8 +139,7 @@ def send(combination, do_press=True, do_release=True):
     Ex: "ctrl+alt+del", "alt+F4, enter", "shift+s"
     """
     for step in _split_combination(combination):
-        get_scan_code = os_keyboard.scan_code_table.get_scan_code 
-        scan_codes = [get_scan_code(normalize_name(part)) for part in step]
+        scan_codes = [os_keyboard.map_char(normalize_name(part))[0] for part in step]
 
         if do_press:
             for scan_code in scan_codes:
@@ -194,8 +204,8 @@ def get_typed_strings(events, allow_backspace=True):
     Given a sequence of events, tries to deduce what strings were typed.
     Strings are separated when an unencodable key is pressed (such as tab
     or enter). Characters are converted to uppercase according to shift
-    and capslock status. If `allow_backspace` is True, it also erases the
-    last character typed upon a backspace.
+    and capslock status. If `allow_backspace` is True, backspaces remove the
+    last character typed.
 
     get_type_strings(record()) -> ['', 'This is what', 'I recorded', '']
     """
@@ -210,12 +220,12 @@ def get_typed_strings(events, allow_backspace=True):
         elif event.matches('backspace') and event.event_type == 'down':
             strings[-1] = strings[-1][:-1]
         elif event.event_type == 'down':
-            try:
-                single_char = next(name for name in event.names if len(name) == 1)
+            if len(event.name) == 1:
+                single_char = event.name
                 if shift_pressed ^ capslock_pressed:
                     single_char = single_char.upper()
                 strings[-1] = strings[-1] + single_char
-            except StopIteration:
+            else:
                 strings.append('')
     return strings
 
