@@ -4,6 +4,29 @@ import re
 from .nixcommon import EventDevice, EV_KEY, EV_REL, EV_MSC, EV_SYN, EV_ABS
 from .mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN
 
+import ctypes
+import ctypes.util
+from ctypes import c_uint32, c_uint, c_int, byref
+
+x11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library('X11'))
+display = x11.XOpenDisplay(None)
+# Known to cause segafult in Fedora 23 64bits
+# http://stackoverflow.com/questions/35137007/get-mouse-position-on-linux-pure-python
+window = x11.XDefaultRootWindow(display)
+
+def get_position():
+    root_id, child_id = c_uint32(), c_uint32()
+    root_x, root_y, win_x, win_y = c_int(), c_int(), c_int(), c_int()
+    mask = c_uint()
+    ret = x11.XQueryPointer(display, c_uint32(window), byref(root_id), byref(child_id),
+                            byref(root_x), byref(root_y),
+                            byref(win_x), byref(win_y), byref(mask))
+    return root_x.value, root_y.value
+
+def move_to(x, y):
+    x11.XWarpPointer(display, None, window, 0, 0, 0, 0, x, y)
+    x11.XFlush(display)
+
 REL_X = 0x00
 REL_Y = 0x01
 REL_Z = 0x02
@@ -28,35 +51,14 @@ button_by_code = {
     BTN_EXTRA: X2,
 }
 code_by_button = {button: code for code, button in button_by_code.items()}
-
-class X11Mouse(object):
-    def __init__(self):
-        self._device_id = None
-
-    @property
-    def device_id(self):
-        if self._device_id is None:
-            output = check_output('xinput').decode('utf-8')
-            self._device_id = re.search(r'Mouse\s+id=(\d+)', output).group(1)
-        return self._device_id
-
-    def get_position(self):
-        state = check_output(['xinput', '--query-state', self.device_id]).decode('utf-8')
-        pattern = r'valuator\[0\]=(\d+)\n\s*valuator\[1\]=(\d+)'
-        str_x, str_y = re.search(pattern, state, re.MULTILINE).groups(1)
-        return (int(str_x), int(str_y))
     
     
-x11mouse = X11Mouse()
 from glob import glob
 paths = glob('/dev/input/by-id/*-event-mouse')
 if paths:
     device = EventDevice(paths[0])
 else:
     device = None
-
-def get_position():
-    return x11mouse.get_position()
 
 def listen(callback):
     while True:
@@ -75,10 +77,7 @@ def listen(callback):
             if code == REL_WHEEL:
                 event = WheelEvent(value)
             elif code in (REL_X, REL_Y):
-                if code == REL_X:
-                    event = MoveEvent(value, 0)
-                elif code == REL_Y:
-                    event = MoveEvent(0, value)
+                event = MoveEvent(*get_position())
         
         if event is None:
             # Unknown event type.
@@ -101,19 +100,6 @@ def move_relative(x, y):
     device.write_event(EV_REL, REL_X, x)
     device.write_event(EV_REL, REL_Y, y)
 
-def move_to(x, y):
-    # We can try to calculate the target position, but because of acceleration
-    # there's no way to be sure of the destination.
-    #cur_x, cur_y = get_position()
-    #move_relative(x - cur_x, y - cur_y)
-
-    # Or we can try to send ABS events, but in my machine those doesn't work
-    # either.
-    #device.write_event(EV_ABS, ABS_X, x)
-    #device.write_event(EV_ABS, ABS_Y, y)
-
-    raise NotImplementedError('Absolute mouse movement not available at the moment.')
-
 def wheel(delta=1):
     if delta < 0:
         delta += 2**32
@@ -122,4 +108,4 @@ def wheel(delta=1):
 
 if __name__ == '__main__':
     #listen(print)
-    move_to(100, 100)
+    move_to(100, 200)
