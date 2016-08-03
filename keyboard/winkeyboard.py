@@ -172,6 +172,11 @@ def release(scan_code):
     scan_code_table.ensure_populated()
     user32.keybd_event(scan_code_table.keycode_by_scan_code[scan_code], 0, 2, 0)
 
+def type_unicode(character):
+    # TODO
+    # http://stackoverflow.com/questions/22291282/using-sendinput-to-send-unicode-characters-beyond-uffff
+    raise NotImplemented('Typing of arbitrary characters is not currently implemented.')
+
 if __name__ == '__main__':
     def p(e):
         print(e)
