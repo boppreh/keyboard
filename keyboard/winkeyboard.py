@@ -9,16 +9,53 @@ from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
-from ctypes.wintypes import DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM
+from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG
 LPMSG = POINTER(MSG)
+ULONG_PTR = POINTER(DWORD)
 
 user32 = ctypes.windll.user32
+
+INPUT_MOUSE = 0
+INPUT_KEYBOARD = 1
+INPUT_HARDWARE = 2
+
+KEYEVENTF_KEYUP = 0x02
+KEYEVENTF_UNICODE = 0x04
 
 class KBDLLHOOKSTRUCT(Structure):
     _fields_ = [("vk_code", DWORD),
                 ("scan_code", DWORD),
                 ("flags", DWORD),
                 ("time", c_int),]
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = (('dx', LONG),
+                ('dy', LONG),
+                ('mouseData', DWORD),
+                ('dwFlags', DWORD),
+                ('time', DWORD),
+                ('dwExtraInfo', ULONG_PTR))
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = (('wVk', WORD),
+                ('wScan', WORD),
+                ('dwFlags', DWORD),
+                ('time', DWORD),
+                ('dwExtraInfo', ULONG_PTR))
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = (('uMsg', DWORD),
+                ('wParamL', WORD),
+                ('wParamH', WORD))
+
+class _INPUTunion(ctypes.Union):
+    _fields_ = (('mi', MOUSEINPUT),
+                ('ki', KEYBDINPUT),
+                ('hi', HARDWAREINPUT))
+
+class INPUT(ctypes.Structure):
+    _fields_ = (('type', DWORD),
+                ('union', _INPUTunion))
 
 LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
 
@@ -64,6 +101,10 @@ ToUnicode = user32.ToUnicode
 ToUnicode.argtypes = [c_uint, c_uint, keyboard_state_type, LPWSTR, c_int, c_uint]
 ToUnicode.restype = c_int
 
+SendInput = user32.SendInput
+SendInput.argtypes = [c_uint, POINTER(INPUT), c_int]
+SendInput.restype = c_uint
+
 MAPVK_VSC_TO_VK = 1
 
 VkKeyScan = user32.VkKeyScanW
@@ -89,7 +130,7 @@ to_scan_code = {}
 
 name_buffer = ctypes.create_unicode_buffer(32)
 keyboard_state = keyboard_state_type()
-for scan_code in range(2**(23-16)):
+for scan_code in []:# range(2**(23-16)):
     from_scan_code[scan_code] = (['', ''], False)
 
     # Get pure key name, such as "shift".
@@ -173,11 +214,22 @@ def release(scan_code):
     user32.keybd_event(MapVirtualKey(scan_code, MAPVK_VSC_TO_VK), 0, 2, 0)
 
 def type_unicode(character):
-    # TODO
-    # http://stackoverflow.com/questions/22291282/using-sendinput-to-send-unicode-characters-beyond-uffff
-    raise NotImplemented('Typing of arbitrary characters is not currently implemented.')
+    # This code and related structures are based on
+    # http://stackoverflow.com/a/11910555/252218
+    inputs = []
+    surrogates = character.encode('utf-16le')
+    for i in range(0, len(surrogates), 2):
+        higher, lower = surrogates[i:i+2]
+        structure = KEYBDINPUT(0, (lower << 8) + higher, KEYEVENTF_UNICODE, 0, None)
+        inputs.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
+    nInputs = len(inputs)
+    LPINPUT = INPUT * nInputs
+    pInputs = LPINPUT(*inputs)
+    cbSize = c_int(ctypes.sizeof(INPUT))
+    SendInput(nInputs, pInputs, cbSize)
 
 if __name__ == '__main__':
+    #type_unicode('💩')
     def p(e):
         print(e)
     listen(p)
