@@ -127,48 +127,44 @@ keyboard_event_types = {
     WM_SYSKEYUP: KEY_UP,
 }
 
-table_mutex = Lock()
 from_scan_code = {}
 to_scan_code = {}
 
 def setup_tables():
-    if from_scan_code:
-        return
-    
-    with table_mutex:
-        name_buffer = ctypes.create_unicode_buffer(32)
-        keyboard_state = keyboard_state_type()
-        for scan_code in range(2**(23-16)):
-            from_scan_code[scan_code] = (['', ''], False)
+    name_buffer = ctypes.create_unicode_buffer(32)
+    keyboard_state = keyboard_state_type()
+    for scan_code in range(2**(23-16)):
+        from_scan_code[scan_code] = (['', ''], False)
 
-            # Get pure key name, such as "shift".
-            for enhanced in [1, 0]:
-                ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
-                if not ret:
-                    continue
-                name = name_buffer.value
-                if name.startswith('Num ') and name != 'Num Lock':
-                    is_keypad = True
-                    name = name[len('Num '):]
-                else:
-                    is_keypad = False
+        # Get pure key name, such as "shift".
+        for enhanced in [1, 0]:
+            ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
+            if not ret:
+                continue
+            name = name_buffer.value
+            if name.startswith('Num ') and name != 'Num Lock':
+                is_keypad = True
+                name = name[len('Num '):]
+            else:
+                is_keypad = False
 
-                name = normalize_name(name.replace('Right ', '').replace('Left ', ''))
-                from_scan_code[scan_code] = ([name, name], is_keypad)
-                to_scan_code[name] = (scan_code, False)
+            name = normalize_name(name.replace('Right ', '').replace('Left ', ''))
+            from_scan_code[scan_code] = ([name, name], is_keypad)
+            to_scan_code[name] = (scan_code, False)
 
-            # Get associated character, such as "^", possibly overwriting the pure key name.
-            for shift_state in [0, 1]:
-                keyboard_state[0x10] = shift_state * 0xFF
-                key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-                ret = ToUnicode(key_code, scan_code, keyboard_state, name_buffer, len(name_buffer) * 2, 0)
-                if ret:
-                    # Sometimes two characters are written before the char we want,
-                    # usually an accented one such as Â. Couldn't figure out why.
-                    char = name_buffer.value[-1]
-                    to_scan_code[char] = (scan_code, bool(shift_state))
-                    from_scan_code[scan_code][0][shift_state] = char
+        # Get associated character, such as "^", possibly overwriting the pure key name.
+        for shift_state in [0, 1]:
+            keyboard_state[0x10] = shift_state * 0xFF
+            key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+            ret = ToUnicode(key_code, scan_code, keyboard_state, name_buffer, len(name_buffer) * 2, 0)
+            if ret:
+                # Sometimes two characters are written before the char we want,
+                # usually an accented one such as Â. Couldn't figure out why.
+                char = name_buffer.value[-1]
+                to_scan_code[char] = (scan_code, bool(shift_state))
+                from_scan_code[scan_code][0][shift_state] = char
 
+setup_tables()
 shift_is_pressed = False
 
 def listen(handler):
@@ -199,8 +195,6 @@ def listen(handler):
         else:
             return CallNextHookEx(NULL, nCode, wParam, lParam)
 
-    setup_tables()
-
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
     keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, NULL, NULL)
@@ -215,7 +209,6 @@ def listen(handler):
         DispatchMessage(msg)
 
 def map_char(character):
-    setup_tables()
     try:
         return to_scan_code[character]
     except KeyError:
@@ -246,5 +239,4 @@ if __name__ == '__main__':
     #type_unicode('💩')
     def p(e):
         print(e)
-    setup_tables()
-    #listen(p)
+    listen(p)
