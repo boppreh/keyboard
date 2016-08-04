@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Code heavily adapted from http://pastebin.com/wzYZGZrs
 """

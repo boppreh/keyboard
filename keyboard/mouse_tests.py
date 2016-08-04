@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import unittest
 
 from .mouse_event import MoveEvent, ButtonEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
