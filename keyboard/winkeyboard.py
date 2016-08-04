@@ -3,6 +3,8 @@ Code heavily adapted from http://pastebin.com/wzYZGZrs
 """
 import atexit
 
+import re
+
 from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
 import ctypes
@@ -58,84 +60,11 @@ MapVirtualKey = user32.MapVirtualKeyW
 MapVirtualKey.argtypes = [c_uint, c_uint]
 MapVirtualKey.restype = c_uint
 
+ToUnicode = user32.ToUnicode
+ToUnicode.argtypes = [c_uint, c_uint, keyboard_state_type, LPWSTR, c_int, c_uint]
+ToUnicode.restype = c_int
+
 MAPVK_VSC_TO_VK = 1
-
-
-class GenericScanCodeTable(object):
-    def __init__(self):
-        self.table = None
-
-    def populate(self):
-        raise NotImplementedError()
-
-    def get_name_keypad(self, scan_code):
-        self.ensure_populated()
-        return self.table[scan_code]
-
-    def ensure_populated(self):
-        if self.table is None:
-            self.table = {}
-            self.populate()
-
-    def get_scan_code(self, name):
-        self.ensure_populated()
-        normalized = normalize_name(name)
-        for scan_code, entries in self.table.items():
-            for other_name, is_keypad in entries:
-                if other_name == normalized:
-                    return scan_code
-        raise ValueError('Char not not found ' + repr(name))
-
-    def __contains__(self, scan_code):
-        self.ensure_populated()
-        return scan_code in self.table
-
-class ScanCodeTable(GenericScanCodeTable):
-    def __init__(self):
-        GenericScanCodeTable.__init__(self)
-        self.keycode_by_scan_code = {}
-
-    def populate(self):
-        self.table[541] = [('alt gr', False)]
-        for scan_code in range(2**(23-16)):
-            entries = []
-            for entry in self.get_descriptions(scan_code):
-                if entry not in entries:
-                    entries.append(entry)
-            
-            if entries:
-                self.table[scan_code] = entries
-
-            ret = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-            if ret:
-                self.keycode_by_scan_code[scan_code] = ret
-
-    def get_description(self, scan_code):
-        for enhanced in 0, 1:
-            ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
-            name = normalize_name(name_buffer.value)
-            if ret:
-                if name.startswith('num ') and name != 'num lock':
-                    is_keypad = True
-                    name = name[len('num '):]
-                else:
-                    is_keypad = False
-
-                return name, is_keypad
-
-    def map_char(self, char):
-        self.ensure_populated()
-        ret = VkKeyScan(WCHAR(char))
-        if ret == -1:
-            raise ValueError('Cannot type character ' + char)
-        keycode = ret & 0x00FF
-        shift = ret & 0xFF00
-        scan_code = next(k for k, v in self.keycode_by_scan_code.items() if v == keycode)
-        return scan_code, shift
-
-scan_code_table = ScanCodeTable()
-
-name_buffer = ctypes.create_unicode_buffer(32)
 
 VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
@@ -155,15 +84,63 @@ keyboard_event_types = {
     WM_SYSKEYUP: KEY_UP,
 }
 
+from_scan_code = {}
+to_scan_code = {}
+
+name_buffer = ctypes.create_unicode_buffer(32)
+keyboard_state = keyboard_state_type()
+for scan_code in range(2**(23-16)):
+    from_scan_code[scan_code] = (['', ''], False)
+
+    # Get pure key name, such as "shift".
+    for enhanced in [1, 0]:
+        ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
+        if not ret:
+            continue
+        name = name_buffer.value
+        if name.startswith('Num ') and name != 'Num Lock':
+            is_keypad = True
+            name = name[len('Num '):]
+        else:
+            is_keypad = False
+
+        name = normalize_name(name.replace('Right ', '').replace('Left ', ''))
+        from_scan_code[scan_code] = ([name, name], is_keypad)
+        to_scan_code[name] = (scan_code, False)
+
+    # Get associated character, such as "^", possibly overwriting the pure key name.
+    for shift_state in [0, 1]:
+        keyboard_state[0x10] = shift_state * 0xFF
+        key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+        ret = ToUnicode(key_code, scan_code, keyboard_state, name_buffer, len(name_buffer) * 2, 0)
+        if ret:
+            # Sometimes two characters are written before the char we want,
+            # usually an accented one such as Â. Couldn't figure out why.
+            char = name_buffer.value[-1]
+            to_scan_code[char] = (scan_code, bool(shift_state))
+            from_scan_code[scan_code][0][shift_state] = char
+
+
+shift_is_pressed = False
+
 def listen(handler):
     def low_level_keyboard_handler(nCode, wParam, lParam):
         # You may be tempted to use ToUnicode to extract the character from
-        # this event. Do not. ToUnicode breaks dead keys.
+        # this event with more precision. Do not. ToUnicode breaks dead keys.
 
         scan_code = lParam.contents.scan_code
-        name, is_keypad = scan_code_table.get_description(scan_code)
+        event_type = keyboard_event_types[wParam]
 
-        event = KeyboardEvent(keyboard_event_types[wParam], scan_code, is_keypad, name)
+        names, is_keypad = from_scan_code[scan_code]
+
+        global shift_is_pressed
+        name = names[shift_is_pressed]
+        if event_type == KEY_DOWN and name == 'shift':
+            shift_is_pressed = True
+        elif event_type == KEY_UP and name == 'shift':
+            shift_is_pressed = False
+
+        event = KeyboardEvent(event_type, scan_code, is_keypad, name)
         
         if handler(event):
             return 1
@@ -183,15 +160,17 @@ def listen(handler):
         TranslateMessage(msg)
         DispatchMessage(msg)
 
-map_char = scan_code_table.map_char
+def map_char(character):
+    try:
+        return to_scan_code[character]
+    except KeyError:
+        raise ValueError('Character {} is not mapped to any known key.'.format(repr(character)))
 
 def press(scan_code):
-    scan_code_table.ensure_populated()
-    user32.keybd_event(scan_code_table.keycode_by_scan_code[scan_code], 0, 0, 0)
+    user32.keybd_event(MapVirtualKey(scan_code, MAPVK_VSC_TO_VK), 0, 0, 0)
 
 def release(scan_code):
-    scan_code_table.ensure_populated()
-    user32.keybd_event(scan_code_table.keycode_by_scan_code[scan_code], 0, 2, 0)
+    user32.keybd_event(MapVirtualKey(scan_code, MAPVK_VSC_TO_VK), 0, 2, 0)
 
 def type_unicode(character):
     # TODO

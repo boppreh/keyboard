@@ -94,11 +94,11 @@ def listen(callback):
 def write_event(scan_code, is_down):
     device.write_event(EV_KEY, scan_code, int(is_down))
 
-def map_char(char):
+def map_char(character):
     try:
-        return to_scan_code[char]
+        return to_scan_code[character]
     except KeyError:
-        raise ValueError('Character {} is not mapped to any known key.'.format(repr(char)))
+        raise ValueError('Character {} is not mapped to any known key.'.format(repr(character)))
 
 def press(scan_code):
     write_event(scan_code, True)
