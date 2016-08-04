@@ -108,7 +108,7 @@ def add_abbreviation(src, dst):
 
     Replaces every "tm" followed by a space with a ™ symbol.
     """
-    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*(len(src)+1) + dst), timeout=0)
+    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*len(src) + dst), timeout=0)
 
 remove_abbreviation = remove_hotkey
 
@@ -241,7 +241,7 @@ def get_typed_strings(events, allow_backspace=True):
 
 
 if __name__ == '__main__':
-	add_abbreviation('tm', '™')
-	input()
+    add_abbreviation('tm', '™')
+    input()
     #print('Press esc twice to replay keyboard actions.')
     #play(record('esc, esc'), 3)
