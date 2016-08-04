@@ -75,7 +75,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
         if event.event_type == KEY_UP:
             return
 
-        timed_out = state.step > 0 and event.time - state.time > timeout
+        timed_out = state.step > 0 and timeout and event.time - state.time > timeout
         unexpected = not any(event.matches(part) for part in steps[state.step])
         if unexpected or timed_out:
             if state.step > 0:
@@ -110,7 +110,7 @@ def add_abbreviation(src, dst):
 
     Replaces every "tm" followed by a space with a ™ symbol.
     """
-    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*len(src) + dst))
+    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*(len(src)+1) + dst), timeout=0)
 
 remove_abbreviation = remove_hotkey
 
@@ -125,7 +125,7 @@ def write(text, delay=0):
     """
     for letter in text:
         try:
-            if letter.isspace():
+            if letter in '\n\b\t ':
                 letter = normalize_name(letter)
             scan_code, shifted = os_keyboard.map_char(letter)
 
@@ -243,5 +243,7 @@ def get_typed_strings(events, allow_backspace=True):
 
 
 if __name__ == '__main__':
-    print('Press esc twice to replay keyboard actions.')
-    play(record('esc, esc'), 3)
+	add_abbreviation('tm', '™')
+	input()
+    #print('Press esc twice to replay keyboard actions.')
+    #play(record('esc, esc'), 3)
