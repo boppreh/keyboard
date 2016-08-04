@@ -230,7 +230,7 @@ def type_unicode(character):
     # This code and related structures are based on
     # http://stackoverflow.com/a/11910555/252218
     inputs = []
-    surrogates = character.encode('utf-16le')
+    surrogates = bytearray(character.encode('utf-16le'))
     for i in range(0, len(surrogates), 2):
         higher, lower = surrogates[i:i+2]
         structure = KEYBDINPUT(0, (lower << 8) + higher, KEYEVENTF_UNICODE, 0, None)
