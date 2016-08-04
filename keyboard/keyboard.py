@@ -102,6 +102,18 @@ def remove_hotkey(hotkey):
     """ Removes a previously registered hotkey. """
     listener.remove_handler(hotkeys[hotkey])
 
+def add_abbreviation(src, dst):
+    """
+    Registers a hotkey that replaces one typed text with another. For example
+
+        add_abbreviation('tm', '™')
+
+    Replaces every "tm" followed by a space with a ™ symbol.
+    """
+    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*len(src) + dst))
+
+remove_abbreviation = remove_hotkey
+
 @listener.wrap
 def write(text, delay=0):
     """
