@@ -54,10 +54,16 @@ def _split_combination(hotkey):
     if isinstance(hotkey, int):
         return [[hotkey]]
     else:
-        steps = hotkey.replace(' ', '').split(',')
-        map_scan_code = lambda part: os_keyboard.map_char(normalize_name(part))[0] 
-        return [[map_scan_code(part) for part in step.split('+')]
-                for step in steps if step]
+        combination = []
+        for step in hotkey.replace(' ', '').split(','):
+            combination.append([])
+            for part in step.split('+'):
+                try:
+                    scan_code = os_keyboard.map_char(normalize_name(part))[0] 
+                except KeyError:
+                    raise ValueError('Combination contains unknown part: {}'.format(part))
+                combination[-1].append(scan_code)
+        return combination
 
 def call_later(fn, args, delay=0.001):
     """
