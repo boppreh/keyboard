@@ -4,7 +4,7 @@ import traceback
 from time import time as now
 from collections import namedtuple
 from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from .nixcommon import EventDevice, EV_KEY
+from .nixcommon import EventDevice, EV_KEY, list_devices
 
 import os
 if os.geteuid() != 0:
@@ -64,12 +64,17 @@ for str_scan_code, str_regular_name, str_shifted_name in re.findall(keycode_temp
     if not is_keypad_regular or shifted_name not in to_scan_code:
         to_scan_code[shifted_name] = (scan_code, True)
 
-from glob import glob
-paths = glob('/dev/input/by-path/*-event-kbd')
-if paths:
-    device = EventDevice(paths[0])
-else:
-    raise ImportError('No keyboard files found (/dev/input/by-path/*-event-kbd).')
+for possible_device in list_devices():
+    if possible_device.is_keyboard:
+        device = possible_device
+        break
+if not device:
+    from glob import glob
+    paths = glob('/dev/input/by-id/*-event-kbd')
+    if paths:
+        device = EventDevice(paths[0])
+    else:
+        raise ImportError('No keyboards found in /proc/bus/input/devices or /dev/input/by-id/*-event-kbd')
 
 shift_is_pressed = False
 

@@ -14,8 +14,10 @@ EV_ABS = 0x03
 EV_MSC = 0x04
 
 class EventDevice(object):
-    def __init__(self, path):
+    def __init__(self, path, is_mouse, is_keyboard):
         self.path = path
+        self.is_mouse = is_mouse
+        self.is_keyboard = is_keyboard
         self._input_file = None
         self._output_file = None
 
@@ -60,3 +62,17 @@ class EventDevice(object):
 
         self.output_file.write(data_event + sync_event)
         self.output_file.flush()
+
+import re
+from collections import namedtuple
+DeviceDescription = namedtuple('DeviceDescription', 'event_file is_mouse is_keyboard')
+device_pattern = r"""N: Name="([^"]+?)".+?H: Handlers=([^\n]+)"""
+def list_devices():
+    with open('/proc/bus/input/devices') as f:
+        description = f.read()
+    devices = {}
+    for name, handlers in re.findall(device_pattern, description, re.DOTALL):
+        event_file = '/dev/input/event' + re.search(r'event(\d+)', handlers).group(1)
+        is_mouse = 'mouse' in handlers
+        is_keyboard = 'kbd' in handlers
+        yield EventDevice(event_file, is_mouse, is_keyboard)
