@@ -85,6 +85,13 @@ class TestKeyboard(unittest.TestCase):
             for key in reversed(group):
                 self.release(key)
         keyboard.remove_hotkey(combination)
+
+        # This line is required because hotkey processing wait a moment
+        # before invoking the function. This is required in Windows systems
+        # or else the rest of the system would process the key *after* the
+        # callback executed.
+        time.sleep(0.01)
+
         return self.triggered
 
     def test_register_hotkey(self):
