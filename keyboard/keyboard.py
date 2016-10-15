@@ -35,7 +35,10 @@ def is_pressed(key):
     if isinstance(key, int):
         return key in _pressed_events
     elif len(key) and '+' in key:
-        return all(is_pressed(part) for part in _split_combination(hotkey)[0])
+        parts = _split_combination(key)
+        if len(parts) > 1:
+            raise ValueError('Cannot check status of multi-step combination ({}).'.format(key))
+        return all(is_pressed(part) for part in parts[0])
     else:
         for event in _pressed_events.values():
             if event.matches(key):
