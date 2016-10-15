@@ -58,10 +58,7 @@ def _split_combination(hotkey):
         for step in hotkey.replace(' ', '').split(','):
             combination.append([])
             for part in step.split('+'):
-                try:
-                    scan_code = os_keyboard.map_char(normalize_name(part))[0] 
-                except KeyError:
-                    raise ValueError('Combination contains unknown part: {}'.format(part))
+                scan_code = os_keyboard.map_char(normalize_name(part))[0] 
                 combination[-1].append(scan_code)
         return combination
 
