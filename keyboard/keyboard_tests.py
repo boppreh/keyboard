@@ -160,7 +160,7 @@ class TestKeyboard(unittest.TestCase):
         self.press('b')
         self.release('b')
         self.release('shift')
-        self.click('esc')
+        self.press('esc')
         lock.acquire()
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift')])
 
