@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+from threading import Lock, Thread
 
 import platform
 if platform.system() == 'Windows':
@@ -47,6 +48,9 @@ def _split_combination(hotkey):
     else:
         return [step.split('+') for step in hotkey.split(', ')]
 
+def call_later(fn, args, delay=0.001):
+    Thread(target=lambda: time.sleep(delay) or fn(*args)).start()
+
 hotkeys = {}
 @listener.wrap
 def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
@@ -88,7 +92,8 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
                 state.step += 1
                 if state.step == len(steps):
                     state.step = 0
-                    callback(*args)
+                    # Leave some time for Windows to process the last key.
+                    call_later(callback, args)
                     return blocking
 
     hotkeys[hotkey] = handler
@@ -108,7 +113,7 @@ def add_abbreviation(src, dst):
 
     Replaces every "tm" followed by a space with a ™ symbol.
     """
-    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*len(src) + dst), timeout=0, blocking=False)
+    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*(len(src)+1) + dst), blocking=False)
 
 remove_abbreviation = remove_hotkey
 
@@ -172,7 +177,6 @@ def wait(combination):
     """
     Blocks the program execution until a key combination is activated.
     """
-    from threading import Lock
     lock = Lock()
     lock.acquire()
     hotkey_handler = add_hotkey(combination, lock.release)
