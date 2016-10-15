@@ -52,7 +52,9 @@ def _split_combination(hotkey):
         return [[hotkey]]
     else:
         steps = hotkey.replace(' ', '').split(',')
-        return [step.split('+') for step in steps if step]
+        map_scan_code = lambda part: os_keyboard.map_char(normalize_name(part))[0] 
+        return [[map_scan_code(part) for part in step.split('+')]
+                for step in steps if step]
 
 def call_later(fn, args, delay=0.001):
     """
@@ -154,6 +156,9 @@ def write(text, delay=0):
                 letter = normalize_name(letter)
             scan_code, shifted = os_keyboard.map_char(letter)
 
+            if is_pressed(scan_code):
+                release(scan_code)
+
             if shifted:
                 send('shift', True, False)
 
@@ -175,9 +180,7 @@ def send(combination, do_press=True, do_release=True):
 
     Ex: "ctrl+alt+del", "alt+F4, enter", "shift+s"
     """
-    for step in _split_combination(combination):
-        scan_codes = [os_keyboard.map_char(normalize_name(part))[0] for part in step]
-
+    for scan_codes in _split_combination(combination):
         if do_press:
             for scan_code in scan_codes:
                 os_keyboard.press(scan_code)
@@ -188,10 +191,12 @@ def send(combination, do_press=True, do_release=True):
 
 @listener.wrap
 def press(combination):
+    """ Sends a key press event to the OS. """
     send(combination, True, False)
 
 @listener.wrap
 def release(combination):
+    """ Sends a key release event to the OS. """
     send(combination, False, True)
 
 @listener.wrap
@@ -267,7 +272,5 @@ def get_typed_strings(events, allow_backspace=True):
 
 
 if __name__ == '__main__':
-    add_abbreviation('tm', u'™')
-    input()
-    #print('Press esc twice to replay keyboard actions.')
-    #play(record('esc, esc'), 3)
+    print('Press esc twice to replay keyboard actions.')
+    play(record('esc, esc'), 3)
