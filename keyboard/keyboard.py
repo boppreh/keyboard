@@ -49,9 +49,23 @@ def _split_combination(hotkey):
         return [step.split('+') for step in hotkey.split(', ')]
 
 def call_later(fn, args, delay=0.001):
+    """
+    Waits some amount of time then calls the provided function with the given
+    arguments in a separate thread. Useful for giving the system some time
+    to process an event, without blocking the current execution flow.
+    """
     Thread(target=lambda: time.sleep(delay) or fn(*args)).start()
 
 hotkeys = {}
+def clear_all_hotkeys():
+    """
+    Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
+    internally use hotkeys and will be affected by this call.
+    """
+    global hotkeys
+    hotkeys = {}
+    listener.handlers = []
+
 @listener.wrap
 def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
