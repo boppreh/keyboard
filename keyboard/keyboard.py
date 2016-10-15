@@ -241,7 +241,7 @@ def get_typed_strings(events, allow_backspace=True):
 
 
 if __name__ == '__main__':
-    add_abbreviation('tm', '™')
+    add_abbreviation('tm', u'™')
     input()
     #print('Press esc twice to replay keyboard actions.')
     #play(record('esc, esc'), 3)
