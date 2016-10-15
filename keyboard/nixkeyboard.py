@@ -45,7 +45,10 @@ dump = check_output(['dumpkeys', '--keys-only'], universal_newlines=True)
 for str_scan_code, str_regular_name, str_shifted_name in re.findall(keycode_template, dump):
     scan_code = int(str_scan_code)
     regular_name, is_keypad_regular = cleanup_key(str_regular_name)
-    shifted_name, is_keypad_shifted = cleanup_key(str_shifted_name)
+    if str_shifted_name:
+        shifted_name, is_keypad_shifted = cleanup_key(str_shifted_name)
+    else:
+        shifted_name, is_keypad_shifted = regular_name, is_keypad_regular
     assert is_keypad_regular == is_keypad_shifted
 
     from_scan_code[scan_code] = ([regular_name, shifted_name], is_keypad_regular)
