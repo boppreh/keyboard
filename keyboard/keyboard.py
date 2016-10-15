@@ -51,7 +51,7 @@ def _split_combination(hotkey):
     of key descriptions (name or scan code). When a combo is given (e.g.
     'ctrl+a') spaces are ignored.
     """
-    if isinstance(hotkey, int) or len(hotkey) == 1:
+    if isinstance(hotkey, int):
         return [[hotkey]]
     else:
         steps = hotkey.replace(' ', '').split(',')
