@@ -87,7 +87,9 @@ def listen(callback):
             shift_is_pressed = False
 
         event = KeyboardEvent(event_type, scan_code, is_keypad, name, time)
-        callback(event)
+        blocking = callback(event)
+        # Unfortunately we don't have a way to block events, so this feature
+        # is not available on nix.
 
 
 def write_event(scan_code, is_down):
