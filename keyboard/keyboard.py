@@ -35,7 +35,7 @@ def is_pressed(key):
     if isinstance(key, int):
         return key in _pressed_events
     elif len(key) and '+' in key:
-        return all(is_pressed(part) for part in key.split('+'))
+        return all(is_pressed(part) for part in _split_combination(hotkey)[0])
     else:
         for event in _pressed_events.values():
             if event.matches(key):
@@ -43,10 +43,16 @@ def is_pressed(key):
         return False
 
 def _split_combination(hotkey):
+    """
+    Splits a user provided hotkey into a list of steps, each one made of a list
+    of key descriptions (name or scan code). When a combo is given (e.g.
+    'ctrl+a') spaces are ignored.
+    """
     if isinstance(hotkey, int) or len(hotkey) == 1:
         return [[hotkey]]
     else:
-        return [step.split('+') for step in hotkey.split(', ')]
+        steps = hotkey.replace(' ', '').split(',')
+        return [step.split('+') for step in steps if step]
 
 def call_later(fn, args, delay=0.001):
     """
@@ -72,7 +78,9 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     Adds a hotkey handler that invokes callback each time the hotkey is
     detected. Returns a handler that can be used to unregister it later. The
     hotkey must be in the format "ctrl+shift+a, s". This would trigger when the
-    user presses "ctrl+shift+a", releases, and then presses "s".
+    user presses "ctrl+shift+a", releases, and then presses "s". To represent
+    literal commas, pluses and spaces use their names ('comma', 'plus',
+    'space').
 
     `blocking` defines if the system should block processing other hotkeys
     after a match is found. This feature is Windows-only.
@@ -127,7 +135,7 @@ def add_abbreviation(src, dst):
 
     Replaces every "tm" followed by a space with a ™ symbol.
     """
-    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*(len(src)+1) + dst), blocking=False)
+    return add_hotkey(', '.join(src)+',space', lambda: write('\b'*(len(src)+1) + dst), blocking=False)
 
 remove_abbreviation = remove_hotkey
 
