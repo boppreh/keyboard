@@ -57,7 +57,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     user presses "ctrl+shift+a", releases, and then presses "s".
 
     `blocking` defines if the system should block processing other hotkeys
-    after a match is found.
+    after a match is found. This feature is Windows-only.
 
     `timeout` is the amount of time allowed to pass between key strokes before
     the combination state is reset.
@@ -108,7 +108,7 @@ def add_abbreviation(src, dst):
 
     Replaces every "tm" followed by a space with a ™ symbol.
     """
-    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*len(src) + dst), timeout=0)
+    return add_hotkey(', '.join(src + ' '), lambda: write('\b'*len(src) + dst), timeout=0, blocking=False)
 
 remove_abbreviation = remove_hotkey
 
