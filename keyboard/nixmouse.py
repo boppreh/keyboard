@@ -57,18 +57,7 @@ button_by_code = {
 code_by_button = {button: code for code, button in button_by_code.items()}
     
     
-device = None
-for possible_device in list_devices():
-    if possible_device.is_mouse:
-        device = possible_device
-        break
-if not device:
-    from glob import glob
-    paths = glob('/dev/input/by-id/*-event-mouse')
-    if paths:
-        device = EventDevice(paths[0])
-    else:
-        raise ImportError('No mouses found in /proc/bus/input/devices or /dev/input/by-id/*-event-mouse')
+device = aggregate_devices('kbd')
 
 def listen(callback):
     while True:
