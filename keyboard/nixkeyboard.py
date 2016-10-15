@@ -64,6 +64,7 @@ for str_scan_code, str_regular_name, str_shifted_name in re.findall(keycode_temp
     if not is_keypad_regular or shifted_name not in to_scan_code:
         to_scan_code[shifted_name] = (scan_code, True)
 
+device = None
 for possible_device in list_devices():
     if possible_device.is_keyboard:
         device = possible_device

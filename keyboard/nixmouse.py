@@ -57,6 +57,7 @@ button_by_code = {
 code_by_button = {button: code for code, button in button_by_code.items()}
     
     
+device = None
 for possible_device in list_devices():
     if possible_device.is_mouse:
         device = possible_device
