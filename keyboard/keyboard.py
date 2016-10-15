@@ -220,6 +220,11 @@ def record(until='escape'):
     listener.add_handler(recorded.append)
     wait(until)
     listener.remove_handler(recorded.append)
+
+    # Remove the press event that stopped the recording, otherwise a replay will
+    # press that key and never release.
+    recorded.pop()
+
     return recorded
 
 @listener.wrap
