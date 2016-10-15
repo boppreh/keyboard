@@ -28,7 +28,10 @@ class FakeOsKeyboard(object):
         self.append((KEY_UP, next(name for name, i in scan_codes_by_name.items() if i == scan_code)))
 
     def map_char(self, char):
-        return scan_codes_by_name[char.lower()], char.isupper()
+        try:
+            return scan_codes_by_name[char.lower()], char.isupper()
+        except KeyError:
+            raise ValueError()
 
 class TestKeyboard(unittest.TestCase):
     # Without this attribute Python2 tests fail for some unknown reason.
