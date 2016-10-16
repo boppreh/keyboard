@@ -192,9 +192,12 @@ def write(text, delay=0):
 
     Delay is a number of seconds to wait between keypresses.
     """
-    for modifier in all_modifiers:
-        if is_pressed(modifier):
-            release(modifier)
+    initial_modifiers = {m for m in all_modifiers if is_pressed(m)}
+
+    # If we were called during a hotkey the user may still be holding the hotkey
+    # modifier, which will affect the letters typed.
+    for modifier in initial_modifiers:
+        release(modifier)
 
     for letter in text:
         try:
@@ -218,6 +221,10 @@ def write(text, delay=0):
 
         if delay:
             time.sleep(delay)
+
+    # Restore initial state of modifiers.
+    for modifier in initial_modifiers:
+        press(modifier)
 
 def send(combination, do_press=True, do_release=True):
     """
