@@ -396,9 +396,19 @@ def write(text, delay=0, restore_state_after=True):
 
 def send(combination, do_press=True, do_release=True):
     """
-    Performs a given hotkey combination.
+    Sends OS events that perform the given hotkey combination.
 
-    Ex: "ctrl+alt+del", "alt+F4, enter", "shift+s"
+    - `combination` can be either a scan code (e.g. 57 for space), single key
+    (e.g. 'space') or multi-key, multi-step combination (e.g. 'alt+F4, enter').
+    - `do_press` if true then press events are sent. Defaults to True.
+    - `do_release` if true then release events are sent. Defaults to True.
+
+        send(57)
+        send('ctrl+alt+del')
+        send('alt+F4, enter')
+        send('shift+s')
+
+    Note: keys are released in the opposite order they were pressed.
     """
     for scan_codes in canonicalize(combination):
         if do_press:
@@ -410,15 +420,15 @@ def send(combination, do_press=True, do_release=True):
                 os_keyboard.release(scan_code)
 
 def press(combination):
-    """ Presses and holds down the key combination. """
+    """ Presses and holds down a key combination (see `send`). """
     send(combination, True, False)
 
 def release(combination):
-    """ Releases the key combination. """
+    """ Releases a key combination (see `send`). """
     send(combination, False, True)
 
 def press_and_release(combination):
-    """ Presses and releases the key combination. """
+    """ Presses and releases the key combination (see `send`). """
     send(combination, True, True)
 
 def wait(combination):
