@@ -6,10 +6,9 @@ KEY_DOWN = 'down'
 KEY_UP = 'up'
 
 class KeyboardEvent(object):
-    def __init__(self, event_type, scan_code, is_keypad=False, name=None, time=None):
+    def __init__(self, event_type, scan_code, name=None, time=None):
         self.event_type = event_type
         self.scan_code = scan_code
-        self.is_keypad = is_keypad
         self.time = now() if time is None else time
         self.name = normalize_name(name)
 
@@ -50,6 +49,7 @@ canonical_names = {
     'numlock:': 'num lock',
     'space bar': 'space',
     'spacebar': 'space',
+    'linefeed': 'enter',
 
     ' ': 'space',
     'underscore': '_',
@@ -67,6 +67,7 @@ canonical_names = {
     'question': '?',
     'exclam': '!',
     'slash': '/',
+    'bar': '|',
     'backslash': '\\',
     'braceleft': '{',
     'braceright': '}',
@@ -87,28 +88,66 @@ canonical_names = {
     'numbersign': '#',
     'hash': '#',
     'hashtag': '#',
+
     'dollar': '$',
     'sterling': '£',
     'pound': '£',
+    'yen': '¥',
+    'euro': '€',
     'cent': '¢',
+    'currency': '¤',
+    'registered': '®',
+    'copyright': '©',
     'notsign': '¬',
     'percent': '%',
     'diaeresis': '"',
     'quotedbl': '"',
+    'onesuperior': '¹',
+    'twosuperior': '²',
+    'threesuperior': '³',
+    'onehalf': '½',
+    'onequarter': '¼',
+    'threequarters': '¾',
+    'paragraph': '¶',
+    'section': '§',
+    'ssharp': '§',
+    'division': '÷',
+    'questiondown': '¿',
+    'exclamdown': '¡',
+    'degree': '°',
+    'guillemotright': '»',
+    'guillemotleft': '«',
     
     'acute': '´',
     'agudo': '´',
     'grave': '`',
     'tilde': '~',
+    'asciitilde': '~',
     'til': '~',
+    'cedilla': ',',
     'circumflex': '^',
     'apostrophe': '\'',
     
+    'adiaeresis': 'ä',
+    'udiaeresis': 'ü',
+    'odiaeresis': 'ö',
+    'oe': 'Œ',
+    'oslash': 'ø',
+    'ooblique': 'Ø',
     'ccedilla': 'ç',
+    'ntilde': 'ñ',
+    'eacute': 'é',
+    'uacute': 'ú',
+    'oacute': 'ó',
+    'thorn': 'þ',
     'ae': 'æ',
     'eth': 'ð',
     'masculine': 'º',
     'feminine': 'ª',
+    'iacute': 'í',
+    'aacute': 'á',
+    'mu': 'Μ',
+    'aring': 'å',
 
     'zero': '0',
     'one': '1',

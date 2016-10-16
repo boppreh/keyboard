@@ -8,8 +8,10 @@ if platform.system() == 'Windows':
 else:
     from. import nixkeyboard as os_keyboard
 
-from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name    
+from .keyboard_event import KEY_DOWN, KEY_UP, normalize_name    
 from .generic import GenericListener
+
+all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift')
 
 _pressed_events = {}
 class KeyboardListener(GenericListener):
@@ -58,7 +60,7 @@ def _split_combination(hotkey):
         for step in hotkey.replace(' ', '').split(','):
             combination.append([])
             for part in step.split('+'):
-                scan_code = os_keyboard.map_char(normalize_name(part))[0] 
+                scan_code, modifiers = os_keyboard.map_char(normalize_name(part))
                 combination[-1].append(scan_code)
         return combination
 
@@ -156,28 +158,35 @@ def write(text, delay=0):
 
     Delay is a number of seconds to wait between keypresses.
     """
+    starting_modifiers = {m for m in all_modifiers if is_pressed(m)}
     for letter in text:
         try:
             if letter in '\n\b\t ':
                 letter = normalize_name(letter)
-            scan_code, shifted = os_keyboard.map_char(letter)
+            scan_code, modifiers = os_keyboard.map_char(letter)
 
             if is_pressed(scan_code):
                 release(scan_code)
 
-            if shifted:
-                send('shift', True, False)
+            for modifier in all_modifiers:
+                if modifier in modifiers:
+                    press(modifier)
+                else:
+                    release(modifier)
 
             os_keyboard.press(scan_code)
             os_keyboard.release(scan_code)
-
-            if shifted:
-                send('shift', False, True)
         except ValueError:
             os_keyboard.type_unicode(letter)
 
         if delay:
             time.sleep(delay)
+
+    for modifier in all_modifiers:
+        if modifier in starting_modifiers:
+            press(modifier)
+        else:
+            release(modifier)
 
 @listener.wrap
 def send(combination, do_press=True, do_release=True):
@@ -283,5 +292,7 @@ def get_typed_strings(events, allow_backspace=True):
 
 
 if __name__ == '__main__':
+    write('Hello World! €')
+    exit()
     print('Press esc twice to replay keyboard actions.')
     play(record('esc, esc'), 3)

@@ -29,44 +29,47 @@ def cleanup_key(name):
 
     return normalize_name(name), is_keypad
 
+def cleanup_modifier(modifier):
+    expected = ('alt', 'ctrl', 'shift', 'alt gr')
+    modifier = normalize_name(modifier)
+    if modifier in expected:
+        return modifier
+    if modifier[:-1] in expected:
+        return modifier[:-1]
+    raise ValueError('Unknown modifier {}'.format(modifier))
+
 """
 Use `dumpkeys --keys-only` to list all scan codes and their names. We
-then parse the output and built a table. For each scan code we have
-a list of names, and if each name is in the keypad or not.
+then parse the output and built a table. For each scan code and modifiers we
+have a list of names and vice-versa.
 """
 from subprocess import check_output
 import re
 
-from_scan_code = {}
-to_scan_code = {}
+to_name = {}
+from_name = {}
 
-keycode_template = r'\nkeycode\s+(\d+) = (\S+)(?: {2,}(\S+))?'
+keycode_template = r'^(.*?)keycode\s+(\d+)\s+=(.*?)$'
 dump = check_output(['dumpkeys', '--keys-only'], universal_newlines=True)
-for str_scan_code, str_regular_name, str_shifted_name in re.findall(keycode_template, dump):
+for str_modifiers, str_scan_code, str_names in re.findall(keycode_template, dump, re.MULTILINE):
+    if not str_names: continue
+    modifiers = tuple(sorted(set(cleanup_modifier(m) for m in str_modifiers.strip().split())))
     scan_code = int(str_scan_code)
-    regular_name, is_keypad_regular = cleanup_key(str_regular_name)
-    if str_shifted_name:
-        shifted_name, is_keypad_shifted = cleanup_key(str_shifted_name)
-    else:
-        shifted_name, is_keypad_shifted = regular_name, is_keypad_regular
-    assert is_keypad_regular == is_keypad_shifted
+    name, is_keypad = cleanup_key(str_names.strip().split()[0])
+    to_name[(scan_code, modifiers)] = name
+    if name not in from_name or len(modifiers) < len(from_name[name][1]):
+        from_name[name] = (scan_code, modifiers)
 
-    from_scan_code[scan_code] = ([regular_name, shifted_name], is_keypad_regular)
-
-    # Non-keypad keys are preferred.
-    if not is_keypad_regular or regular_name not in to_scan_code:
-        to_scan_code[regular_name] = (scan_code, False)
-
-    # Capitalize letters correctly to help reverse mapping.
-    if len(shifted_name) == 1:
-        shifted_name = shifted_name.upper()
-
-    if not is_keypad_regular or shifted_name not in to_scan_code:
-        to_scan_code[shifted_name] = (scan_code, True)
+# TODO: name normalization is discarding uppercase letters, thus this hack.
+from string import ascii_uppercase
+for letter in ascii_uppercase:
+    if letter not in from_name:
+        scan_code, modifiers = from_name[letter.lower()]
+        from_name[letter] = (scan_code, modifiers + ('shift',))
 
 device = aggregate_devices('kbd')
 
-shift_is_pressed = False
+pressed_modifiers = set()
 
 def listen(callback):
     while True:
@@ -77,16 +80,18 @@ def listen(callback):
         scan_code = code
         event_type = KEY_DOWN if value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
 
-        names, is_keypad = from_scan_code[scan_code]
+        try:
+            name = to_name[(scan_code, tuple(sorted(pressed_modifiers)))]
+        except KeyError:
+            name = to_name[(scan_code, ())]
+            
+        if name in ('alt', 'alt gr', 'ctrl', 'shift'):
+            if event_type == KEY_DOWN:
+                pressed_modifiers.add(name)
+            else:
+                pressed_modifiers.remove(name)
 
-        global shift_is_pressed
-        name = names[shift_is_pressed]
-        if event_type == KEY_DOWN and name == 'shift':
-            shift_is_pressed = True
-        elif event_type == KEY_UP and name == 'shift':
-            shift_is_pressed = False
-
-        event = KeyboardEvent(event_type, scan_code, is_keypad, name, time)
+        event = KeyboardEvent(event_type, scan_code, name, time)
         blocking = callback(event)
         # Unfortunately we don't have a way to block events, so this feature
         # is not available on nix.
@@ -97,7 +102,7 @@ def write_event(scan_code, is_down):
 
 def map_char(character):
     try:
-        return to_scan_code[character]
+        return from_name[character]
     except KeyError:
         raise ValueError('Character {} is not mapped to any known key.'.format(repr(character)))
 

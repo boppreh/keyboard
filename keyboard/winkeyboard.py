@@ -188,7 +188,7 @@ def listen(handler):
         elif event_type == KEY_UP and name == 'shift':
             shift_is_pressed = False
 
-        event = KeyboardEvent(event_type, scan_code, is_keypad, name)
+        event = KeyboardEvent(event_type, scan_code, name)
         
         if handler(event):
             return 1
