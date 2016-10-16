@@ -11,7 +11,7 @@ else:
 from .keyboard_event import KEY_DOWN, KEY_UP, normalize_name    
 from .generic import GenericListener
 
-all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift')
+all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 
 _pressed_events = {}
 class KeyboardListener(GenericListener):
@@ -192,7 +192,10 @@ def write(text, delay=0):
 
     Delay is a number of seconds to wait between keypresses.
     """
-    starting_modifiers = {m for m in all_modifiers if is_pressed(m)}
+    for modifier in all_modifiers:
+        if is_pressed(modifier):
+            release(modifier)
+
     for letter in text:
         try:
             if letter in '\n\b\t ':
@@ -202,25 +205,19 @@ def write(text, delay=0):
             if is_pressed(scan_code):
                 release(scan_code)
 
-            for modifier in all_modifiers:
-                if modifier in modifiers:
-                    press(modifier)
-                else:
-                    release(modifier)
+            for modifier in modifiers:
+                press(modifier)
 
             os_keyboard.press(scan_code)
             os_keyboard.release(scan_code)
+
+            for modifier in modifiers:
+                release(modifier)
         except ValueError:
             os_keyboard.type_unicode(letter)
 
         if delay:
             time.sleep(delay)
-
-    for modifier in all_modifiers:
-        if modifier in starting_modifiers:
-            press(modifier)
-        else:
-            release(modifier)
 
 def send(combination, do_press=True, do_release=True):
     """
