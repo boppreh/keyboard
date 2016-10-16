@@ -60,12 +60,14 @@ for str_modifiers, str_scan_code, str_names in re.findall(keycode_template, dump
     if name not in from_name or len(modifiers) < len(from_name[name][1]):
         from_name[name] = (scan_code, modifiers)
 
-# TODO: name normalization is discarding uppercase letters, thus this hack.
-from string import ascii_uppercase
-for letter in ascii_uppercase:
-    if letter not in from_name:
-        scan_code, modifiers = from_name[letter.lower()]
-        from_name[letter] = (scan_code, modifiers + ('shift',))
+# Assume Shift uppercases keys that are single characters.
+# Hackish, but a good heuristic so far.
+for name, (scan_code, modifiers) in list(from_name.items()):
+    upper = name.upper()
+    if len(name) == 1 and upper not in from_name:
+        pair = (scan_code, modifiers + ('shift',))
+        from_name[upper] = pair
+        to_name[pair] = upper
 
 device = aggregate_devices('kbd')
 
