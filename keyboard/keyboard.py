@@ -128,8 +128,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
                     return blocking
 
     hotkeys[hotkey] = handler
-    listener.add_handler(handler)
-    return handler
+    return hook(handler)
 
 def hook(callback):
     """
@@ -161,12 +160,14 @@ def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
             keyup_callback()
 
     hotkeys[key] = handler
-    listener.add_handler(handler)
-    return handler
+    return hook(handler)
 
 def remove_hotkey(hotkey):
     """ Removes a previously registered hotkey. """
-    listener.remove_handler(hotkeys[hotkey])
+    if callable(hotkey):
+        unhook(hotkey)
+    else:
+        unhook(hotkeys[hotkey])
 
 def add_abbreviation(source_text, replacement_text):
     """
@@ -182,7 +183,15 @@ def add_abbreviation(source_text, replacement_text):
     callback = lambda: write('\b'*(len(source_text)+1) + replacement_text)
     return add_hotkey(', '.join(source_text)+',space', callback, blocking=False)
 
-remove_abbreviation = remove_hotkey
+def remove_abbreviation(abbreviation):
+    """
+    Removes a previously instaled abbreviation hotkey. Works given both the
+    abbreviation source text or the handler returned by `add_abbreviation`.
+    """
+    if callable(abbreviation):
+        unhook(abbreviation)
+    else:
+        remove_hotkey(', '.join(abbreviation)+',space')
 
 def write(text, delay=0):
     """
@@ -257,7 +266,7 @@ def wait(combination):
     lock.acquire()
     hotkey_handler = add_hotkey(combination, lock.release)
     lock.acquire()
-    listener.remove_handler(hotkey_handler)
+    remove_hotkey(hotkey_handler)
 
 def record(until='escape'):
     """
@@ -265,9 +274,9 @@ def record(until='escape'):
     key combination.
     """
     recorded = []
-    listener.add_handler(recorded.append)
+    hook(recorded.append)
     wait(until)
-    listener.remove_handler(recorded.append)
+    unhook(recorded.append)
 
     # Remove the press event that stopped the recording, otherwise a replay will
     # press that key and never release.
