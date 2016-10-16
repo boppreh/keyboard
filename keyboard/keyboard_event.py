@@ -26,6 +26,7 @@ class KeyboardEvent(object):
     def __repr__(self):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
 
+# TODO: add values from https://svn.apache.org/repos/asf/xmlgraphics/commons/tags/commons-1_0/src/java/org/apache/xmlgraphics/fonts/Glyphs.java
 canonical_names = {
     'escape': 'esc',
     'return': 'enter',
@@ -51,7 +52,12 @@ canonical_names = {
     'spacebar': 'space',
     'linefeed': 'enter',
 
-    ' ': 'space',
+    'pagedown': 'page down',
+    'next': 'page down', # This looks wrong, but this is how Linux reports.
+    'pageup': 'page up',
+    'prior': 'page up',
+
+    ' ': 'space', # Prefer to spell out keys that would be hard to read.
     'underscore': '_',
 
     'equal': '=',
