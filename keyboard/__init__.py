@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
-from threading import Lock, Thread
+from threading import Lock as _Lock
+from threading import Thread as _Thread
 
 import platform
 if platform.system() == 'Windows':
@@ -9,12 +10,12 @@ else:
     from. import _nixkeyboard as os_keyboard
 
 from ._keyboard_event import KEY_DOWN, KEY_UP, normalize_name    
-from ._generic import GenericListener
+from ._generic import GenericListener as _GenericListener
 
 all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 
 _pressed_events = {}
-class _KeyboardListener(GenericListener):
+class _KeyboardListener(_GenericListener):
     def callback(self, event):
         if not event.scan_code:
             return
@@ -87,7 +88,7 @@ def call_later(fn, args=(), delay=0.001):
     Useful for giving the system some time to process an event, without blocking
     the current execution flow.
     """
-    Thread(target=lambda: time.sleep(delay) or fn(*args)).start()
+    _Thread(target=lambda: time.sleep(delay) or fn(*args)).start()
 
 _hotkeys = {}
 def clear_all_hotkeys():
@@ -435,7 +436,7 @@ def wait(combination):
     """
     Blocks the program execution until the given key combination is pressed.
     """
-    lock = Lock()
+    lock = _Lock()
     lock.acquire()
     hotkey_handler = add_hotkey(combination, lock.release)
     lock.acquire()
