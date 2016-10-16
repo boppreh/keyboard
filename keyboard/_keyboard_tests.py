@@ -3,7 +3,7 @@ import time
 import unittest
 import string
 
-from. import keyboard
+import keyboard
 
 from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
 

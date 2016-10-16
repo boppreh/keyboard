@@ -2,7 +2,7 @@
 import struct
 from subprocess import check_output
 import re
-from ._nixcommon import EV_KEY, EV_REL, EV_MSC, EV_SYN, EV_ABS, aggregate_devices
+from ._nixcommon import EV_KEY, EV_REL, EV_MSC, EV_SYN, EV_ABS, aggregate_devices, ensure_root
 from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN
 
 import ctypes
@@ -57,9 +57,16 @@ button_by_code = {
 code_by_button = {button: code for code, button in button_by_code.items()}
     
     
-device = aggregate_devices('mouse')
+device = None
+def build_device():
+    global device
+    if device: return
+    ensure_root()
+    device = aggregate_devices('mouse')
 
 def listen(callback):
+    build_device()
+
     while True:
         time, type, code, value = device.read_event()
         if type == EV_SYN or type == EV_MSC:
@@ -85,12 +92,15 @@ def listen(callback):
         callback(event)
 
 def press(button=LEFT):
+    build_device()
     device.write_event(EV_KEY, code_by_button[button], 0x01)
 
 def release(button=LEFT):
+    build_device()
     device.write_event(EV_KEY, code_by_button[button], 0x00)
 
 def move_relative(x, y):
+    build_device()
     # Note relative events are not in terms of pixels, but millimeters.
     if x < 0:
         x += 2**32
@@ -100,6 +110,7 @@ def move_relative(x, y):
     device.write_event(EV_REL, REL_Y, y)
 
 def wheel(delta=1):
+    build_device()
     if delta < 0:
         delta += 2**32
     device.write_event(EV_REL, REL_WHEEL, delta)

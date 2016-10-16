@@ -4,11 +4,7 @@ import traceback
 from time import time as now
 from collections import namedtuple
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from ._nixcommon import EV_KEY, aggregate_devices
-
-import os
-if os.geteuid() != 0:
-    raise ImportError('You must be root to use this library on linux.')
+from ._nixcommon import EV_KEY, aggregate_devices, ensure_root
 
 # TODO: start by reading current keyboard state, as to not missing any already pressed keys.
 # See: http://stackoverflow.com/questions/3649874/how-to-get-keyboard-state-in-linux
@@ -49,31 +45,43 @@ import re
 to_name = {}
 from_name = {}
 
-keycode_template = r'^(.*?)keycode\s+(\d+)\s+=(.*?)$'
-dump = check_output(['dumpkeys', '--keys-only'], universal_newlines=True)
-for str_modifiers, str_scan_code, str_names in re.findall(keycode_template, dump, re.MULTILINE):
-    if not str_names: continue
-    modifiers = tuple(sorted(set(cleanup_modifier(m) for m in str_modifiers.strip().split())))
-    scan_code = int(str_scan_code)
-    name, is_keypad = cleanup_key(str_names.strip().split()[0])
-    to_name[(scan_code, modifiers)] = name
-    if name not in from_name or len(modifiers) < len(from_name[name][1]):
-        from_name[name] = (scan_code, modifiers)
+def build_tables():
+    if to_name and from_name: return
+    ensure_root()
 
-# Assume Shift uppercases keys that are single characters.
-# Hackish, but a good heuristic so far.
-for name, (scan_code, modifiers) in list(from_name.items()):
-    upper = name.upper()
-    if len(name) == 1 and upper not in from_name:
-        pair = (scan_code, modifiers + ('shift',))
-        from_name[upper] = pair
-        to_name[pair] = upper
+    keycode_template = r'^(.*?)keycode\s+(\d+)\s+=(.*?)$'
+    dump = check_output(['dumpkeys', '--keys-only'], universal_newlines=True)
+    for str_modifiers, str_scan_code, str_names in re.findall(keycode_template, dump, re.MULTILINE):
+        if not str_names: continue
+        modifiers = tuple(sorted(set(cleanup_modifier(m) for m in str_modifiers.strip().split())))
+        scan_code = int(str_scan_code)
+        name, is_keypad = cleanup_key(str_names.strip().split()[0])
+        to_name[(scan_code, modifiers)] = name
+        if name not in from_name or len(modifiers) < len(from_name[name][1]):
+            from_name[name] = (scan_code, modifiers)
 
-device = aggregate_devices('kbd')
+    # Assume Shift uppercases keys that are single characters.
+    # Hackish, but a good heuristic so far.
+    for name, (scan_code, modifiers) in list(from_name.items()):
+        upper = name.upper()
+        if len(name) == 1 and upper not in from_name:
+            pair = (scan_code, modifiers + ('shift',))
+            from_name[upper] = pair
+            to_name[pair] = upper
+
+device = None
+def build_device():
+    global device
+    if device: return
+    ensure_root()
+    device = aggregate_devices('kbd')
 
 pressed_modifiers = set()
 
 def listen(callback):
+    build_device()
+    build_tables()
+
     while True:
         time, type, code, value = device.read_event()
         if type != EV_KEY:
@@ -100,9 +108,11 @@ def listen(callback):
 
 
 def write_event(scan_code, is_down):
+    build_device()
     device.write_event(EV_KEY, scan_code, int(is_down))
 
 def map_char(character):
+    build_tables()
     try:
         return from_name[character]
     except KeyError:

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import struct
+import os
 import atexit
 from time import time as now
 from threading import Thread
@@ -119,3 +120,8 @@ def aggregate_devices(type_name):
         return AggregatedEventDevice(devices_from_proc)
 
     raise ValueError('No {0} device found in /proc/bus/input/devices or /dev/input/by-id/*-event-{0}'.format(type_name))
+
+
+def ensure_root():
+    if os.geteuid() != 0:
+        raise ImportError('You must be root to use this library on linux.')
