@@ -342,7 +342,7 @@ def stash_state():
 def restore_state(scan_codes):
     """
     Given a list of scan_codes ensures these keys, and only these keys, are
-    pressed.
+    pressed. Pairs well with `stash_state`.
     """
     current = set(_pressed_events)
     target = set(scan_codes)
@@ -357,7 +357,14 @@ def write(text, delay=0, restore_state_after=True):
     text. Characters not available on the keyboard are typed as explicit unicode
     characters using OS-specific functionality, such as alt+codepoint.
 
-    Delay is a number of seconds to wait between keypresses.
+    To ensure text integrity all currently pressed keys are released before
+    the text is typed.
+
+    - `delay` is the number of seconds to wait between keypresses, defaults to
+    no delay.
+    - `restore_state_after` can be used to restore the state of pressed keys
+    after the text is typed, i.e. presses the keys that were released at the
+    beginning. Defaults to True.
     """
     state = stash_state()
 
