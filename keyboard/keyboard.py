@@ -292,7 +292,5 @@ def get_typed_strings(events, allow_backspace=True):
 
 
 if __name__ == '__main__':
-    write('Hello World! € Á')
-    exit()
     print('Press esc twice to replay keyboard actions.')
     play(record('esc, esc'), 3)
