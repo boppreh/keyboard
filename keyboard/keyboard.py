@@ -133,20 +133,22 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     return handler
 
 @listener.wrap
-def hook_key(key, keydownCallback, keyupCallback, blocking=True, timeout=1):
-	""" Hooks key up and down events for a given key, no hotkeys combos """
-	def handler(event):
-		if not event.matches(key):
-			return
+def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
+    """
+    Hooks key up and down events for a given key, no hotkeys combos.
+    """
+    def handler(event):
+        if not event.matches(key):
+            return
 
-		if event.event_type == KEY_DOWN:
-			keydownCallback()
-		if event.event_type == KEY_UP:
-			keyupCallback()
-	
-	hotkeys[key] = handler
-	listener.add_handler(handler)
-	return handler
+        if event.event_type == KEY_DOWN:
+            keydown_callback()
+        if event.event_type == KEY_UP:
+            keyup_callback()
+
+    hotkeys[key] = handler
+    listener.add_handler(handler)
+    return handler
 
 @listener.wrap
 def remove_hotkey(hotkey):
