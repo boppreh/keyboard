@@ -293,10 +293,6 @@ def record(until='escape'):
     wait(until)
     unhook(recorded.append)
 
-    # Remove the press event that stopped the recording, otherwise a replay will
-    # press that key and never release.
-    recorded.pop()
-
     return recorded
 
 def play(events, speed_factor=1.0):
@@ -305,6 +301,8 @@ def play(events, speed_factor=1.0):
     intervals. If speed_factor is not positive (<= 0) the actions are replayed
     instantly.
     """
+    state = stash_state()
+
     last_time = None
     for event in events:
         if speed_factor > 0 and last_time is not None:
@@ -315,6 +313,8 @@ def play(events, speed_factor=1.0):
             os_keyboard.press(event.scan_code)
         else:
             os_keyboard.release(event.scan_code)
+
+    restore_state(state)
 
 def get_typed_strings(events, allow_backspace=True):
     """
