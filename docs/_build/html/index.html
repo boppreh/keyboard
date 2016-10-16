@@ -71,14 +71,17 @@
 <li>Mouse support coming soon.</li>
 </ul>
 <p>Example:</p>
-<p><a href="#id1"><span class="problematic" id="id2">``</span></a>`
-import keyboard</p>
-<p># Press PAGE UP then PAGE DOWN to type &#8220;foobar&#8221;.
-keyboard.add_hotkey(&#8216;page up, page down&#8217;, lambda: keyboard.write(&#8216;foobar&#8217;))</p>
-<p>keyboard.press_and_release(&#8216;shift+s, space&#8217;)</p>
-<p># Blocks until you press esc.
-keyboard.wait(&#8216;esc&#8217;)
-<a href="#id3"><span class="problematic" id="id4">``</span></a><a href="#id5"><span class="problematic" id="id6">`</span></a></p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">keyboard</span>
+
+<span class="c1"># Press PAGE UP then PAGE DOWN to type &quot;foobar&quot;.</span>
+<span class="n">keyboard</span><span class="o">.</span><span class="n">add_hotkey</span><span class="p">(</span><span class="s1">&#39;page up, page down&#39;</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">keyboard</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;foobar&#39;</span><span class="p">))</span>
+
+<span class="n">keyboard</span><span class="o">.</span><span class="n">press_and_release</span><span class="p">(</span><span class="s1">&#39;shift+s, space&#39;</span><span class="p">)</span>
+
+<span class="c1"># Blocks until you press esc.</span>
+<span class="n">keyboard</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="s1">&#39;esc&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>This program makes no attempt to hide itself, so don&#8217;t use it for keyloggers.</p>
 </div>
 <div class="section" id="keyboard-package">
@@ -528,7 +531,7 @@ the list. Pairs well with <cite>restore_state</cite>.</p>
 <dt id="keyboard.unhook_all">
 <code class="descclassname">keyboard.</code><code class="descname">unhook_all</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/keyboard.html#unhook_all"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#keyboard.unhook_all" title="Permalink to this definition">¶</a></dt>
 <dd><p>Removes all keyboard hooks in use, including hotkeys, abbreviations, word
-listeners, <a href="#id7"><span class="problematic" id="id8">`</span></a>record`ers and <a href="#id9"><span class="problematic" id="id10">`</span></a>wait`s.</p>
+listeners, <a href="#id1"><span class="problematic" id="id2">`</span></a>record`ers and <a href="#id3"><span class="problematic" id="id4">`</span></a>wait`s.</p>
 </dd></dl>
 
 <dl class="function">

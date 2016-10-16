@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>keyboard &#8212; keyboard 0.7.1 documentation</title>
+    <title>&lt;no title&gt; &#8212; keyboard 0.7.1 documentation</title>
     
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -46,36 +46,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="keyboard">
-<h1>keyboard<a class="headerlink" href="#keyboard" title="Permalink to this headline">¶</a></h1>
-<p>Take full control of your keyboard with this small Python library. Hook global events, register hotkeys, simulate key presses and much more.</p>
-<ul class="simple">
-<li>Global event hook on all keyboards (captures keys regardless of focus).</li>
-<li><strong>Receive</strong> and <strong>send</strong> keyboard events.</li>
-<li>Works with <strong>Windows</strong> and <strong>Linux</strong> (requires sudo).</li>
-<li><strong>Pure Python</strong>, no C modules to be compiled.</li>
-<li><strong>Zero dependencies</strong>. Trivial to install and deploy, just copy the files.</li>
-<li><strong>Python 2 and 3</strong>.</li>
-<li>Complex hotkey support (e.g. <cite>Ctrl+Shift+M, Ctrl+Space</cite>) with controllable timeout.</li>
-<li>Includes <strong>high level API</strong> (e.g. <cite>record</cite> and <cite>play</cite>, <cite>add_abbreviation</cite>).</li>
-<li>Maps keys as they actually are in your layout, with <strong>full internationalization support</strong> (e.g. <cite>Ctrl+ç</cite>).</li>
-<li>Events automatically captured in separate thread, doesn&#8217;t block main program.</li>
-<li>Tested and documented.</li>
-<li>Doesn&#8217;t break accented dead keys (I&#8217;m looking at you, pyHook).</li>
-<li>Mouse support coming soon.</li>
-</ul>
-<p>Example:</p>
-<p><a href="#id1"><span class="problematic" id="id2">``</span></a>`
-import keyboard</p>
-<p># Press PAGE UP then PAGE DOWN to type &#8220;foobar&#8221;.
-keyboard.add_hotkey(&#8216;page up, page down&#8217;, lambda: keyboard.write(&#8216;foobar&#8217;))</p>
-<p>keyboard.press_and_release(&#8216;shift+s, space&#8217;)</p>
-<p># Blocks until you press esc.
-keyboard.wait(&#8216;esc&#8217;)
-<a href="#id3"><span class="problematic" id="id4">``</span></a><a href="#id5"><span class="problematic" id="id6">`</span></a></p>
-<p>This program makes no attempt to hide itself, so don&#8217;t use it for keyloggers.</p>
-</div>
-
+  
 
           </div>
         </div>

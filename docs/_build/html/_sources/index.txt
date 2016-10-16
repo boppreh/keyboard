@@ -11,7 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-.. include:: ../README.md
+.. include:: ../README.rst
 
 .. include:: ./source/keyboard.rst
 
