@@ -22,7 +22,7 @@ Example:
 import keyboard
 
 # Press PAGE UP then PAGE DOWN to type "foobar".
-keyboard.add_hotkey('page up, page down', lambda: keyboard.write('foobar'))
+keyboard.add_hotkey('prior, next', lambda: keyboard.write('foobar'))
 
 # Blocks until you press esc.
 keyboard.wait('esc')
