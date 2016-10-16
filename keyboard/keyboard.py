@@ -64,7 +64,7 @@ def _split_combination(hotkey):
                 combination[-1].append(scan_code)
         return combination
 
-def call_later(fn, args, delay=0.001):
+def call_later(fn, args=(), delay=0.001):
     """
     Waits some amount of time then calls the provided function with the given
     arguments in a separate thread. Useful for giving the system some time
@@ -172,6 +172,7 @@ def remove_hotkey(hotkey):
     else:
         unhook(_hotkeys[hotkey])
 
+_abbreviations = {}
 def add_abbreviation(source_text, replacement_text):
     """
     Registers a hotkey that replaces one typed text with another. For example
@@ -179,12 +180,25 @@ def add_abbreviation(source_text, replacement_text):
         add_abbreviation('tm', u'™')
 
     Replaces every "tm" followed by a space with a ™ symbol.
-
-    Abbreviations are case-insensitive at the moment, but this is subejct to
-    change.
     """
-    callback = lambda: write('\b'*(len(source_text)+1) + replacement_text)
-    return add_hotkey(', '.join(source_text)+',space', callback, blocking=False)
+    if source_text in _abbreviations:
+        raise ValueError('Abbreviation {} already exists'.format(repr(source_text)))
+
+    current = []
+    def handler(event):
+        if event.event_type == KEY_UP: return
+        name = event.name
+
+        if name == 'space' and ''.join(current) == source_text:
+            replacement = '\b'*(len(source_text)+1) + replacement_text
+            call_later(lambda: write(replacement, restore_state_after=False))
+        elif len(name) > 1 and name not in all_modifiers:
+            current.clear()
+        elif len(name) == 1:
+            current.append(name if not is_pressed('shift') else name.upper())
+
+    _abbreviations[source_text] = hook(handler)
+    return handler
 
 # Alias.
 register_abbreviation = add_abbreviation
@@ -197,7 +211,8 @@ def remove_abbreviation(abbreviation):
     if callable(abbreviation):
         unhook(abbreviation)
     else:
-        remove_hotkey(', '.join(abbreviation)+',space')
+        unhook(_abbreviations[abbreviation])
+        del _abbreviations[abbreviation]
 
 def stash_state():
     """
@@ -221,7 +236,7 @@ def restore_state(scan_codes):
     for scan_code in target - current:
         os_keyboard.press(scan_code)
 
-def write(text, delay=0):
+def write(text, delay=0, restore_state_after=True):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Characters not available on the keyboard are typed as explicit unicode
@@ -254,7 +269,8 @@ def write(text, delay=0):
         if delay:
             time.sleep(delay)
 
-    restore_state(state)
+    if restore_state_after:
+        restore_state(state)
 
 def send(combination, do_press=True, do_release=True):
     """
@@ -355,7 +371,6 @@ def get_typed_strings(events, allow_backspace=True):
             else:
                 strings.append('')
     return strings
-
 
 if __name__ == '__main__':
     print('Press esc twice to replay keyboard actions.')
