@@ -98,18 +98,30 @@ def clear_all_hotkeys():
 
 def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
-    Adds a hotkey handler that invokes callback each time the hotkey is
-    detected. Returns a handler that can be used to unregister it later. The
-    hotkey must be in the format "ctrl+shift+a, s". This would trigger when the
-    user presses "ctrl+shift+a", releases, and then presses "s". To represent
+    Invokes a callback every time a key combination is pressed. The hotkey must
+    be in the format "ctrl+shift+a, s". This would trigger when the user holds
+    ctrl, shift and "a" at once, releases, and then presses "s". To represent
     literal commas, pluses and spaces use their names ('comma', 'plus',
     'space').
 
-    `blocking` defines if the system should block processing other hotkeys
-    after a match is found. This feature is Windows-only.
+    - `args` is an optional list of arguments to passed to the callback during
+    each invocation.
+    - `blocking` defines if the system should block processing other hotkeys
+    after a match is found. In Windows also tries to block other processes
+    from processing the key.
+    - `timeout` is the amount of seconds allowed to pass between key presses
+    before the combination state is reset.
 
-    `timeout` is the amount of time allowed to pass between key strokes before
-    the combination state is reset.
+    Note: hotkeys are activated when the last key is *pressed*, not released.
+    Note: the callback is executed in a separate thread, asynchronously.
+
+        add_hotkey(57, print, args=['space was pressed'])
+        add_hotkey(' ', print, args=['space was pressed'])
+        add_hotkey('space', print, args=['space was pressed'])
+        add_hotkey('Space', print, args=['space was pressed'])
+
+        add_hotkey('ctrl+q', quit)
+        add_hotkey('ctrl+alt+enter, space', some_callback)
     """
     steps = _split_combination(hotkey)
 
