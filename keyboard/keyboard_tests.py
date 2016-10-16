@@ -41,6 +41,7 @@ class TestKeyboard(unittest.TestCase):
         # We will use our own events, thank you very much.
         keyboard.listener.listening = True
         self.events = []
+        keyboard._pressed_events = {}
         keyboard.os_keyboard = FakeOsKeyboard(self.events.append)
 
     def press(self, name):

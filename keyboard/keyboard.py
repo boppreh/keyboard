@@ -193,6 +193,28 @@ def remove_abbreviation(abbreviation):
     else:
         remove_hotkey(', '.join(abbreviation)+',space')
 
+def stash_state():
+    """
+    Builds a list of all currently pressed scan codes, releases them and returns
+    the list. Pairs well with `restore_state`.
+    """
+    state = sorted(_pressed_events)
+    for scan_code in state:
+        os_keyboard.release(scan_code)
+    return state
+
+def restore_state(scan_codes):
+    """
+    Given a list of scan_codes ensures these keys, and only these keys, are
+    pressed.
+    """
+    current = set(_pressed_events)
+    target = set(scan_codes)
+    for scan_code in current - target:
+        os_keyboard.release(scan_code)
+    for scan_code in target - current:
+        os_keyboard.press(scan_code)
+
 def write(text, delay=0):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
@@ -201,12 +223,7 @@ def write(text, delay=0):
 
     Delay is a number of seconds to wait between keypresses.
     """
-    initial_modifiers = {m for m in all_modifiers if is_pressed(m)}
-
-    # If we were called during a hotkey the user may still be holding the hotkey
-    # modifier, which will affect the letters typed.
-    for modifier in initial_modifiers:
-        release(modifier)
+    state = stash_state()
 
     for letter in text:
         try:
@@ -231,9 +248,7 @@ def write(text, delay=0):
         if delay:
             time.sleep(delay)
 
-    # Restore initial state of modifiers.
-    for modifier in initial_modifiers:
-        press(modifier)
+    restore_state(state)
 
 def send(combination, do_press=True, do_release=True):
     """
@@ -287,7 +302,7 @@ def record(until='escape'):
 def play(events, speed_factor=1.0):
     """
     Plays a sequence of recorded events, maintaining the relative time
-    intervals. If speed_factor is invalid (<= 0) the actions are replayed
+    intervals. If speed_factor is not positive (<= 0) the actions are replayed
     instantly.
     """
     last_time = None
