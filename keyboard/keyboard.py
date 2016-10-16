@@ -86,14 +86,15 @@ _hotkeys = {}
 def clear_all_hotkeys():
     """
     Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
-    internally use hotkeys and will be affected by this call. Abbreviations and
-    word listeners are not hotkeys and are not affected.
-    
+    internally use hotkeys and will be affected by this call.
+
+    Abbreviations and word listeners are not hotkeys and therefore not affected.  
     To remove all hooks use `unhook_all()`.
     """
     global _hotkeys
+    for handler in _hotkeys.values():
+        unhook(handler)
     _hotkeys = {}
-    _listener.handlers = []
 
 def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
