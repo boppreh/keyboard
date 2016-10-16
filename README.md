@@ -25,7 +25,7 @@ import keyboard
 keyboard.add_hotkey('page up, page down', lambda: keyboard.write('foobar'))
 
 # Blocks until you press esc.
-wait('esc')
+keyboard.wait('esc')
 ```
 
 This program makes no attempt to hide itself, so don't use it for keyloggers.
