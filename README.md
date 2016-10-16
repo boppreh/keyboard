@@ -35,7 +35,6 @@ This program makes no attempt to hide itself, so don't use it for keyloggers.
 
 # API
 
-
 # keyboard.**KEY\_DOWN**
     = 'down'
 
@@ -215,40 +214,9 @@ example of how to use a callback synchronously, see `wait`.
 
 
 
-# keyboard.**register\_hotkey**(hotkey, callback, args=(), blocking=True, timeout=1)
+# keyboard.**register\_hotkey**
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L107)
-
-
-Invokes a callback every time a key combination is pressed. The hotkey must
-be in the format "ctrl+shift+a, s". This would trigger when the user holds
-ctrl, shift and "a" at once, releases, and then presses "s". To represent
-literal commas, pluses and spaces use their names ('comma', 'plus',
-'space').
-
-- `args` is an optional list of arguments to passed to the callback during
-each invocation.
-- `blocking` defines if the system should block processing other hotkeys
-after a match is found. In Windows also tries to block other processes
-from processing the key.
-- `timeout` is the amount of seconds allowed to pass between key presses
-
-The event handler function is returned. To remove a hotkey call
-`remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
-before the combination state is reset.
-
-Note: hotkeys are activated when the last key is *pressed*, not released.
-Note: the callback is executed in a separate thread, asynchronously. For an
-example of how to use a callback synchronously, see `wait`.
-
-    add_hotkey(57, print, args=['space was pressed'])
-    add_hotkey(' ', print, args=['space was pressed'])
-    add_hotkey('space', print, args=['space was pressed'])
-    add_hotkey('Space', print, args=['space was pressed'])
-
-    add_hotkey('ctrl+q', quit)
-    add_hotkey('ctrl+alt+enter, space', some_callback)
-
+Alias for add\_hotkey.
 
 
 # keyboard.**hook**(callback)
@@ -289,7 +257,7 @@ listeners, `record`ers and `wait`s.
 
 
 
-# keyboard.**hook\_key**(key, keydown\_callback=&lt;function &lt;lambda&gt; at 0x7689ddf8&gt;, keyup\_callback=&lt;function &lt;lambda&gt; at 0x7689de40&gt;)
+# keyboard.**hook\_key**(key, keydown\_callback=&lt;function &lt;lambda&gt; at 0x7687bdb0&gt;, keyup\_callback=&lt;function &lt;lambda&gt; at 0x7687bdf8&gt;)
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L206)
 
@@ -314,15 +282,9 @@ during registration (exact string) or the event handler returned by the
 
 
 
-# keyboard.**unhook\_key**(hotkey)
+# keyboard.**unhook\_key**
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L227)
-
-
-Removes a previously registered hotkey. Accepts either the hotkey used
-during registration (exact string) or the event handler returned by the
-`add_hotkey` or `hook_key` functions.
-
+Alias for remove\_hotkey.
 
 
 # keyboard.**add\_word\_listener**(word, callback, triggers=[&#x27;space&#x27;], match\_suffix=False, timeout=2)
@@ -355,45 +317,9 @@ Note: word mathes are **case sensitive**.
 
 
 
-# keyboard.**register\_word\_listener**(word, callback, triggers=[&#x27;space&#x27;], match\_suffix=False, timeout=2)
+# keyboard.**register\_word\_listener**
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L243)
-
-
-Invokes a callback every time a sequence of characters is typed (e.g. 'pet')
-and followed by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl,
-shift) are ignored.
-
-- `word` the typed text to be matched. E.g. 'pet'.
-- `callback` is an argument-less function to be invoked each time the word
-is typed.
-- `triggers` is the list of keys that will cause a match to be checked. If
-the user presses some key that is not a character (len>1) and not in
-triggers, the characters so far will be discarded. By default only space
-bar triggers match checks.
-- `match_suffix` defines if endings of words should also be checked instead
-of only whole words. E.g. if true, typing 'carpet'+space will trigger the
-listener for 'pet'. Defaults to false, only whole words are checked.
-- `timeout` is the maximum number of seconds between typed characters before
-the current word is discarded. Defaults to 2 seconds.
-
-Returns the event handler created. To remove a word listener use
-`remove_word_listener(word)` or `remove_word_listener(handler)`.
-
-Note: all actions are performed on key down. Key up events are ignored.
-Note: word mathes are **case sensitive**.
-
-
-
-# keyboard.**remove\_abbreviation**(word)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L295)
-
-
-Removes a previously registered word listener. Accepts either the word used
-during registration (exact string) or the event handler returned by the
-`add_word_listener` or `add_abbreviation` functions.
-
+Alias for add\_word\_listener.
 
 
 # keyboard.**remove\_word\_listener**(word)
@@ -405,6 +331,11 @@ Removes a previously registered word listener. Accepts either the word used
 during registration (exact string) or the event handler returned by the
 `add_word_listener` or `add_abbreviation` functions.
 
+
+
+# keyboard.**remove\_abbreviation**
+
+Alias for remove\_word\_listener.
 
 
 # keyboard.**add\_abbreviation**(source\_text, replacement\_text, match\_suffix=True, timeout=2)
@@ -429,26 +360,9 @@ For more details see `add_word_listener`.
 
 
 
-# keyboard.**register\_abbreviation**(source\_text, replacement\_text, match\_suffix=True, timeout=2)
+# keyboard.**register\_abbreviation**
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L307)
-
-
-Registers a hotkey that replaces one typed text with another. For example
-
-    add_abbreviation('tm', u'™')
-
-Replaces every "tm" followed by a space with a ™ symbol (and no space). The
-replacement is done by sending backspace events.
-
-- `match_suffix` defines if endings of words should also be checked instead
-of only whole words. E.g. if true, typing 'carpet'+space will trigger the
-listener for 'pet'. Defaults to false, only whole words are checked.
-- `timeout` is the maximum number of seconds between typed characters before
-the current word is discarded. Defaults to 2 seconds.
-
-For more details see `add_word_listener`.
-
+Alias for add\_abbreviation.
 
 
 # keyboard.**stash\_state**()
