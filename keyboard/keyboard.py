@@ -55,21 +55,19 @@ def is_pressed(key):
 def canonicalize(hotkey):
     """
     Splits a user provided hotkey into a list of steps, each one made of a list
-    of key descriptions (name or scan code). Used to normalize input at the API
-    boundary. When a combo is given (e.g. 'ctrl + a, b') spaces are ignored.
+    of scan codes. Used to normalize input at the API boundary. When a combo is
+    given (e.g. 'ctrl + a, b') spaces are ignored.
 
         canonicalize(57) -> [[57]]
         canonicalize('space') -> [[57]]
         canonicalize('ctrl+space') -> [[97, 57]]
         canonicalize('ctrl+space, space') -> [[97, 57], [57]]
-
-    Note: the scan codes inside each step are returned sorted to enable
-    canonicalization of hotkeys.
     """
     if (isinstance(hotkey, list)
             and all(isinstance(step, list) for step in hotkey)
             and all(isinstance(part, int) for part in step for step in hotkey)):
-        return [sorted(step) for step in hotkey]
+        # Already canonicalized, nothing to do.
+        return hotkey
     elif isinstance(hotkey, int):
         return [[hotkey]]
     elif isinstance(hotkey, str):
@@ -79,7 +77,7 @@ def canonicalize(hotkey):
             for part in str_step.split('+'):
                 scan_code, modifiers = os_keyboard.map_char(normalize_name(part))
                 steps[-1].append(scan_code)
-        return [sorted(step) for step in steps]
+        return steps
     else:
         raise ValueError('Unexpected hotkey: {}. Expected int scan code, str key combination or normalized hotkey.'.format(hotkey))
 
