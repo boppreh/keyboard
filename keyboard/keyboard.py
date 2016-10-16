@@ -14,7 +14,7 @@ from .generic import GenericListener
 all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 
 _pressed_events = {}
-class KeyboardListener(GenericListener):
+class _KeyboardListener(GenericListener):
     def callback(self, event):
         if not event.scan_code:
             return
@@ -28,12 +28,11 @@ class KeyboardListener(GenericListener):
 
     def listen(self):
         os_keyboard.listen(self.callback)
-
-listener = KeyboardListener()
+_listener = _KeyboardListener()
 
 def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
-    listener.start_if_necessary()
+    _listener.start_if_necessary()
     if isinstance(key, int):
         return key in _pressed_events
     elif len(key) and '+' in key:
@@ -80,7 +79,7 @@ def clear_all_hotkeys():
     """
     global _hotkeys
     _hotkeys = {}
-    listener.handlers = []
+    _listener.handlers = []
 
 def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
@@ -142,12 +141,12 @@ def hook(callback):
     "space")), `scan_code` (number representing the physical key) and `time`
     (Unix timestamp).
     """
-    listener.add_handler(callback)
+    _listener.add_handler(callback)
     return callback
 
 def unhook(callback):
     """ Removes a previously hooked callback. """
-    listener.remove_handler(callback)
+    _listener.remove_handler(callback)
 
 def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     """
