@@ -29,7 +29,7 @@ class FakeOsKeyboard(object):
 
     def map_char(self, char):
         try:
-            return scan_codes_by_name[char.lower()], char.isupper()
+            return scan_codes_by_name[char.lower()], ('shift',) if char.isupper() else ()
         except KeyError:
             raise ValueError()
 
