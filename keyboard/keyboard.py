@@ -173,29 +173,30 @@ def remove_hotkey(hotkey):
         unhook(_hotkeys[hotkey])
 
 _word_listeners = {}
-def add_word_listener(word, callback, timeout=2):
+def add_word_listener(word, callback, match_suffix=False, timeout=2):
     if word in _word_listeners:
         raise ValueError('Already listening for word {}'.format(repr(word)))
 
     # Just a dynamic object to store attributes for the `handler` closure.
     state = lambda: None
-    state.current = []
+    state.current = ''
     state.time = time.time()
 
     def handler(event):
         name = event.name
         if event.event_type == KEY_UP or name in all_modifiers: return
 
-        if name == 'space' and ''.join(state.current) == word:
+        matched = state.current == word or (match_suffix and state.current.endswith(word))
+        if name == 'space' and matched:
             call_later(callback)
-            state.current.clear()
+            state.current = ''
         elif len(name) > 1:
-            state.current.clear()
+            state.current = ''
         else:
             if timeout and event.time - state.time > timeout:
-                state.current.clear()
+                state.current = ''
             state.time = event.time
-            state.current.append(name if not is_pressed('shift') else name.upper())
+            state.current += name if not is_pressed('shift') else name.upper()
 
     _word_listeners[word] = hook(handler)
     return handler
@@ -211,7 +212,7 @@ def remove_word_listener(word):
         unhook(_word_listeners[word])
         del _word_listeners[word]
 
-def add_abbreviation(source_text, replacement_text):
+def add_abbreviation(source_text, replacement_text, match_suffix=True, timeout=2):
     """
     Registers a hotkey that replaces one typed text with another. For example
 
@@ -221,7 +222,7 @@ def add_abbreviation(source_text, replacement_text):
     """
     replacement = '\b'*(len(source_text)+1) + replacement_text
     callback = lambda: write(replacement, restore_state_after=False)
-    return add_word_listener(source_text, callback)
+    return add_word_listener(source_text, callback, match_suffix=match_suffix, timeout=timeout)
 
 # Aliases.
 register_word_listener = add_word_listener
