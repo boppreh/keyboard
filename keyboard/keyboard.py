@@ -31,7 +31,13 @@ class _KeyboardListener(GenericListener):
 _listener = _KeyboardListener()
 
 def is_pressed(key):
-    """ Returns True if the key (by name or code) is pressed. """
+    """
+    Returns True if the key is pressed.
+
+        is_pressed(57) -> True
+        is_pressed('space') -> True
+        is_pressed('ctrl+space') -> True
+    """
     _listener.start_if_necessary()
     if isinstance(key, int):
         return key in _pressed_events
@@ -49,8 +55,13 @@ def is_pressed(key):
 def _split_combination(hotkey):
     """
     Splits a user provided hotkey into a list of steps, each one made of a list
-    of key descriptions (name or scan code). When a combo is given (e.g.
-    'ctrl+a') spaces are ignored.
+    of key descriptions (name or scan code). Used to normalize input at the API
+    boundary. When a combo is given (e.g. 'ctrl + a, b') spaces are ignored.
+
+        _split_combination(57) -> [[57]]
+        _split_combination('space') -> [[57]]
+        _split_combination('ctrl+space') -> [[97, 57]]
+        _split_combination('ctrl+space, space') -> [[97, 57], [57]]
     """
     if isinstance(hotkey, int):
         return [[hotkey]]
@@ -65,9 +76,9 @@ def _split_combination(hotkey):
 
 def call_later(fn, args=(), delay=0.001):
     """
-    Waits some amount of time then calls the provided function with the given
-    arguments in a separate thread. Useful for giving the system some time
-    to process an event, without blocking the current execution flow.
+    Calls the provided function in a new thread after waiting some time.
+    Useful for giving the system some time to process an event, without blocking
+    the current execution flow.
     """
     Thread(target=lambda: time.sleep(delay) or fn(*args)).start()
 
