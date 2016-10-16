@@ -172,7 +172,38 @@ def remove_hotkey(hotkey):
     else:
         unhook(_hotkeys[hotkey])
 
-_abbreviations = {}
+_word_listeners = {}
+def add_word_listener(word, callback):
+    if word in _word_listeners:
+        raise ValueError('Already listening for word {}'.format(repr(word)))
+
+    current = []
+    def handler(event):
+        if event.event_type == KEY_UP: return
+        name = event.name
+
+        if name == 'space' and ''.join(current) == word:
+            call_later(callback)
+
+        if len(name) > 1 and name not in all_modifiers:
+            current.clear()
+        elif len(name) == 1:
+            current.append(name if not is_pressed('shift') else name.upper())
+
+    _word_listeners[word] = hook(handler)
+    return handler
+
+def remove_word_listener(word):
+    """
+    Removes a previously instaled word listener hotkey. Works given both the
+    word source text or the handler returned by `add_word_listener`.
+    """
+    if callable(word):
+        unhook(word)
+    else:
+        unhook(_word_listeners[word])
+        del _word_listeners[word]
+
 def add_abbreviation(source_text, replacement_text):
     """
     Registers a hotkey that replaces one typed text with another. For example
@@ -181,38 +212,14 @@ def add_abbreviation(source_text, replacement_text):
 
     Replaces every "tm" followed by a space with a ™ symbol.
     """
-    if source_text in _abbreviations:
-        raise ValueError('Abbreviation {} already exists'.format(repr(source_text)))
+    replacement = '\b'*(len(source_text)+1) + replacement_text
+    callback = lambda: write(replacement, restore_state_after=False)
+    return add_word_listener(source_text, callback)
 
-    current = []
-    def handler(event):
-        if event.event_type == KEY_UP: return
-        name = event.name
-
-        if name == 'space' and ''.join(current) == source_text:
-            replacement = '\b'*(len(source_text)+1) + replacement_text
-            call_later(lambda: write(replacement, restore_state_after=False))
-        elif len(name) > 1 and name not in all_modifiers:
-            current.clear()
-        elif len(name) == 1:
-            current.append(name if not is_pressed('shift') else name.upper())
-
-    _abbreviations[source_text] = hook(handler)
-    return handler
-
-# Alias.
+# Aliases.
+register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
-
-def remove_abbreviation(abbreviation):
-    """
-    Removes a previously instaled abbreviation hotkey. Works given both the
-    abbreviation source text or the handler returned by `add_abbreviation`.
-    """
-    if callable(abbreviation):
-        unhook(abbreviation)
-    else:
-        unhook(_abbreviations[abbreviation])
-        del _abbreviations[abbreviation]
+remove_abbreviation = remove_word_listener
 
 def stash_state():
     """
