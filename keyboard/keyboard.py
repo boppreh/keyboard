@@ -173,22 +173,29 @@ def remove_hotkey(hotkey):
         unhook(_hotkeys[hotkey])
 
 _word_listeners = {}
-def add_word_listener(word, callback):
+def add_word_listener(word, callback, timeout=2):
     if word in _word_listeners:
         raise ValueError('Already listening for word {}'.format(repr(word)))
 
-    current = []
+    # Just a dynamic object to store attributes for the `handler` closure.
+    state = lambda: None
+    state.current = []
+    state.time = time.time()
+
     def handler(event):
-        if event.event_type == KEY_UP: return
         name = event.name
+        if event.event_type == KEY_UP or name in all_modifiers: return
 
-        if name == 'space' and ''.join(current) == word:
+        if name == 'space' and ''.join(state.current) == word:
             call_later(callback)
-
-        if len(name) > 1 and name not in all_modifiers:
-            current.clear()
-        elif len(name) == 1:
-            current.append(name if not is_pressed('shift') else name.upper())
+            state.current.clear()
+        elif len(name) > 1:
+            state.current.clear()
+        else:
+            if timeout and event.time - state.time > timeout:
+                state.current.clear()
+            state.time = event.time
+            state.current.append(name if not is_pressed('shift') else name.upper())
 
     _word_listeners[word] = hook(handler)
     return handler
