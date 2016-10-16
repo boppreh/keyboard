@@ -31,9 +31,9 @@ class KeyboardListener(GenericListener):
 
 listener = KeyboardListener()
 
-@listener.wrap
 def is_pressed(key):
     """ Returns True if the key (by name or code) is pressed. """
+    listener.start_if_necessary()
     if isinstance(key, int):
         return key in _pressed_events
     elif len(key) and '+' in key:
@@ -82,7 +82,6 @@ def clear_all_hotkeys():
     hotkeys = {}
     listener.handlers = []
 
-@listener.wrap
 def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
     Adds a hotkey handler that invokes callback each time the hotkey is
@@ -132,7 +131,6 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     listener.add_handler(handler)
     return handler
 
-@listener.wrap
 def hook(callback):
     """
     Installs a global listener on all available keyboards, invoking `callback`
@@ -145,12 +143,10 @@ def hook(callback):
     listener.add_handler(callback)
     return callback
 
-@listener.wrap
 def unhook(callback):
     """ Removes a previously hooked callback. """
     listener.remove_handler(callback)
 
-@listener.wrap
 def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     """
     Hooks key up and down events for a given key, no hotkeys combos.
@@ -168,7 +164,6 @@ def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     listener.add_handler(handler)
     return handler
 
-@listener.wrap
 def remove_hotkey(hotkey):
     """ Removes a previously registered hotkey. """
     listener.remove_handler(hotkeys[hotkey])
@@ -185,7 +180,6 @@ def add_abbreviation(src, dst):
 
 remove_abbreviation = remove_hotkey
 
-@listener.wrap
 def write(text, delay=0):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
@@ -224,7 +218,6 @@ def write(text, delay=0):
         else:
             release(modifier)
 
-@listener.wrap
 def send(combination, do_press=True, do_release=True):
     """
     Performs a given hotkey combination.
@@ -240,17 +233,14 @@ def send(combination, do_press=True, do_release=True):
             for scan_code in reversed(scan_codes):
                 os_keyboard.release(scan_code)
 
-@listener.wrap
 def press(combination):
     """ Sends a key press event to the OS. """
     send(combination, True, False)
 
-@listener.wrap
 def release(combination):
     """ Sends a key release event to the OS. """
     send(combination, False, True)
 
-@listener.wrap
 def wait(combination):
     """
     Blocks the program execution until a key combination is activated.
@@ -261,7 +251,6 @@ def wait(combination):
     lock.acquire()
     listener.remove_handler(hotkey_handler)
 
-@listener.wrap
 def record(until='escape'):
     """
     Records and returns all keyboard events until the user presses the given
@@ -278,7 +267,6 @@ def record(until='escape'):
 
     return recorded
 
-@listener.wrap
 def play(events, speed_factor=1.0):
     """
     Plays a sequence of recorded events, maintaining the relative time

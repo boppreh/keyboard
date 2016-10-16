@@ -18,22 +18,22 @@ class GenericListener(object):
             except Exception as e:
                 traceback.print_exc()
 
-    def wrap(self, func):
+    def start_if_necessary(self):
         """
-        Wraps a function ensuring the listener thread is active.
+        Starts the listening thread if it wans't already.
         """
-        @functools.wraps(func)
-        def wrapper(*args, **kwds):
-            if not self.listening:
-                self.listening = True
-                self.listening_thread = Thread(target=self.listen)
-                self.listening_thread.daemon=True
-                self.listening_thread.start()
-            return func(*args, **kwds)
-        return wrapper
+        if not self.listening:
+            self.listening = True
+            self.listening_thread = Thread(target=self.listen)
+            self.listening_thread.daemon=True
+            self.listening_thread.start()
 
     def add_handler(self, handler):
-        """ Adds a function to receive each event captured. """
+        """
+        Adds a function to receive each event captured, starting the capturing
+        process if necessary.
+        """
+        self.start_if_necessary()
         self.handlers.append(handler)
 
     def remove_handler(self, handler):

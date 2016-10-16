@@ -28,39 +28,33 @@ class MouseListener(GenericListener):
 
 listener = MouseListener()
 
-@listener.wrap
 def is_pressed(button=LEFT):
     """ Returns True if the given button is currently pressed. """
+    listener.start_if_necessary()
     return button in _pressed_events
 
-@listener.wrap
 def press(button=LEFT):
     """ Presses the given button (but doesn't release). """
     os_mouse.press(button)
 
-@listener.wrap
 def release(button=LEFT):
     """ Releases the given button. """
     os_mouse.release(button)
 
-@listener.wrap
 def click(button=LEFT):
     """ Sends a click with the given button. """
     os_mouse.press(button)
     os_mouse.release(button)
 
-@listener.wrap
 def double_click(button=LEFT):
     """ Sends a double click with the given button. """
     click(button)
     click(button)
 
-@listener.wrap
 def right_click():
     """ Sends a right click with the given button. """
     click(RIGHT)
 
-@listener.wrap
 def move(x, y, absolute=True, duration=0):
     """
     Moves the mouse. If `absolute`, to position (x, y), otherwise move relative
@@ -96,7 +90,6 @@ def move(x, y, absolute=True, duration=0):
         else:
             os_mouse.move_relative(x, y)
 
-@listener.wrap
 def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP, DOWN, DOUBLE)):
     """ Invokes `callback` with `args` when the specified event happens. """
     if not isinstance(buttons, (tuple, list)):
@@ -111,29 +104,24 @@ def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP
     listener.add_handler(handler)
     return handler
 
-@listener.wrap
 def on_click(callback, args=()):
     """ Invokes `callback` with `args` when the left button is clicked. """
     return on_button(callback, args, [LEFT], [UP])
 
-@listener.wrap
 def on_double_click(callback, args=()):
     """
     Invokes `callback` with `args` when the left button is double clicked.
     """
     return on_button(callback, args, [LEFT], [DOUBLE])
 
-@listener.wrap
 def on_right_click(callback, args=()):
     """ Invokes `callback` with `args` when the right button is clicked. """
     return on_button(callback, args, [RIGHT], [UP])
 
-@listener.wrap
 def on_middle_click(callback, args=()):
     """ Invokes `callback` with `args` when the middle button is clicked. """
     return on_button(callback, args, [MIDDLE], [UP])
 
-@listener.wrap
 def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
     """
     Blocks program execution until the given button performs an event.
@@ -145,9 +133,9 @@ def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
     lock.acquire()
     listener.remove_handler(handler)
 
-@listener.wrap
 def get_position():
     """ Returns the (x, y) mouse position. """
+    listener.start_if_necessary()
     return os_mouse.get_position()
 
 if __name__ == '__main__':
