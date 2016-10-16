@@ -134,10 +134,20 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
 
 @listener.wrap
 def hook(callback):
+    """
+    Installs a global listener on all available keyboards, invoking `callback`
+    each time a key is pressed or released. An event object is supplied, with
+    type `keyboard.keyboard_event.KeyboardEvent` and attributes `name`
+    (an Unicode representation of the character (e.g. "&") or description (e.g.
+    "space")), `scan_code` (number representing the physical key) and `time`
+    (Unix timestamp).
+    """
     listener.add_handler(callback)
     return callback
 
+@listener.wrap
 def unhook(callback):
+    """ Removes a previously hooked callback. """
     listener.remove_handler(callback)
 
 @listener.wrap
