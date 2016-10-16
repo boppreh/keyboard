@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
-import time
+import time as _time
 from threading import Lock as _Lock
 from threading import Thread as _Thread
 
-import platform
-if platform.system() == 'Windows':
-    from. import _winkeyboard as os_keyboard
+import platform as _platform
+if _platform.system() == 'Windows':
+    from. import _winkeyboard as _os_keyboard
 else:
-    from. import _nixkeyboard as os_keyboard
+    from. import _nixkeyboard as _os_keyboard
 
-from ._keyboard_event import KEY_DOWN, KEY_UP, normalize_name    
+from ._keyboard_event import KEY_DOWN, KEY_UP
+from ._keyboard_event import normalize_name as _normalize_name
 from ._generic import GenericListener as _GenericListener
 
 all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
@@ -28,7 +29,7 @@ class _KeyboardListener(_GenericListener):
         return self.invoke_handlers(event)
 
     def listen(self):
-        os_keyboard.listen(self.callback)
+        _os_keyboard.listen(self.callback)
 _listener = _KeyboardListener()
 
 def is_pressed(key):
@@ -76,7 +77,7 @@ def canonicalize(hotkey):
         for str_step in hotkey.replace(' ', '').split(','):
             steps.append([])
             for part in str_step.split('+'):
-                scan_code, modifiers = os_keyboard.map_char(normalize_name(part))
+                scan_code, modifiers = _os_keyboard.map_char(_normalize_name(part))
                 steps[-1].append(scan_code)
         return steps
     else:
@@ -88,7 +89,7 @@ def call_later(fn, args=(), delay=0.001):
     Useful for giving the system some time to process an event, without blocking
     the current execution flow.
     """
-    _Thread(target=lambda: time.sleep(delay) or fn(*args)).start()
+    _Thread(target=lambda: _time.sleep(delay) or fn(*args)).start()
 
 _hotkeys = {}
 def clear_all_hotkeys():
@@ -140,7 +141,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     # Just a dynamic object to store attributes for the `handler` closure.
     state = lambda: None
     state.step = 0
-    state.time = time.time()
+    state.time = _time.time()
 
     def handler(event):
         if event.event_type == KEY_UP:
@@ -271,7 +272,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     # Just a dynamic object to store attributes for the `handler` closure.
     state = lambda: None
     state.current = ''
-    state.time = time.time()
+    state.time = _time.time()
 
     def handler(event):
         name = event.name
@@ -337,7 +338,7 @@ def stash_state():
     """
     state = sorted(_pressed_events)
     for scan_code in state:
-        os_keyboard.release(scan_code)
+        _os_keyboard.release(scan_code)
     return state
 
 def restore_state(scan_codes):
@@ -348,9 +349,9 @@ def restore_state(scan_codes):
     current = set(_pressed_events)
     target = set(scan_codes)
     for scan_code in current - target:
-        os_keyboard.release(scan_code)
+        _os_keyboard.release(scan_code)
     for scan_code in target - current:
-        os_keyboard.press(scan_code)
+        _os_keyboard.press(scan_code)
 
 def write(text, delay=0, restore_state_after=True):
     """
@@ -372,8 +373,8 @@ def write(text, delay=0, restore_state_after=True):
     for letter in text:
         try:
             if letter in '\n\b\t ':
-                letter = normalize_name(letter)
-            scan_code, modifiers = os_keyboard.map_char(letter)
+                letter = _normalize_name(letter)
+            scan_code, modifiers = _os_keyboard.map_char(letter)
 
             if is_pressed(scan_code):
                 release(scan_code)
@@ -381,16 +382,16 @@ def write(text, delay=0, restore_state_after=True):
             for modifier in modifiers:
                 press(modifier)
 
-            os_keyboard.press(scan_code)
-            os_keyboard.release(scan_code)
+            _os_keyboard.press(scan_code)
+            _os_keyboard.release(scan_code)
 
             for modifier in modifiers:
                 release(modifier)
         except ValueError:
-            os_keyboard.type_unicode(letter)
+            _os_keyboard.type_unicode(letter)
 
         if delay:
-            time.sleep(delay)
+            _time.sleep(delay)
 
     if restore_state_after:
         restore_state(state)
@@ -414,11 +415,11 @@ def send(combination, do_press=True, do_release=True):
     for scan_codes in canonicalize(combination):
         if do_press:
             for scan_code in scan_codes:
-                os_keyboard.press(scan_code)
+                _os_keyboard.press(scan_code)
 
         if do_release:
             for scan_code in reversed(scan_codes):
-                os_keyboard.release(scan_code)
+                _os_keyboard.release(scan_code)
 
 def press(combination):
     """ Presses and holds down a key combination (see `send`). """
@@ -472,13 +473,13 @@ def play(events, speed_factor=1.0):
     last_time = None
     for event in events:
         if speed_factor > 0 and last_time is not None:
-            time.sleep((event.time - last_time) / speed_factor)
+            _time.sleep((event.time - last_time) / speed_factor)
         last_time = event.time
 
         if event.event_type == KEY_DOWN:
-            os_keyboard.press(event.scan_code)
+            _os_keyboard.press(event.scan_code)
         else:
-            os_keyboard.release(event.scan_code)
+            _os_keyboard.release(event.scan_code)
 
     restore_state(state)
 
