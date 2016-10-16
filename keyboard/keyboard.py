@@ -130,6 +130,9 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     _hotkeys[hotkey] = handler
     return hook(handler)
 
+# Alias.
+register_hotkey = add_hotkey
+
 def hook(callback):
     """
     Installs a global listener on all available keyboards, invoking `callback`
@@ -182,6 +185,9 @@ def add_abbreviation(source_text, replacement_text):
     """
     callback = lambda: write('\b'*(len(source_text)+1) + replacement_text)
     return add_hotkey(', '.join(source_text)+',space', callback, blocking=False)
+
+# Alias.
+register_abbreviation = add_abbreviation
 
 def remove_abbreviation(abbreviation):
     """
