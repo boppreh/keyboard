@@ -81,7 +81,7 @@
         <span class="n">os_keyboard</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">)</span>
 <span class="n">_listener</span> <span class="o">=</span> <span class="n">_KeyboardListener</span><span class="p">()</span>
 
-<div class="viewcode-block" id="is_pressed"><a class="viewcode-back" href="../source/keyboard.html#keyboard.is_pressed">[docs]</a><span class="k">def</span> <span class="nf">is_pressed</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+<div class="viewcode-block" id="is_pressed"><a class="viewcode-back" href="../index.html#keyboard.is_pressed">[docs]</a><span class="k">def</span> <span class="nf">is_pressed</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns True if the key is pressed.</span>
 
@@ -103,7 +103,7 @@
                 <span class="k">return</span> <span class="kc">True</span>
         <span class="k">return</span> <span class="kc">False</span></div>
 
-<div class="viewcode-block" id="canonicalize"><a class="viewcode-back" href="../source/keyboard.html#keyboard.canonicalize">[docs]</a><span class="k">def</span> <span class="nf">canonicalize</span><span class="p">(</span><span class="n">hotkey</span><span class="p">):</span>
+<div class="viewcode-block" id="canonicalize"><a class="viewcode-back" href="../index.html#keyboard.canonicalize">[docs]</a><span class="k">def</span> <span class="nf">canonicalize</span><span class="p">(</span><span class="n">hotkey</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Splits a user provided hotkey into a list of steps, each one made of a list</span>
 <span class="sd">    of scan codes. Used to normalize input at the API boundary. When a combo is</span>
@@ -132,7 +132,7 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unexpected hotkey: </span><span class="si">{}</span><span class="s1">. Expected int scan code, str key combination or normalized hotkey.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hotkey</span><span class="p">))</span></div>
 
-<div class="viewcode-block" id="call_later"><a class="viewcode-back" href="../source/keyboard.html#keyboard.call_later">[docs]</a><span class="k">def</span> <span class="nf">call_later</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(),</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+<div class="viewcode-block" id="call_later"><a class="viewcode-back" href="../index.html#keyboard.call_later">[docs]</a><span class="k">def</span> <span class="nf">call_later</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(),</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Calls the provided function in a new thread after waiting some time.</span>
 <span class="sd">    Useful for giving the system some time to process an event, without blocking</span>
@@ -141,7 +141,7 @@
     <span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span> <span class="ow">or</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span><span class="o">.</span><span class="n">start</span><span class="p">()</span></div>
 
 <span class="n">_hotkeys</span> <span class="o">=</span> <span class="p">{}</span>
-<div class="viewcode-block" id="clear_all_hotkeys"><a class="viewcode-back" href="../source/keyboard.html#keyboard.clear_all_hotkeys">[docs]</a><span class="k">def</span> <span class="nf">clear_all_hotkeys</span><span class="p">():</span>
+<div class="viewcode-block" id="clear_all_hotkeys"><a class="viewcode-back" href="../index.html#keyboard.clear_all_hotkeys">[docs]</a><span class="k">def</span> <span class="nf">clear_all_hotkeys</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Removes all hotkey handlers. Note some functions such as &#39;wait&#39; and &#39;record&#39;</span>
 <span class="sd">    internally use hotkeys and will be affected by this call.</span>
@@ -154,7 +154,7 @@
         <span class="n">unhook</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
     <span class="n">_hotkeys</span> <span class="o">=</span> <span class="p">{}</span></div>
 
-<div class="viewcode-block" id="add_hotkey"><a class="viewcode-back" href="../source/keyboard.html#keyboard.add_hotkey">[docs]</a><span class="k">def</span> <span class="nf">add_hotkey</span><span class="p">(</span><span class="n">hotkey</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(),</span> <span class="n">blocking</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="add_hotkey"><a class="viewcode-back" href="../index.html#keyboard.add_hotkey">[docs]</a><span class="k">def</span> <span class="nf">add_hotkey</span><span class="p">(</span><span class="n">hotkey</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(),</span> <span class="n">blocking</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Invokes a callback every time a key combination is pressed. The hotkey must</span>
 <span class="sd">    be in the format &quot;ctrl+shift+a, s&quot;. This would trigger when the user holds</span>
@@ -221,7 +221,7 @@
 <span class="c1"># Alias.</span>
 <span class="n">register_hotkey</span> <span class="o">=</span> <span class="n">add_hotkey</span>
 
-<div class="viewcode-block" id="hook"><a class="viewcode-back" href="../source/keyboard.html#keyboard.hook">[docs]</a><span class="k">def</span> <span class="nf">hook</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
+<div class="viewcode-block" id="hook"><a class="viewcode-back" href="../index.html#keyboard.hook">[docs]</a><span class="k">def</span> <span class="nf">hook</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Installs a global listener on all available keyboards, invoking `callback`</span>
 <span class="sd">    each time a key is pressed or released.</span>
@@ -240,11 +240,11 @@
     <span class="n">_listener</span><span class="o">.</span><span class="n">add_handler</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">callback</span></div>
 
-<div class="viewcode-block" id="unhook"><a class="viewcode-back" href="../source/keyboard.html#keyboard.unhook">[docs]</a><span class="k">def</span> <span class="nf">unhook</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
+<div class="viewcode-block" id="unhook"><a class="viewcode-back" href="../index.html#keyboard.unhook">[docs]</a><span class="k">def</span> <span class="nf">unhook</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; Removes a previously hooked callback. &quot;&quot;&quot;</span>
     <span class="n">_listener</span><span class="o">.</span><span class="n">remove_handler</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="unhook_all"><a class="viewcode-back" href="../source/keyboard.html#keyboard.unhook_all">[docs]</a><span class="k">def</span> <span class="nf">unhook_all</span><span class="p">():</span>
+<div class="viewcode-block" id="unhook_all"><a class="viewcode-back" href="../index.html#keyboard.unhook_all">[docs]</a><span class="k">def</span> <span class="nf">unhook_all</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Removes all keyboard hooks in use, including hotkeys, abbreviations, word</span>
 <span class="sd">    listeners, `record`ers and `wait`s.</span>
@@ -253,7 +253,7 @@
     <span class="n">_word_listeners</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
     <span class="n">_listener</span><span class="o">.</span><span class="n">handlers</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="hook_key"><a class="viewcode-back" href="../source/keyboard.html#keyboard.hook_key">[docs]</a><span class="k">def</span> <span class="nf">hook_key</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">keydown_callback</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="n">keyup_callback</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="hook_key"><a class="viewcode-back" href="../index.html#keyboard.hook_key">[docs]</a><span class="k">def</span> <span class="nf">hook_key</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">keydown_callback</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="n">keyup_callback</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Hooks key up and key down events for a single key. Returns the event handler</span>
 <span class="sd">    created. To remove a hooked key use `unhook_key(key)` or</span>
@@ -274,7 +274,7 @@
     <span class="n">_hotkeys</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">handler</span>
     <span class="k">return</span> <span class="n">hook</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="remove_hotkey"><a class="viewcode-back" href="../source/keyboard.html#keyboard.remove_hotkey">[docs]</a><span class="k">def</span> <span class="nf">remove_hotkey</span><span class="p">(</span><span class="n">hotkey</span><span class="p">):</span>
+<div class="viewcode-block" id="remove_hotkey"><a class="viewcode-back" href="../index.html#keyboard.remove_hotkey">[docs]</a><span class="k">def</span> <span class="nf">remove_hotkey</span><span class="p">(</span><span class="n">hotkey</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Removes a previously registered hotkey. Accepts either the hotkey used</span>
 <span class="sd">    during registration (exact string) or the event handler returned by the</span>
@@ -290,7 +290,7 @@
 <span class="n">unhook_key</span> <span class="o">=</span> <span class="n">remove_hotkey</span>
 
 <span class="n">_word_listeners</span> <span class="o">=</span> <span class="p">{}</span>
-<div class="viewcode-block" id="add_word_listener"><a class="viewcode-back" href="../source/keyboard.html#keyboard.add_word_listener">[docs]</a><span class="k">def</span> <span class="nf">add_word_listener</span><span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">triggers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;space&#39;</span><span class="p">],</span> <span class="n">match_suffix</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<div class="viewcode-block" id="add_word_listener"><a class="viewcode-back" href="../index.html#keyboard.add_word_listener">[docs]</a><span class="k">def</span> <span class="nf">add_word_listener</span><span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">triggers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;space&#39;</span><span class="p">],</span> <span class="n">match_suffix</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Invokes a callback every time a sequence of characters is typed (e.g. &#39;pet&#39;)</span>
 <span class="sd">    and followed by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl,</span>
@@ -342,7 +342,7 @@
     <span class="n">_word_listeners</span><span class="p">[</span><span class="n">word</span><span class="p">]</span> <span class="o">=</span> <span class="n">hook</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">handler</span></div>
 
-<div class="viewcode-block" id="remove_word_listener"><a class="viewcode-back" href="../source/keyboard.html#keyboard.remove_word_listener">[docs]</a><span class="k">def</span> <span class="nf">remove_word_listener</span><span class="p">(</span><span class="n">word</span><span class="p">):</span>
+<div class="viewcode-block" id="remove_word_listener"><a class="viewcode-back" href="../index.html#keyboard.remove_word_listener">[docs]</a><span class="k">def</span> <span class="nf">remove_word_listener</span><span class="p">(</span><span class="n">word</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Removes a previously registered word listener. Accepts either the word used</span>
 <span class="sd">    during registration (exact string) or the event handler returned by the</span>
@@ -354,7 +354,7 @@
         <span class="n">unhook</span><span class="p">(</span><span class="n">_word_listeners</span><span class="p">[</span><span class="n">word</span><span class="p">])</span>
         <span class="k">del</span> <span class="n">_word_listeners</span><span class="p">[</span><span class="n">word</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="add_abbreviation"><a class="viewcode-back" href="../source/keyboard.html#keyboard.add_abbreviation">[docs]</a><span class="k">def</span> <span class="nf">add_abbreviation</span><span class="p">(</span><span class="n">source_text</span><span class="p">,</span> <span class="n">replacement_text</span><span class="p">,</span> <span class="n">match_suffix</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<div class="viewcode-block" id="add_abbreviation"><a class="viewcode-back" href="../index.html#keyboard.add_abbreviation">[docs]</a><span class="k">def</span> <span class="nf">add_abbreviation</span><span class="p">(</span><span class="n">source_text</span><span class="p">,</span> <span class="n">replacement_text</span><span class="p">,</span> <span class="n">match_suffix</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Registers a hotkey that replaces one typed text with another. For example</span>
 
@@ -380,7 +380,7 @@
 <span class="n">register_abbreviation</span> <span class="o">=</span> <span class="n">add_abbreviation</span>
 <span class="n">remove_abbreviation</span> <span class="o">=</span> <span class="n">remove_word_listener</span>
 
-<div class="viewcode-block" id="stash_state"><a class="viewcode-back" href="../source/keyboard.html#keyboard.stash_state">[docs]</a><span class="k">def</span> <span class="nf">stash_state</span><span class="p">():</span>
+<div class="viewcode-block" id="stash_state"><a class="viewcode-back" href="../index.html#keyboard.stash_state">[docs]</a><span class="k">def</span> <span class="nf">stash_state</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Builds a list of all currently pressed scan codes, releases them and returns</span>
 <span class="sd">    the list. Pairs well with `restore_state`.</span>
@@ -390,7 +390,7 @@
         <span class="n">os_keyboard</span><span class="o">.</span><span class="n">release</span><span class="p">(</span><span class="n">scan_code</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">state</span></div>
 
-<div class="viewcode-block" id="restore_state"><a class="viewcode-back" href="../source/keyboard.html#keyboard.restore_state">[docs]</a><span class="k">def</span> <span class="nf">restore_state</span><span class="p">(</span><span class="n">scan_codes</span><span class="p">):</span>
+<div class="viewcode-block" id="restore_state"><a class="viewcode-back" href="../index.html#keyboard.restore_state">[docs]</a><span class="k">def</span> <span class="nf">restore_state</span><span class="p">(</span><span class="n">scan_codes</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Given a list of scan_codes ensures these keys, and only these keys, are</span>
 <span class="sd">    pressed. Pairs well with `stash_state`.</span>
@@ -402,7 +402,7 @@
     <span class="k">for</span> <span class="n">scan_code</span> <span class="ow">in</span> <span class="n">target</span> <span class="o">-</span> <span class="n">current</span><span class="p">:</span>
         <span class="n">os_keyboard</span><span class="o">.</span><span class="n">press</span><span class="p">(</span><span class="n">scan_code</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="write"><a class="viewcode-back" href="../source/keyboard.html#keyboard.write">[docs]</a><span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">restore_state_after</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="write"><a class="viewcode-back" href="../index.html#keyboard.write">[docs]</a><span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">restore_state_after</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sends artificial keyboard events to the OS, simulating the typing of a given</span>
 <span class="sd">    text. Characters not available on the keyboard are typed as explicit unicode</span>
@@ -445,7 +445,7 @@
     <span class="k">if</span> <span class="n">restore_state_after</span><span class="p">:</span>
         <span class="n">restore_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="send"><a class="viewcode-back" href="../source/keyboard.html#keyboard.send">[docs]</a><span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="n">combination</span><span class="p">,</span> <span class="n">do_press</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">do_release</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="send"><a class="viewcode-back" href="../index.html#keyboard.send">[docs]</a><span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="n">combination</span><span class="p">,</span> <span class="n">do_press</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">do_release</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sends OS events that perform the given hotkey combination.</span>
 
@@ -470,19 +470,19 @@
             <span class="k">for</span> <span class="n">scan_code</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">scan_codes</span><span class="p">):</span>
                 <span class="n">os_keyboard</span><span class="o">.</span><span class="n">release</span><span class="p">(</span><span class="n">scan_code</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="press"><a class="viewcode-back" href="../source/keyboard.html#keyboard.press">[docs]</a><span class="k">def</span> <span class="nf">press</span><span class="p">(</span><span class="n">combination</span><span class="p">):</span>
+<div class="viewcode-block" id="press"><a class="viewcode-back" href="../index.html#keyboard.press">[docs]</a><span class="k">def</span> <span class="nf">press</span><span class="p">(</span><span class="n">combination</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; Presses and holds down a key combination (see `send`). &quot;&quot;&quot;</span>
     <span class="n">send</span><span class="p">(</span><span class="n">combination</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="release"><a class="viewcode-back" href="../source/keyboard.html#keyboard.release">[docs]</a><span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="n">combination</span><span class="p">):</span>
+<div class="viewcode-block" id="release"><a class="viewcode-back" href="../index.html#keyboard.release">[docs]</a><span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="n">combination</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; Releases a key combination (see `send`). &quot;&quot;&quot;</span>
     <span class="n">send</span><span class="p">(</span><span class="n">combination</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="press_and_release"><a class="viewcode-back" href="../source/keyboard.html#keyboard.press_and_release">[docs]</a><span class="k">def</span> <span class="nf">press_and_release</span><span class="p">(</span><span class="n">combination</span><span class="p">):</span>
+<div class="viewcode-block" id="press_and_release"><a class="viewcode-back" href="../index.html#keyboard.press_and_release">[docs]</a><span class="k">def</span> <span class="nf">press_and_release</span><span class="p">(</span><span class="n">combination</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; Presses and releases the key combination (see `send`). &quot;&quot;&quot;</span>
     <span class="n">send</span><span class="p">(</span><span class="n">combination</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="wait"><a class="viewcode-back" href="../source/keyboard.html#keyboard.wait">[docs]</a><span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="n">combination</span><span class="p">):</span>
+<div class="viewcode-block" id="wait"><a class="viewcode-back" href="../index.html#keyboard.wait">[docs]</a><span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="n">combination</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Blocks the program execution until the given key combination is pressed.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -492,7 +492,7 @@
     <span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
     <span class="n">remove_hotkey</span><span class="p">(</span><span class="n">hotkey_handler</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="record"><a class="viewcode-back" href="../source/keyboard.html#keyboard.record">[docs]</a><span class="k">def</span> <span class="nf">record</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="s1">&#39;escape&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="record"><a class="viewcode-back" href="../index.html#keyboard.record">[docs]</a><span class="k">def</span> <span class="nf">record</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="s1">&#39;escape&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Records all keyboard events from all keyboards until the user presses the</span>
 <span class="sd">    given key combination. Then returns the list of events recorded, of type</span>
@@ -508,7 +508,7 @@
     <span class="n">unhook</span><span class="p">(</span><span class="n">recorded</span><span class="o">.</span><span class="n">append</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">recorded</span></div>
 
-<div class="viewcode-block" id="play"><a class="viewcode-back" href="../source/keyboard.html#keyboard.play">[docs]</a><span class="k">def</span> <span class="nf">play</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">speed_factor</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+<div class="viewcode-block" id="play"><a class="viewcode-back" href="../index.html#keyboard.play">[docs]</a><span class="k">def</span> <span class="nf">play</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">speed_factor</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plays a sequence of recorded events, maintaining the relative time</span>
 <span class="sd">    intervals. If speed_factor is &lt;= 0 then the actions are replayed as fast</span>
@@ -532,7 +532,7 @@
 
     <span class="n">restore_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="get_typed_strings"><a class="viewcode-back" href="../source/keyboard.html#keyboard.get_typed_strings">[docs]</a><span class="k">def</span> <span class="nf">get_typed_strings</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">allow_backspace</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="get_typed_strings"><a class="viewcode-back" href="../index.html#keyboard.get_typed_strings">[docs]</a><span class="k">def</span> <span class="nf">get_typed_strings</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">allow_backspace</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Given a sequence of events, tries to deduce what strings were typed.</span>
 <span class="sd">    Strings are separated when a non-textual key is pressed (such as tab or</span>
