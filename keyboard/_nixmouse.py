@@ -9,16 +9,22 @@ import ctypes
 import ctypes.util
 from ctypes import c_uint32, c_uint, c_int, byref
 
-x11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library('X11'))
-# Required because we will have multiple threads calling x11,
-# such as the listener thread and then main using "move_to".
-x11.XInitThreads()
-display = x11.XOpenDisplay(None)
-# Known to cause segafult in Fedora 23 64bits
-# http://stackoverflow.com/questions/35137007/get-mouse-position-on-linux-pure-python
-window = x11.XDefaultRootWindow(display)
+display = None
+window = None
+def build_display():
+    global display, window
+    if display and window: return
+    x11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library('X11'))
+    # Required because we will have multiple threads calling x11,
+    # such as the listener thread and then main using "move_to".
+    x11.XInitThreads()
+    display = x11.XOpenDisplay(None)
+    # Known to cause segafult in Fedora 23 64bits
+    # http://stackoverflow.com/questions/35137007/get-mouse-position-on-linux-pure-python
+    window = x11.XDefaultRootWindow(display)
 
 def get_position():
+    build_display()
     root_id, child_id = c_uint32(), c_uint32()
     root_x, root_y, win_x, win_y = c_int(), c_int(), c_int(), c_int()
     mask = c_uint()
@@ -28,6 +34,7 @@ def get_position():
     return root_x.value, root_y.value
 
 def move_to(x, y):
+    build_display()
     x11.XWarpPointer(display, None, window, 0, 0, 0, 0, x, y)
     x11.XFlush(display)
 
@@ -55,7 +62,6 @@ button_by_code = {
     BTN_EXTRA: X2,
 }
 code_by_button = {button: code for code, button in button_by_code.items()}
-    
     
 device = None
 def build_device():
