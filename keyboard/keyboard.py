@@ -42,7 +42,7 @@ def is_pressed(key):
     if isinstance(key, int):
         return key in _pressed_events
     elif len(key) and '+' in key:
-        parts = _split_combination(key)
+        parts = normalize_hotkey(key)
         if len(parts) > 1:
             raise ValueError('Cannot check status of multi-step combination ({}).'.format(key))
         return all(is_pressed(part) for part in parts[0])
@@ -52,27 +52,30 @@ def is_pressed(key):
                 return True
         return False
 
-def _split_combination(hotkey):
+def normalize_hotkey(hotkey):
     """
     Splits a user provided hotkey into a list of steps, each one made of a list
     of key descriptions (name or scan code). Used to normalize input at the API
     boundary. When a combo is given (e.g. 'ctrl + a, b') spaces are ignored.
 
-        _split_combination(57) -> [[57]]
-        _split_combination('space') -> [[57]]
-        _split_combination('ctrl+space') -> [[97, 57]]
-        _split_combination('ctrl+space, space') -> [[97, 57], [57]]
+        normalize_hotkey(57) -> [[57]]
+        normalize_hotkey('space') -> [[57]]
+        normalize_hotkey('ctrl+space') -> [[97, 57]]
+        normalize_hotkey('ctrl+space, space') -> [[97, 57], [57]]
+
+    Note: the scan codes inside each step are returned sorted to enable
+    canonicalization of hotkeys.
     """
     if isinstance(hotkey, int):
         return [[hotkey]]
     else:
-        combination = []
-        for step in hotkey.replace(' ', '').split(','):
-            combination.append([])
-            for part in step.split('+'):
+        steps = []
+        for str_step in hotkey.replace(' ', '').split(','):
+            steps.append([])
+            for part in str_step.split('+'):
                 scan_code, modifiers = os_keyboard.map_char(normalize_name(part))
-                combination[-1].append(scan_code)
-        return combination
+                steps[-1].append(scan_code)
+        return [sorted(step) for step in steps]
 
 def call_later(fn, args=(), delay=0.001):
     """
@@ -123,7 +126,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
         add_hotkey('ctrl+q', quit)
         add_hotkey('ctrl+alt+enter, space', some_callback)
     """
-    steps = _split_combination(hotkey)
+    steps = normalize_hotkey(hotkey)
 
     # Just a dynamic object to store attributes for the `handler` closure.
     state = lambda: None
@@ -356,7 +359,7 @@ def send(combination, do_press=True, do_release=True):
 
     Ex: "ctrl+alt+del", "alt+F4, enter", "shift+s"
     """
-    for scan_codes in _split_combination(combination):
+    for scan_codes in normalize_hotkey(combination):
         if do_press:
             for scan_code in scan_codes:
                 os_keyboard.press(scan_code)
