@@ -227,7 +227,7 @@ def remove_hotkey(hotkey):
     """
     Removes a previously registered hotkey. Accepts either the hotkey used
     during registration (exact string) or the event handler returned by the
-    `add_hotkey` or `hook_key` function.
+    `add_hotkey` or `hook_key` functions.
     """
     if callable(hotkey):
         unhook(hotkey)
@@ -262,6 +262,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     `remove_word_listener(word)` or `remove_word_listener(handler)`.
 
     Note: all actions are performed on key down. Key up events are ignored.
+    Note: word mathes are **case sensitive**.
     """
     if word in _word_listeners:
         raise ValueError('Already listening for word {}'.format(repr(word)))
@@ -292,8 +293,9 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
 
 def remove_word_listener(word):
     """
-    Removes a previously instaled word listener hotkey. Works given both the
-    word source text or the handler returned by `add_word_listener`.
+    Removes a previously registered word listener. Accepts either the word used
+    during registration (exact string) or the event handler returned by the
+    `add_word_listener` or `add_abbreviation` functions.
     """
     if callable(word):
         unhook(word)
