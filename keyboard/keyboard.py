@@ -117,10 +117,14 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     after a match is found. In Windows also tries to block other processes
     from processing the key.
     - `timeout` is the amount of seconds allowed to pass between key presses
+
+    The event handler function is returned. To remove a hotkey call
+    `remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
     before the combination state is reset.
 
     Note: hotkeys are activated when the last key is *pressed*, not released.
-    Note: the callback is executed in a separate thread, asynchronously.
+    Note: the callback is executed in a separate thread, asynchronously. For an
+    example of how to use a callback synchronously, see `wait`.
 
         add_hotkey(57, print, args=['space was pressed'])
         add_hotkey(' ', print, args=['space was pressed'])
@@ -194,15 +198,18 @@ def unhook_all():
     Removes all keyboard hooks in use, including hotkeys, abbreviations, word
     listeners, `record`ers and `wait`s.
     """
-    global _hotkeys
-    _hotkeys = {}
-    global _word_listeners
-    _word_listeners = {}
+    _hotkeys.clear()
+    _word_listeners.clear()
     _listener.handlers.clear()
 
 def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     """
-    Hooks key up and down events for a given key, no hotkeys combos.
+    Hooks key up and key down events for a single key. Returns the event handler
+    created. To remove a hooked key use `unhook_key(key)` or
+    `unhook_key(handler)`.
+
+    Note: this function shares state with hotkeys, so `clear_all_hotkeys`
+    affects it aswell.
     """
     def handler(event):
         if not event.matches(key):
@@ -217,11 +224,17 @@ def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     return hook(handler)
 
 def remove_hotkey(hotkey):
-    """ Removes a previously registered hotkey. """
+    """
+    Removes a previously registered hotkey. Accepts either the hotkey used
+    during creating (exact string) or the event handler returned by the
+    `add_hotkey` or `hook_key` function.
+    """
     if callable(hotkey):
         unhook(hotkey)
     else:
         unhook(_hotkeys[hotkey])
+
+unhook_key = remove_hotkey
 
 _word_listeners = {}
 def add_word_listener(word, callback, triggers=['space'], match_suffix=False, timeout=2):
