@@ -319,7 +319,7 @@ def get_typed_strings(events, allow_backspace=True):
             shift_pressed = event.event_type == 'down'
         elif event.matches('caps lock') and event.event_type == 'down':
             capslock_pressed = not capslock_pressed
-        elif event.matches('backspace') and event.event_type == 'down':
+        elif allow_backspace and event.matches('backspace') and event.event_type == 'down':
             strings[-1] = strings[-1][:-1]
         elif event.event_type == 'down':
             if len(event.name) == 1:
