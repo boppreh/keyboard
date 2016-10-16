@@ -233,6 +233,7 @@ def remove_hotkey(hotkey):
         unhook(hotkey)
     else:
         unhook(_hotkeys[hotkey])
+        del _hotkeys[hotkey]
 
 # Alias.
 unhook_key = remove_hotkey
