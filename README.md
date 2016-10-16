@@ -127,7 +127,7 @@ example of how to use a callback synchronously, see `wait`.
 
 ## keyboard.**register\_hotkey**
 
-Alias for `add\_hotkey`.
+Alias for `add_hotkey`.
 
 
 ## keyboard.**hook**(callback)
@@ -168,7 +168,7 @@ listeners, `record`ers and `wait`s.
 
 
 
-## keyboard.**hook\_key**(key, keydown\_callback=&lt;function &lt;lambda&gt; at 0x76929d68&gt;, keyup\_callback=&lt;function &lt;lambda&gt; at 0x76929db0&gt;)
+## keyboard.**hook\_key**(key, keydown\_callback=&lt;function &lt;lambda&gt; at 0x768a5d68&gt;, keyup\_callback=&lt;function &lt;lambda&gt; at 0x768a5db0&gt;)
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L207)
 
@@ -195,7 +195,7 @@ during registration (exact string) or the event handler returned by the
 
 ## keyboard.**unhook\_key**
 
-Alias for `remove\_hotkey`.
+Alias for `remove_hotkey`.
 
 
 ## keyboard.**add\_word\_listener**(word, callback, triggers=[&#x27;space&#x27;], match\_suffix=False, timeout=2)
@@ -230,7 +230,7 @@ Note: word mathes are **case sensitive**.
 
 ## keyboard.**register\_word\_listener**
 
-Alias for `add\_word\_listener`.
+Alias for `add_word_listener`.
 
 
 ## keyboard.**remove\_word\_listener**(word)
@@ -246,7 +246,7 @@ during registration (exact string) or the event handler returned by the
 
 ## keyboard.**remove\_abbreviation**
 
-Alias for `remove\_word\_listener`.
+Alias for `remove_word_listener`.
 
 
 ## keyboard.**add\_abbreviation**(source\_text, replacement\_text, match\_suffix=True, timeout=2)
@@ -273,7 +273,7 @@ For more details see `add_word_listener`.
 
 ## keyboard.**register\_abbreviation**
 
-Alias for `add\_abbreviation`.
+Alias for `add_abbreviation`.
 
 
 ## keyboard.**stash\_state**()
