@@ -175,8 +175,8 @@ def hook(callback):
     Installs a global listener on all available keyboards, invoking `callback`
     each time a key is pressed or released.
     
-    The event passed to the callback is of type 
-    `keyboard.keyboard_event.KeyboardEvent`, with the following attributes:
+    The event passed to the callback is of type `keyboard_event.KeyboardEvent`,
+    with the following attributes:
 
     - `name`: an Unicode representation of the character (e.g. "&") or
     description (e.g.  "space"). The name is always lower-case.
@@ -433,7 +433,7 @@ def press_and_release(combination):
 
 def wait(combination):
     """
-    Blocks the program execution until a key combination is activated.
+    Blocks the program execution until the given key combination is pressed.
     """
     lock = Lock()
     lock.acquire()
@@ -443,21 +443,28 @@ def wait(combination):
 
 def record(until='escape'):
     """
-    Records and returns all keyboard events until the user presses the given
-    key combination.
+    Records all keyboard events from all keyboards until the user presses the
+    given key combination. Then returns the list of events recorded, of type
+    `keyboard_event.KeyboardEvent`. Pairs well with
+    `play(events)`.
+
+    Note: this is a blocking function.
+    Note: for more details on the keyboard hook and events see `hook`.
     """
     recorded = []
     hook(recorded.append)
     wait(until)
     unhook(recorded.append)
-
     return recorded
 
 def play(events, speed_factor=1.0):
     """
     Plays a sequence of recorded events, maintaining the relative time
-    intervals. If speed_factor is not positive (<= 0) the actions are replayed
-    instantly.
+    intervals. If speed_factor is <= 0 then the actions are replayed as fast
+    as the OS allows. Pairs well with `record()`.
+
+    Note: the current keyboard state is cleared at the beginning and restored at
+    the end of the function.
     """
     state = stash_state()
 
@@ -477,12 +484,12 @@ def play(events, speed_factor=1.0):
 def get_typed_strings(events, allow_backspace=True):
     """
     Given a sequence of events, tries to deduce what strings were typed.
-    Strings are separated when an unencodable key is pressed (such as tab
-    or enter). Characters are converted to uppercase according to shift
-    and capslock status. If `allow_backspace` is True, backspaces remove the
-    last character typed.
+    Strings are separated when a non-textual key is pressed (such as tab or
+    enter). Characters are converted to uppercase according to shift and
+    capslock status. If `allow_backspace` is True, backspaces remove the last
+    character typed.
 
-    get_type_strings(record()) -> ['', 'This is what', 'I recorded', '']
+        get_type_strings(record()) -> ['', 'This is what', 'I recorded', '']
     """
     shift_pressed = False
     capslock_pressed = False
