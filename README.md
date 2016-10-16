@@ -19,16 +19,16 @@ Take full control of your keyboard with this small Python library. Hook global e
 
 Example:
 
-.. code:: python
+```
+import keyboard
 
-    import keyboard
+# Press PAGE UP then PAGE DOWN to type "foobar".
+keyboard.add_hotkey('page up, page down', lambda: keyboard.write('foobar'))
 
-    # Press PAGE UP then PAGE DOWN to type "foobar".
-    keyboard.add_hotkey('page up, page down', lambda: keyboard.write('foobar'))
+keyboard.press_and_release('shift+s, space')
 
-    keyboard.press_and_release('shift+s, space')
-
-    # Blocks until you press esc.
-    keyboard.wait('esc')
+# Blocks until you press esc.
+keyboard.wait('esc')
+```
 
 This program makes no attempt to hide itself, so don't use it for keyloggers.
