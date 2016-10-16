@@ -226,7 +226,7 @@ def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
 def remove_hotkey(hotkey):
     """
     Removes a previously registered hotkey. Accepts either the hotkey used
-    during creating (exact string) or the event handler returned by the
+    during registration (exact string) or the event handler returned by the
     `add_hotkey` or `hook_key` function.
     """
     if callable(hotkey):
@@ -234,6 +234,7 @@ def remove_hotkey(hotkey):
     else:
         unhook(_hotkeys[hotkey])
 
+# Alias.
 unhook_key = remove_hotkey
 
 _word_listeners = {}
