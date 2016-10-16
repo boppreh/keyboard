@@ -272,12 +272,16 @@ def send(combination, do_press=True, do_release=True):
                 os_keyboard.release(scan_code)
 
 def press(combination):
-    """ Sends a key press event to the OS. """
+    """ Presses and holds down the key combination. """
     send(combination, True, False)
 
 def release(combination):
-    """ Sends a key release event to the OS. """
+    """ Releases the key combination. """
     send(combination, False, True)
+
+def press_and_release(combination):
+    """ Presses and releases the key combination. """
+    send(combination, True, True)
 
 def wait(combination):
     """
