@@ -240,22 +240,27 @@ unhook_key = remove_hotkey
 _word_listeners = {}
 def add_word_listener(word, callback, triggers=['space'], match_suffix=False, timeout=2):
     """
-    Invokes a callback every time a sequence of characters is typed and followed
-    by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl, shift) are
-    ignored.
+    Invokes a callback every time a sequence of characters is typed (e.g. 'pet')
+    and followed by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl,
+    shift) are ignored.
 
     - `word` the typed text to be matched. E.g. 'pet'.
     - `callback` is an argument-less function to be invoked each time the word
     is typed.
     - `triggers` is the list of keys that will cause a match to be checked. If
     the user presses some key that is not a character (len>1) and not in
-    triggers, the match will be discarded. By default only space bar triggers
-    match checks.
-    - `match_suffix` defines if endings of words should be checked instead of
-    only whole words. E.g. if True, typing 'carpet'+space will trigger the
-    listener for 'pet'. Defaults False.
-    - `timeout` is maximum number of seconds between typed characters before
+    triggers, the characters so far will be discarded. By default only space
+    bar triggers match checks.
+    - `match_suffix` defines if endings of words should also be checked instead
+    of only whole words. E.g. if true, typing 'carpet'+space will trigger the
+    listener for 'pet'. Defaults to false, only whole words are checked.
+    - `timeout` is the maximum number of seconds between typed characters before
     the current word is discarded. Defaults to 2 seconds.
+
+    Returns the event handler created. To remove a word listener use
+    `remove_word_listener(word)` or `remove_word_listener(handler)`.
+
+    Note: all actions are performed on key down. Key up events are ignored.
     """
     if word in _word_listeners:
         raise ValueError('Already listening for word {}'.format(repr(word)))
