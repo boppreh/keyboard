@@ -309,8 +309,16 @@ def add_abbreviation(source_text, replacement_text, match_suffix=True, timeout=2
 
         add_abbreviation('tm', u'™')
 
-    Replaces every "tm" followed by a space with a ™ symbol. For details see
-    `add_word_listener`.
+    Replaces every "tm" followed by a space with a ™ symbol (and no space). The
+    replacement is done by sending backspace events.
+
+    - `match_suffix` defines if endings of words should also be checked instead
+    of only whole words. E.g. if true, typing 'carpet'+space will trigger the
+    listener for 'pet'. Defaults to false, only whole words are checked.
+    - `timeout` is the maximum number of seconds between typed characters before
+    the current word is discarded. Defaults to 2 seconds.
+    
+    For more details see `add_word_listener`.
     """
     replacement = '\b'*(len(source_text)+1) + replacement_text
     callback = lambda: write(replacement, restore_state_after=False)
