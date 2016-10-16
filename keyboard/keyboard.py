@@ -72,14 +72,14 @@ def call_later(fn, args, delay=0.001):
     """
     Thread(target=lambda: time.sleep(delay) or fn(*args)).start()
 
-hotkeys = {}
+_hotkeys = {}
 def clear_all_hotkeys():
     """
     Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
     internally use hotkeys and will be affected by this call.
     """
-    global hotkeys
-    hotkeys = {}
+    global _hotkeys
+    _hotkeys = {}
     listener.handlers = []
 
 def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
@@ -127,7 +127,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
                     call_later(callback, args)
                     return blocking
 
-    hotkeys[hotkey] = handler
+    _hotkeys[hotkey] = handler
     return hook(handler)
 
 def hook(callback):
@@ -159,7 +159,7 @@ def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
         if event.event_type == KEY_UP:
             keyup_callback()
 
-    hotkeys[key] = handler
+    _hotkeys[key] = handler
     return hook(handler)
 
 def remove_hotkey(hotkey):
@@ -167,7 +167,7 @@ def remove_hotkey(hotkey):
     if callable(hotkey):
         unhook(hotkey)
     else:
-        unhook(hotkeys[hotkey])
+        unhook(_hotkeys[hotkey])
 
 def add_abbreviation(source_text, replacement_text):
     """
