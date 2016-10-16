@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import unittest
 
-from .mouse_event import MoveEvent, ButtonEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
+from ._mouse_event import MoveEvent, ButtonEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
 from keyboard import mouse
 
 class FakeOsMouse(object):

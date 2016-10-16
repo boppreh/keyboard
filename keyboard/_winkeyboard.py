@@ -5,7 +5,7 @@ Code heavily adapted from http://pastebin.com/wzYZGZrs
 import atexit
 from threading import Lock
 
-from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER

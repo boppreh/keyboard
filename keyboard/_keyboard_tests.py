@@ -5,7 +5,7 @@ import string
 
 from. import keyboard
 
-from .keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
+from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
 
 # Fake events with fake scan codes for a totally deterministic test.
 all_names = list(canonical_names.values()) + list(string.ascii_lowercase) + ['shift']

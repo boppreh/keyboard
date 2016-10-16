@@ -1,0 +1,239 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>keyboard.mouse &#8212; keyboard 0.7.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.7.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="top" title="keyboard 0.7.1 documentation" href="../../index.html" />
+    <link rel="up" title="keyboard" href="../keyboard.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">keyboard 0.7.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../keyboard.html" accesskey="U">keyboard</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for keyboard.mouse</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">platform</span>
+<span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;Windows&#39;</span><span class="p">:</span>
+    <span class="n">from</span><span class="o">.</span> <span class="kn">import</span> <span class="nn">_winmouse</span> <span class="k">as</span> <span class="nn">os_mouse</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">from</span><span class="o">.</span> <span class="kn">import</span> <span class="nn">_nixmouse</span> <span class="k">as</span> <span class="nn">os_mouse</span>
+
+<span class="kn">from</span> <span class="nn">._mouse_event</span> <span class="k">import</span> <span class="n">ButtonEvent</span><span class="p">,</span> <span class="n">MoveEvent</span><span class="p">,</span> <span class="n">WheelEvent</span><span class="p">,</span> <span class="n">LEFT</span><span class="p">,</span> <span class="n">RIGHT</span><span class="p">,</span> <span class="n">MIDDLE</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">X2</span><span class="p">,</span> <span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">,</span> <span class="n">DOUBLE</span>
+<span class="kn">from</span> <span class="nn">._generic</span> <span class="k">import</span> <span class="n">GenericListener</span>
+
+<span class="n">listening</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="n">_pressed_events</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+<div class="viewcode-block" id="MouseListener"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.MouseListener">[docs]</a><span class="k">class</span> <span class="nc">MouseListener</span><span class="p">(</span><span class="n">GenericListener</span><span class="p">):</span>
+<div class="viewcode-block" id="MouseListener.callback"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.MouseListener.callback">[docs]</a>    <span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">ButtonEvent</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span><span class="n">UP</span><span class="p">,</span> <span class="n">DOUBLE</span><span class="p">):</span>
+                <span class="n">_pressed_events</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">button</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">event</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">DOWN</span><span class="p">:</span>
+                <span class="n">_pressed_events</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">button</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">invoke_handlers</span><span class="p">(</span><span class="n">event</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MouseListener.listen"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.MouseListener.listen">[docs]</a>    <span class="k">def</span> <span class="nf">listen</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">os_mouse</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">)</span></div></div>
+
+<span class="n">listener</span> <span class="o">=</span> <span class="n">MouseListener</span><span class="p">()</span>
+
+<div class="viewcode-block" id="is_pressed"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.is_pressed">[docs]</a><span class="k">def</span> <span class="nf">is_pressed</span><span class="p">(</span><span class="n">button</span><span class="o">=</span><span class="n">LEFT</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Returns True if the given button is currently pressed. &quot;&quot;&quot;</span>
+    <span class="n">listener</span><span class="o">.</span><span class="n">start_if_necessary</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">button</span> <span class="ow">in</span> <span class="n">_pressed_events</span></div>
+
+<div class="viewcode-block" id="press"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.press">[docs]</a><span class="k">def</span> <span class="nf">press</span><span class="p">(</span><span class="n">button</span><span class="o">=</span><span class="n">LEFT</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Presses the given button (but doesn&#39;t release). &quot;&quot;&quot;</span>
+    <span class="n">os_mouse</span><span class="o">.</span><span class="n">press</span><span class="p">(</span><span class="n">button</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="release"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.release">[docs]</a><span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="n">button</span><span class="o">=</span><span class="n">LEFT</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Releases the given button. &quot;&quot;&quot;</span>
+    <span class="n">os_mouse</span><span class="o">.</span><span class="n">release</span><span class="p">(</span><span class="n">button</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="click"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.click">[docs]</a><span class="k">def</span> <span class="nf">click</span><span class="p">(</span><span class="n">button</span><span class="o">=</span><span class="n">LEFT</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Sends a click with the given button. &quot;&quot;&quot;</span>
+    <span class="n">os_mouse</span><span class="o">.</span><span class="n">press</span><span class="p">(</span><span class="n">button</span><span class="p">)</span>
+    <span class="n">os_mouse</span><span class="o">.</span><span class="n">release</span><span class="p">(</span><span class="n">button</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="double_click"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.double_click">[docs]</a><span class="k">def</span> <span class="nf">double_click</span><span class="p">(</span><span class="n">button</span><span class="o">=</span><span class="n">LEFT</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Sends a double click with the given button. &quot;&quot;&quot;</span>
+    <span class="n">click</span><span class="p">(</span><span class="n">button</span><span class="p">)</span>
+    <span class="n">click</span><span class="p">(</span><span class="n">button</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="right_click"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.right_click">[docs]</a><span class="k">def</span> <span class="nf">right_click</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot; Sends a right click with the given button. &quot;&quot;&quot;</span>
+    <span class="n">click</span><span class="p">(</span><span class="n">RIGHT</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="move"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.move">[docs]</a><span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Moves the mouse. If `absolute`, to position (x, y), otherwise move relative</span>
+<span class="sd">    to the current position. If `duration` is non-zero, animates the movement.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">duration</span><span class="p">:</span>
+        <span class="n">position_x</span><span class="p">,</span> <span class="n">position_y</span> <span class="o">=</span> <span class="n">get_position</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">absolute</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">position_x</span> <span class="o">+</span> <span class="n">x</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">position_y</span> <span class="o">+</span> <span class="n">y</span>
+
+        <span class="n">start_x</span> <span class="o">=</span> <span class="n">position_x</span>
+        <span class="n">start_y</span> <span class="o">=</span> <span class="n">position_y</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">start_x</span>
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">start_y</span>
+
+        <span class="k">if</span> <span class="n">dx</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">dy</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">duration</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># 120 movements per second.</span>
+            <span class="c1"># Round and keep float to ensure float division in Python 2</span>
+            <span class="n">steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">duration</span> <span class="o">*</span> <span class="mf">120.0</span><span class="p">)))</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">steps</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                <span class="n">move</span><span class="p">(</span><span class="n">start_x</span> <span class="o">+</span> <span class="n">dx</span><span class="o">*</span><span class="n">i</span><span class="o">/</span><span class="n">steps</span><span class="p">,</span> <span class="n">start_y</span> <span class="o">+</span> <span class="n">dy</span><span class="o">*</span><span class="n">i</span><span class="o">/</span><span class="n">steps</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">duration</span><span class="o">/</span><span class="n">steps</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">absolute</span><span class="p">:</span>
+            <span class="n">os_mouse</span><span class="o">.</span><span class="n">move_to</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">os_mouse</span><span class="o">.</span><span class="n">move_relative</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="on_button"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.on_button">[docs]</a><span class="k">def</span> <span class="nf">on_button</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(),</span> <span class="n">buttons</span><span class="o">=</span><span class="p">(</span><span class="n">LEFT</span><span class="p">,</span> <span class="n">MIDDLE</span><span class="p">,</span> <span class="n">RIGHT</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">X2</span><span class="p">),</span> <span class="n">types</span><span class="o">=</span><span class="p">(</span><span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">,</span> <span class="n">DOUBLE</span><span class="p">)):</span>
+    <span class="sd">&quot;&quot;&quot; Invokes `callback` with `args` when the specified event happens. &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">buttons</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+        <span class="n">buttons</span> <span class="o">=</span> <span class="p">(</span><span class="n">buttons</span><span class="p">,)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">types</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+        <span class="n">types</span> <span class="o">=</span> <span class="p">(</span><span class="n">types</span><span class="p">,)</span>
+
+    <span class="k">def</span> <span class="nf">handler</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">ButtonEvent</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="n">types</span> <span class="ow">and</span> <span class="n">event</span><span class="o">.</span><span class="n">button</span> <span class="ow">in</span> <span class="n">buttons</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">listener</span><span class="o">.</span><span class="n">add_handler</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">handler</span></div>
+
+<div class="viewcode-block" id="on_click"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.on_click">[docs]</a><span class="k">def</span> <span class="nf">on_click</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">()):</span>
+    <span class="sd">&quot;&quot;&quot; Invokes `callback` with `args` when the left button is clicked. &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">on_button</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="p">[</span><span class="n">LEFT</span><span class="p">],</span> <span class="p">[</span><span class="n">UP</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="on_double_click"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.on_double_click">[docs]</a><span class="k">def</span> <span class="nf">on_double_click</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">()):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Invokes `callback` with `args` when the left button is double clicked.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">on_button</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="p">[</span><span class="n">LEFT</span><span class="p">],</span> <span class="p">[</span><span class="n">DOUBLE</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="on_right_click"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.on_right_click">[docs]</a><span class="k">def</span> <span class="nf">on_right_click</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">()):</span>
+    <span class="sd">&quot;&quot;&quot; Invokes `callback` with `args` when the right button is clicked. &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">on_button</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="p">[</span><span class="n">RIGHT</span><span class="p">],</span> <span class="p">[</span><span class="n">UP</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="on_middle_click"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.on_middle_click">[docs]</a><span class="k">def</span> <span class="nf">on_middle_click</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">()):</span>
+    <span class="sd">&quot;&quot;&quot; Invokes `callback` with `args` when the middle button is clicked. &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">on_button</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="p">[</span><span class="n">MIDDLE</span><span class="p">],</span> <span class="p">[</span><span class="n">UP</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="wait"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.wait">[docs]</a><span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="n">button</span><span class="o">=</span><span class="n">LEFT</span><span class="p">,</span> <span class="n">target_types</span><span class="o">=</span><span class="p">(</span><span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">,</span> <span class="n">DOUBLE</span><span class="p">)):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Blocks program execution until the given button performs an event.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Lock</span>
+    <span class="n">lock</span> <span class="o">=</span> <span class="n">Lock</span><span class="p">()</span>
+    <span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+    <span class="n">handler</span> <span class="o">=</span> <span class="n">on_button</span><span class="p">(</span><span class="n">lock</span><span class="o">.</span><span class="n">release</span><span class="p">,</span> <span class="p">(),</span> <span class="p">[</span><span class="n">button</span><span class="p">],</span> <span class="n">target_types</span><span class="p">)</span>
+    <span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+    <span class="n">listener</span><span class="o">.</span><span class="n">remove_handler</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="get_position"><a class="viewcode-back" href="../../source/keyboard.html#keyboard.mouse.get_position">[docs]</a><span class="k">def</span> <span class="nf">get_position</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot; Returns the (x, y) mouse position. &quot;&quot;&quot;</span>
+    <span class="n">listener</span><span class="o">.</span><span class="n">start_if_necessary</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">os_mouse</span><span class="o">.</span><span class="n">get_position</span><span class="p">()</span></div>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Move the cursor somewhere and left-click.&#39;</span><span class="p">)</span>
+    <span class="n">wait</span><span class="p">()</span>
+    <span class="n">move</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="n">absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">double_click</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">get_position</span><span class="p">())</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">keyboard 0.7.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../keyboard.html" >keyboard</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, BoppreH (boppreh@gmail.com).
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+  </body>
+</html>

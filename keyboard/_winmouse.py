@@ -6,7 +6,7 @@ LPMSG = POINTER(MSG)
 
 import atexit
 
-from .mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
+from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
 
 user32 = ctypes.windll.user32
 

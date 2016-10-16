@@ -3,8 +3,8 @@ import struct
 import traceback
 from time import time as now
 from collections import namedtuple
-from .keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from .nixcommon import EV_KEY, aggregate_devices
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from ._nixcommon import EV_KEY, aggregate_devices
 
 import os
 if os.geteuid() != 0:
