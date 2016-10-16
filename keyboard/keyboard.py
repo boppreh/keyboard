@@ -173,7 +173,25 @@ def remove_hotkey(hotkey):
         unhook(_hotkeys[hotkey])
 
 _word_listeners = {}
-def add_word_listener(word, callback, match_suffix=False, timeout=2):
+def add_word_listener(word, callback, triggers=['space'], match_suffix=False, timeout=2):
+    """
+    Invokes a callback every time a sequence of characters is typed and followed
+    by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl, shift) are
+    ignored.
+
+    - `word` the typed text to be matched. E.g. 'pet'.
+    - `callback` is an argument-less function to be invoked each time the word
+    is typed.
+    - `triggers` is the list of keys that will cause a match to be checked. If
+    the user presses some key that is not a character (len>1) and not in
+    triggers, the match will be discarded. By default only space bar triggers
+    match checks.
+    - `match_suffix` defines if endings of words should be checked instead of
+    only whole words. E.g. if True, typing 'carpet'+space will trigger the
+    listener for 'pet'. Defaults False.
+    - `timeout` is maximum number of seconds between typed characters before
+    the current word is discarded. Defaults to 2 seconds.
+    """
     if word in _word_listeners:
         raise ValueError('Already listening for word {}'.format(repr(word)))
 
@@ -187,7 +205,7 @@ def add_word_listener(word, callback, match_suffix=False, timeout=2):
         if event.event_type == KEY_UP or name in all_modifiers: return
 
         matched = state.current == word or (match_suffix and state.current.endswith(word))
-        if name == 'space' and matched:
+        if name in triggeres and matched:
             call_later(callback)
             state.current = ''
         elif len(name) > 1:
@@ -218,7 +236,8 @@ def add_abbreviation(source_text, replacement_text, match_suffix=True, timeout=2
 
         add_abbreviation('tm', u'™')
 
-    Replaces every "tm" followed by a space with a ™ symbol.
+    Replaces every "tm" followed by a space with a ™ symbol. For details see
+    `add_word_listener`.
     """
     replacement = '\b'*(len(source_text)+1) + replacement_text
     callback = lambda: write(replacement, restore_state_after=False)
