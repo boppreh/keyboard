@@ -162,11 +162,18 @@ register_hotkey = add_hotkey
 def hook(callback):
     """
     Installs a global listener on all available keyboards, invoking `callback`
-    each time a key is pressed or released. An event object is supplied, with
-    type `keyboard.keyboard_event.KeyboardEvent` and attributes `name`
-    (an Unicode representation of the character (e.g. "&") or description (e.g.
-    "space")), `scan_code` (number representing the physical key) and `time`
-    (Unix timestamp).
+    each time a key is pressed or released.
+    
+    The event passed to the callback is of type 
+    `keyboard.keyboard_event.KeyboardEvent`, with the following attributes:
+
+    - `name`: an Unicode representation of the character (e.g. "&") or
+    description (e.g.  "space"). The name is always lower-case.
+    - `scan_code`: number representing the physical key, e.g. 55.
+    - `time`: timestamp of the time the event occurred, with as much precision
+    as given by the OS.
+
+    Returns the given callback for easier development.
     """
     _listener.add_handler(callback)
     return callback
@@ -178,7 +185,7 @@ def unhook(callback):
 def unhook_all():
     """
     Removes all keyboard hooks in use, including hotkeys, abbreviations, word
-    listeners, recorders and 'wait's.
+    listeners, `record`ers and `wait`s.
     """
     global _hotkeys
     _hotkeys = {}
