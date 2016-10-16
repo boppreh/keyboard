@@ -91,7 +91,7 @@ def listen(callback):
             if event_type == KEY_DOWN:
                 pressed_modifiers.add(name)
             else:
-                pressed_modifiers.remove(name)
+                pressed_modifiers.discard(name)
 
         event = KeyboardEvent(event_type, scan_code, name, time)
         blocking = callback(event)
