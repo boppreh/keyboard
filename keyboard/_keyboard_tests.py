@@ -264,7 +264,7 @@ class TestKeyboard(unittest.TestCase):
         lock.acquire()
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc'), (KEY_UP, 'esc')])
 
-    def test_word_listener(self):
+    def test_word_listener_normal(self):
         keyboard.add_word_listener('bird', self.fail)
         self.click('b')
         self.click('i')
@@ -292,6 +292,33 @@ class TestKeyboard(unittest.TestCase):
         keyboard.remove_word_listener('bird')
 
         self.triggered = False
+        def on_triggered():
+            self.triggered = True
+        # Word listener should be case sensitive.
+        keyboard.add_word_listener('Bird', on_triggered)
+        self.click('b')
+        self.click('i')
+        self.click('r')
+        self.click('d')
+        self.assertFalse(self.triggered)
+        self.click('space')
+        time.sleep(0.01)
+        self.assertFalse(self.triggered)
+        self.press('shift')
+        self.click('b')
+        self.release('shift')
+        self.click('i')
+        self.click('r')
+        self.click('d')
+        self.click('space')
+        time.sleep(0.01)
+        self.assertTrue(self.triggered)
+        keyboard.remove_word_listener('Bird')
+
+    def test_word_listener_edge_cases(self):
+        self.triggered = False
+        def on_triggered():
+            self.triggered = True
         handler = keyboard.add_word_listener('bird', on_triggered, triggers=['enter'])
         self.click('b')
         self.click('i')
@@ -299,6 +326,7 @@ class TestKeyboard(unittest.TestCase):
         self.click('d')
         self.click('space')
         time.sleep(0.01)
+        # We overwrote the triggers to remove space. Should not trigger.
         self.assertFalse(self.triggered)
         self.click('b')
         self.click('i')
@@ -316,6 +344,7 @@ class TestKeyboard(unittest.TestCase):
         keyboard.remove_word_listener(handler)
 
         self.triggered = False
+        # Timeout of 0 should mean "no timeout".
         keyboard.add_word_listener('bird', on_triggered, timeout=0)
         self.click('b')
         self.click('i')
@@ -337,6 +366,7 @@ class TestKeyboard(unittest.TestCase):
         self.assertFalse(self.triggered)
         self.click('space')
         time.sleep(0.01)
+        # Should have timed out.
         self.assertFalse(self.triggered)
         keyboard.remove_word_listener('bird')
 
