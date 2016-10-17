@@ -512,7 +512,7 @@ def get_typed_strings(events, allow_backspace=True):
     capslock status. If `allow_backspace` is True, backspaces remove the last
     character typed.
 
-        get_type_strings(record()) -> ['', 'This is what', 'I recorded', '']
+        get_type_strings(record()) -> ['This is what', 'I recorded', '']
     """
     shift_pressed = False
     capslock_pressed = False

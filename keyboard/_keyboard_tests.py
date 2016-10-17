@@ -422,6 +422,25 @@ class TestKeyboard(unittest.TestCase):
         keyboard.restore_state(state)
         self.assertEqual(self.flush_events(), [(KEY_UP, 'c'), (KEY_DOWN, 'b'), (KEY_DOWN, 'a')])
 
+    def test_get_typed_strings(self):
+        keyboard.hook(self.events.append)
+        self.click('b')
+        self.click('i')
+        self.press('shift')
+        self.click('r')
+        self.click('caps lock')
+        self.click('d')
+        self.click('caps lock')
+        self.release('shift')
+        self.click(' ')
+        self.click('backspace')
+        self.click('.')
+        self.click('enter')
+        self.click('n')
+        self.click('e')
+        self.click('w')
+        self.assertEqual(keyboard.get_typed_strings(self.events), ['biRd.', 'new'])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -46,6 +46,7 @@ canonical_names = {
     'ins': 'insert',
     'pause break': 'pause',
     'ctrll lock': 'caps lock',
+    'capslock': 'caps lock',
     'number lock': 'num lock',
     'numlock:': 'num lock',
     'space bar': 'space',
