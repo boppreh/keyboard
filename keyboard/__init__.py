@@ -279,7 +279,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
         if event.event_type == KEY_UP or name in all_modifiers: return
 
         matched = state.current == word or (match_suffix and state.current.endswith(word))
-        if name in triggeres and matched:
+        if name in triggers and matched:
             call_later(callback)
             state.current = ''
         elif len(name) > 1:
@@ -512,7 +512,3 @@ def get_typed_strings(events, allow_backspace=True):
             else:
                 strings.append('')
     return strings
-
-if __name__ == '__main__':
-    print('Press esc twice to replay keyboard actions.')
-    play(record('esc, esc'), 3)
