@@ -234,17 +234,34 @@ def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     _hotkeys[key] = handler
     return hook(handler)
 
-def remove_hotkey(hotkey):
+def _remove_named_hook(name_or_handler, names):
+    """
+    Removes a hook that was registered with a given name in a dictionary.
+    """
+    if callable(name_or_handler):
+        handler = name_or_handler
+        try:
+            name = next(n for n, h in names.items() if h == handler)
+        except StopIteration:
+            raise ValueError('This handler is not associated with any name.')
+        unhook(handler)
+        del names[name]
+    else:
+        name = name_or_handler
+        try:
+            handler = names[name]
+        except KeyError as e:
+            raise ValueError('No such named listener: ' + repr(name), e)
+        unhook(names[name])
+        del names[name]
+
+def remove_hotkey(hotkey_or_handler):
     """
     Removes a previously registered hotkey. Accepts either the hotkey used
     during registration (exact string) or the event handler returned by the
     `add_hotkey` or `hook_key` functions.
     """
-    if callable(hotkey):
-        unhook(hotkey)
-    else:
-        unhook(_hotkeys[hotkey])
-        del _hotkeys[hotkey]
+    _remove_named_hook(hotkey_or_handler, _hotkeys)
 
 # Alias.
 unhook_key = remove_hotkey
@@ -301,17 +318,13 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     _word_listeners[word] = hook(handler)
     return handler
 
-def remove_word_listener(word):
+def remove_word_listener(word_or_handler):
     """
     Removes a previously registered word listener. Accepts either the word used
     during registration (exact string) or the event handler returned by the
     `add_word_listener` or `add_abbreviation` functions.
     """
-    if callable(word):
-        unhook(word)
-    else:
-        unhook(_word_listeners[word])
-        del _word_listeners[word]
+    _remove_named_hook(word_or_handler, _word_listeners)
 
 def add_abbreviation(source_text, replacement_text, match_suffix=True, timeout=2):
     """

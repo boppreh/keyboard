@@ -193,6 +193,11 @@ class TestKeyboard(unittest.TestCase):
 
         keyboard.clear_all_hotkeys()
 
+        keyboard.add_hotkey('a', self.fail)
+        with self.assertRaises(ValueError):
+            keyboard.remove_hotkey('b')
+        keyboard.remove_hotkey('a')
+
     def test_write(self):
         keyboard.write('a')
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a')])
@@ -287,7 +292,7 @@ class TestKeyboard(unittest.TestCase):
         keyboard.remove_word_listener('bird')
 
         self.triggered = False
-        keyboard.add_word_listener('bird', on_triggered, triggers=['enter'])
+        handler = keyboard.add_word_listener('bird', on_triggered, triggers=['enter'])
         self.click('b')
         self.click('i')
         self.click('r')
@@ -303,7 +308,12 @@ class TestKeyboard(unittest.TestCase):
         self.click('enter')
         time.sleep(0.01)
         self.assertTrue(self.triggered)
-        keyboard.remove_word_listener('bird')
+        with self.assertRaises(ValueError):
+            # Must pass handler returned by function, not passed callback.
+            keyboard.remove_word_listener(on_triggered)
+        with self.assertRaises(ValueError):
+            keyboard.remove_word_listener('birb')
+        keyboard.remove_word_listener(handler)
 
         self.triggered = False
         keyboard.add_word_listener('bird', on_triggered, timeout=0)
