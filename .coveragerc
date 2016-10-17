@@ -13,5 +13,9 @@ exclude_lines =
 
     if __name__ == .__main__.:
 
+    from. import
+
+    import 
+
 [html]
 directory = coverage_html_report
