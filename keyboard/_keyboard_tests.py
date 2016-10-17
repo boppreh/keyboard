@@ -44,7 +44,7 @@ class TestKeyboard(unittest.TestCase):
         # We will use our own events, thank you very much.
         keyboard._listener.listening = True
         self.events = []
-        keyboard._pressed_events = {}
+        keyboard._pressed_events.clear()
         keyboard._os_keyboard = FakeOsKeyboard(self.events.append)
 
     def tearDown(self):
@@ -384,6 +384,17 @@ class TestKeyboard(unittest.TestCase):
             (KEY_UP, 'backspace'),
             (KEY_DOWN, 'a'),
             (KEY_UP, 'a')])
+
+    def test_stash_restore_state(self):
+        self.press('a')
+        self.press('b')
+        state = keyboard.stash_state()
+        self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'b')])
+        keyboard._pressed_events.clear()
+        assert len(state) == 2
+        self.press('c')
+        keyboard.restore_state(state)
+        self.assertEqual(self.flush_events(), [(KEY_UP, 'c'), (KEY_DOWN, 'b'), (KEY_DOWN, 'a')])
 
 
 if __name__ == '__main__':
