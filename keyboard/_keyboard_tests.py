@@ -33,8 +33,13 @@ class FakeOsKeyboard(object):
     def map_char(self, char):
         try:
             return scan_codes_by_name[char.lower()], ('shift',) if char.isupper() else ()
-        except KeyError:
-            raise ValueError()
+        except KeyError as e:
+            raise ValueError(e)
+
+    def type_unicode(self, letter):
+        event = FakeEvent('unicode', 'a')
+        event.name = letter
+        self.append(event)
 
 class TestKeyboard(unittest.TestCase):
     # Without this attribute Python2 tests fail for some unknown reason.
@@ -223,6 +228,19 @@ class TestKeyboard(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             keyboard.send('foo', True, False)
+
+        self.press('a')
+        keyboard.write('a', restore_state_after=False, delay=0.001)
+        # TODO: two KEY_UP 'a' because the tests are not clearing the pressed
+        # keys correctly, it's not a bug in the keyboard module itself.
+        self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'a'), (KEY_UP, 'a')])
+
+    def test_type_unicode(self):
+        keyboard.write('û')
+        events = self.flush_events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].event_type, 'unicode')
+        self.assertEqual(events[0].name, 'û')
 
     def test_press_release(self):
         keyboard.press('a')
