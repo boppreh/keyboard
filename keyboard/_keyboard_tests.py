@@ -135,6 +135,42 @@ class TestKeyboard(unittest.TestCase):
 
         return self.triggered
 
+    def test_hook(self):
+        self.i = 0
+        def count(e):
+            self.assertEqual(e.name, 'a')
+            self.i += 1
+        keyboard.hook(count)
+        self.click('a')
+        self.assertEqual(self.i, 2)
+        keyboard.hook(count)
+        self.click('a')
+        self.assertEqual(self.i, 6)
+        keyboard.unhook(count)
+        self.click('a')
+        self.assertEqual(self.i, 8)
+        keyboard.unhook(count)
+        self.click('a')
+        self.assertEqual(self.i, 8)
+
+    def test_hook_key(self):
+        self.i = 0
+        def count():
+            self.i += 1
+        keyboard.hook_key('a', keyup_callback=count)
+        self.press('a')
+        self.assertEqual(self.i, 0)
+        self.release('a')
+        self.click('b')
+        self.assertEqual(self.i, 1)
+        keyboard.hook_key('b', keydown_callback=count)
+        self.press('b')
+        self.assertEqual(self.i, 2)
+        keyboard.unhook_key('a')
+        keyboard.unhook_key('b')
+        self.click('a')
+        self.assertEqual(self.i, 2)
+
     def test_register_hotkey(self):
         self.assertFalse(self.triggers('a', [['b']]))
         self.assertTrue(self.triggers('a', [['a']]))
