@@ -259,5 +259,76 @@ class TestKeyboard(unittest.TestCase):
         lock.acquire()
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc'), (KEY_UP, 'esc')])
 
+    def test_word_listener(self):
+        keyboard.add_word_listener('bird', self.fail)
+        self.click('b')
+        self.click('i')
+        self.click('r')
+        self.click('d')
+        self.click('s')
+        self.click('space')
+        with self.assertRaises(ValueError):
+            keyboard.add_word_listener('bird', self.fail)
+        keyboard.remove_word_listener('bird')
+
+        self.triggered = False
+        def on_triggered():
+            self.triggered = True
+        keyboard.add_word_listener('bird', on_triggered)
+        self.click('b')
+        self.click('i')
+        self.click('r')
+        self.click('d')
+        self.assertFalse(self.triggered)
+        self.click('space')
+        # Callback is called after a moment to let the OS process the last key.
+        time.sleep(0.01)
+        self.assertTrue(self.triggered)
+        keyboard.remove_word_listener('bird')
+
+        self.triggered = False
+        keyboard.add_word_listener('bird', on_triggered, triggers=['enter'])
+        self.click('b')
+        self.click('i')
+        self.click('r')
+        self.click('d')
+        self.click('space')
+        time.sleep(0.01)
+        self.assertFalse(self.triggered)
+        self.click('b')
+        self.click('i')
+        self.click('r')
+        self.click('d')
+        self.assertFalse(self.triggered)
+        self.click('enter')
+        time.sleep(0.01)
+        self.assertTrue(self.triggered)
+        keyboard.remove_word_listener('bird')
+
+        self.triggered = False
+        keyboard.add_word_listener('bird', on_triggered, timeout=0)
+        self.click('b')
+        self.click('i')
+        self.click('r')
+        self.click('d')
+        self.assertFalse(self.triggered)
+        self.click('space')
+        time.sleep(0.01)
+        self.assertTrue(self.triggered)
+        keyboard.remove_word_listener('bird')
+
+        self.triggered = False
+        keyboard.add_word_listener('bird', on_triggered, timeout=0.01)
+        self.click('b')
+        self.click('i')
+        self.click('r')
+        time.sleep(0.03)
+        self.click('d')
+        self.assertFalse(self.triggered)
+        self.click('space')
+        time.sleep(0.01)
+        self.assertFalse(self.triggered)
+        keyboard.remove_word_listener('bird')
+
 if __name__ == '__main__':
     unittest.main()
