@@ -253,6 +253,9 @@ class TestKeyboard(unittest.TestCase):
         keyboard.release('shift+a')
         self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'shift')])
 
+        keyboard.press_and_release('a')
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a')])
+
     def test_wait(self):
         # If this fails it blocks. Unfortunately, but I see no other way of testing.
         from threading import Thread, Lock
@@ -269,8 +272,10 @@ class TestKeyboard(unittest.TestCase):
         from threading import Thread, Lock
         lock = Lock()
         lock.acquire()
+        self.recorded = None
         def t():
-            keyboard.play(keyboard.record('esc'), speed_factor=0)
+            self.recorded = keyboard.record('esc')
+            keyboard.play(self.recorded, speed_factor=0)
             lock.release()
         Thread(target=t).start()
         self.click('a')
@@ -280,6 +285,9 @@ class TestKeyboard(unittest.TestCase):
         self.release('shift')
         self.click('esc')
         lock.acquire()
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc'), (KEY_UP, 'esc')])
+
+        keyboard.play(self.recorded, speed_factor=100)
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc'), (KEY_UP, 'esc')])
 
     def test_word_listener_normal(self):
