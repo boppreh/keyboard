@@ -63,6 +63,12 @@ class TestKeyboard(unittest.TestCase):
         del self.events[:]
         return events
 
+    def test_listener(self):
+        empty_event = FakeEvent(KEY_DOWN, 'space')
+        empty_event.scan_code = None
+        keyboard._listener.callback(empty_event)
+        self.assertEqual(self.flush_events(), [])
+
     def test_canonicalize(self):
         space = [[scan_codes_by_name['space']]]
         self.assertEqual(keyboard.canonicalize(space), space)
