@@ -8,8 +8,11 @@ import keyboard
 from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
 
 # Fake events with fake scan codes for a totally deterministic test.
-all_names = list(canonical_names.values()) + list(string.ascii_lowercase) + ['shift']
-scan_codes_by_name = {name: i for i, name in enumerate(all_names)}
+all_names = set(canonical_names.values()) | set(string.ascii_lowercase) | {'shift'}
+scan_codes_by_name = {name: i for i, name in enumerate(sorted(all_names))}
+scan_codes_by_name.update({key: scan_codes_by_name[value]
+    for key, value in canonical_names.items()})
+
 class FakeEvent(KeyboardEvent):
     def __init__(self, event_type, name):
         self.event_type = event_type
@@ -22,10 +25,10 @@ class FakeOsKeyboard(object):
         self.append = append
 
     def press(self, scan_code):
-        self.append((KEY_DOWN, next(name for name, i in scan_codes_by_name.items() if i == scan_code)))
+        self.append((KEY_DOWN, next(name for name, i in scan_codes_by_name.items() if i == scan_code and name not in canonical_names)))
 
     def release(self, scan_code):
-        self.append((KEY_UP, next(name for name, i in scan_codes_by_name.items() if i == scan_code)))
+        self.append((KEY_UP, next(name for name, i in scan_codes_by_name.items() if i == scan_code and name not in canonical_names)))
 
     def map_char(self, char):
         try:
@@ -60,6 +63,16 @@ class TestKeyboard(unittest.TestCase):
         del self.events[:]
         return events
 
+    def test_canonicalize(self):
+        space = [[scan_codes_by_name['space']]]
+        self.assertEqual(keyboard.canonicalize('space'), space)
+        self.assertEqual(keyboard.canonicalize(' '), space)
+        self.assertEqual(keyboard.canonicalize('spacebar'), space)
+        self.assertEqual(keyboard.canonicalize('Space'), space)
+        self.assertEqual(keyboard.canonicalize('SPACE'), space)
+        with self.assertRaises(ValueError):
+            keyboard.canonicalize('invalid')
+
     def test_is_pressed(self):
         self.assertFalse(keyboard.is_pressed('enter'))
         self.assertFalse(keyboard.is_pressed(scan_codes_by_name['enter']))
@@ -76,6 +89,13 @@ class TestKeyboard(unittest.TestCase):
         self.assertFalse(keyboard.is_pressed('ctrl+enter'))
         self.press('ctrl')
         self.assertTrue(keyboard.is_pressed('ctrl+enter'))
+
+        self.press('space')
+        self.assertTrue(keyboard.is_pressed('space'))
+        self.assertFalse(keyboard.is_pressed('invalid key'))
+
+        with self.assertRaises(ValueError):
+            keyboard.is_pressed('space, space')
 
     def triggers(self, combination, keys):
         self.triggered = False

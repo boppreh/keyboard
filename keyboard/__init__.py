@@ -43,7 +43,7 @@ def is_pressed(key):
     _listener.start_if_necessary()
     if isinstance(key, int):
         return key in _pressed_events
-    elif len(key) and '+' in key:
+    elif len(key) > 1 and ('+' in key or ',' in key):
         parts = canonicalize(key)
         if len(parts) > 1:
             raise ValueError('Cannot check status of multi-step combination ({}).'.format(key))
@@ -72,6 +72,9 @@ def canonicalize(hotkey):
         return hotkey
     elif isinstance(hotkey, int):
         return [[hotkey]]
+    elif len(hotkey) == 1 or ('+' not in hotkey and ',' not in hotkey):
+        scan_code, modifiers = _os_keyboard.map_char(_normalize_name(hotkey))
+        return [[scan_code]]
     elif isinstance(hotkey, str):
         steps = []
         for str_step in hotkey.replace(' ', '').split(','):

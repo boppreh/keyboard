@@ -168,6 +168,9 @@ canonical_names = {
 }
 
 def normalize_name(name):
+    if not isinstance(name, str):
+        raise ValueError('Can only normalize string names. Unexpected '+ repr(name))
+
     name = name.lower()
     if name != '_':
         name = name.replace('_', ' ')
