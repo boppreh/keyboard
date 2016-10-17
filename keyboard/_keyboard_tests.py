@@ -24,6 +24,9 @@ class FakeOsKeyboard(object):
     def __init__(self, append):
         self.append = append
 
+    def listen(self, callback):
+        pass
+
     def press(self, scan_code):
         self.append((KEY_DOWN, next(name for name, i in scan_codes_by_name.items() if i == scan_code and name not in canonical_names)))
 
@@ -51,6 +54,7 @@ class TestKeyboard(unittest.TestCase):
         self.events = []
         keyboard._pressed_events.clear()
         keyboard._os_keyboard = FakeOsKeyboard(self.events.append)
+        keyboard._listener.listen()
 
     def tearDown(self):
         keyboard.unhook_all()
