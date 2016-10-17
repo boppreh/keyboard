@@ -3,6 +3,9 @@ import time as _time
 from threading import Lock as _Lock
 from threading import Thread as _Thread
 
+# Just a dynamic object to store attributes for the closures.
+class _State(object): pass
+
 import platform as _platform
 if _platform.system() == 'Windows':
     from. import _winkeyboard as _os_keyboard
@@ -145,8 +148,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """
     steps = canonicalize(hotkey)
 
-    # Just a dynamic object to store attributes for the `handler` closure.
-    state = lambda: None
+    state = _State()
     state.step = 0
     state.time = _time.time()
 
@@ -276,8 +278,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     if word in _word_listeners:
         raise ValueError('Already listening for word {}'.format(repr(word)))
 
-    # Just a dynamic object to store attributes for the `handler` closure.
-    state = lambda: None
+    state = _State()
     state.current = ''
     state.time = _time.time()
 
