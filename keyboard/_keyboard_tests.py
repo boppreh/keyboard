@@ -370,5 +370,21 @@ class TestKeyboard(unittest.TestCase):
         self.assertFalse(self.triggered)
         keyboard.remove_word_listener('bird')
 
+    def test_abbreviation(self):
+        keyboard.add_abbreviation('tm', 'a')
+        self.click('t')
+        self.click('m')
+        self.click('space')
+        time.sleep(0.01)
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'backspace'),
+            (KEY_UP, 'backspace'),
+            (KEY_DOWN, 'backspace'),
+            (KEY_UP, 'backspace'),
+            (KEY_DOWN, 'backspace'),
+            (KEY_UP, 'backspace'),
+            (KEY_DOWN, 'a'),
+            (KEY_UP, 'a')])
+
+
 if __name__ == '__main__':
     unittest.main()
