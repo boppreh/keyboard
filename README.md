@@ -237,7 +237,7 @@ listeners, `record`ers and `wait`s.
 
 
 <a name="keyboard.hook_key"/>
-## keyboard.**hook\_key**(key, keydown\_callback=&lt;function &lt;lambda&gt; at 0x768e7d68&gt;, keyup\_callback=&lt;function &lt;lambda&gt; at 0x768e7db0&gt;)
+## keyboard.**hook\_key**(key, keydown\_callback=&lt;lambda&gt;, keyup\_callback=&lt;lambda&gt;)
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L216)
 
