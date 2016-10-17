@@ -42,7 +42,7 @@ class TestKeyboard(unittest.TestCase):
         keyboard._listener.listening = True
         self.events = []
         keyboard._pressed_events = {}
-        keyboard.os_keyboard = FakeOsKeyboard(self.events.append)
+        keyboard._os_keyboard = FakeOsKeyboard(self.events.append)
 
     def press(self, name):
         keyboard._listener.callback(FakeEvent(KEY_DOWN, name))
