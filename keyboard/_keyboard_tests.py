@@ -65,6 +65,8 @@ class TestKeyboard(unittest.TestCase):
 
     def test_canonicalize(self):
         space = [[scan_codes_by_name['space']]]
+        self.assertEqual(keyboard.canonicalize(space), space)
+        self.assertEqual(keyboard.canonicalize(space[0][0]), space)
         self.assertEqual(keyboard.canonicalize('space'), space)
         self.assertEqual(keyboard.canonicalize(' '), space)
         self.assertEqual(keyboard.canonicalize('spacebar'), space)
@@ -72,6 +74,12 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(keyboard.canonicalize('SPACE'), space)
         with self.assertRaises(ValueError):
             keyboard.canonicalize('invalid')
+        with self.assertRaises(ValueError):
+            keyboard.canonicalize(['space'])
+        with self.assertRaises(ValueError):
+            keyboard.canonicalize([['space']])
+        with self.assertRaises(ValueError):
+            keyboard.canonicalize(keyboard)
 
     def test_is_pressed(self):
         self.assertFalse(keyboard.is_pressed('enter'))

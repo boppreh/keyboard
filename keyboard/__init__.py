@@ -67,15 +67,19 @@ def canonicalize(hotkey):
     """
     if (isinstance(hotkey, list)
             and all(isinstance(step, list) for step in hotkey)
-            and all(isinstance(part, int) for part in step for step in hotkey)):
+            and all(isinstance(part, int) for step in hotkey for part in step)):
         # Already canonicalized, nothing to do.
         return hotkey
     elif isinstance(hotkey, int):
         return [[hotkey]]
-    elif len(hotkey) == 1 or ('+' not in hotkey and ',' not in hotkey):
+
+    if not isinstance(hotkey, str):
+        raise ValueError('Unexpected hotkey: {}. Expected int scan code, str key combination or normalized hotkey.'.format(hotkey))
+
+    if len(hotkey) == 1 or ('+' not in hotkey and ',' not in hotkey):
         scan_code, modifiers = _os_keyboard.map_char(_normalize_name(hotkey))
         return [[scan_code]]
-    elif isinstance(hotkey, str):
+    else:
         steps = []
         for str_step in hotkey.replace(' ', '').split(','):
             steps.append([])
@@ -83,8 +87,6 @@ def canonicalize(hotkey):
                 scan_code, modifiers = _os_keyboard.map_char(_normalize_name(part))
                 steps[-1].append(scan_code)
         return steps
-    else:
-        raise ValueError('Unexpected hotkey: {}. Expected int scan code, str key combination or normalized hotkey.'.format(hotkey))
 
 def call_later(fn, args=(), delay=0.001):
     """
