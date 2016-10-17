@@ -105,10 +105,12 @@ def clear_all_hotkeys():
     Abbreviations and word listeners are not hotkeys and therefore not affected.  
     To remove all hooks use `unhook_all()`.
     """
-    global _hotkeys
     for handler in _hotkeys.values():
         unhook(handler)
-    _hotkeys = {}
+    _hotkeys.clear()
+
+# Alias.
+remove_all_hotkeys = clear_all_hotkeys
 
 def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
     """

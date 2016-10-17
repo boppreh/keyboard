@@ -47,6 +47,9 @@ class TestKeyboard(unittest.TestCase):
         keyboard._pressed_events = {}
         keyboard._os_keyboard = FakeOsKeyboard(self.events.append)
 
+    def tearDown(self):
+        keyboard.unhook_all()
+
     def press(self, name):
         keyboard._listener.callback(FakeEvent(KEY_DOWN, name))
 
@@ -142,6 +145,17 @@ class TestKeyboard(unittest.TestCase):
         self.assertFalse(self.triggers('ctrl+a, b', [['ctrl'], ['a'], ['b']]))
         self.assertTrue(self.triggers('ctrl+a, b', [['a', 'ctrl'], ['b']]))
         self.assertTrue(self.triggers('ctrl+a, b, a', [['ctrl', 'a'], ['b'], ['ctrl', 'a'], ['b'], ['a']]))
+
+    def test_remove_hotkey(self):
+        keyboard.press('a')
+        keyboard.add_hotkey('a', self.fail)
+        keyboard.clear_all_hotkeys()
+        keyboard.press('a')
+        keyboard.add_hotkey('a', self.fail)
+        keyboard.clear_all_hotkeys()
+        keyboard.press('a')
+
+        keyboard.clear_all_hotkeys()
 
     def test_write(self):
         keyboard.write('a')
