@@ -35,8 +35,8 @@ This program makes no attempt to hide itself, so don't use it for keyloggers.
 
 
 # API
-
 #### Table of Contents
+
 
 - [keyboard.**KEY\_DOWN**](#keyboard.KEY_DOWN)
 - [keyboard.**KEY\_UP**](#keyboard.KEY_UP)
