@@ -235,6 +235,18 @@ def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     _hotkeys[key] = handler
     return hook(handler)
 
+def on_press(callback):
+    """
+    Invokes `callback` for every KEY_DOWN event. For details see `hook`.
+    """
+    return hook(lambda e: e.event_type == KEY_DOWN and callback(e))
+
+def on_release(callback):
+    """
+    Invokes `callback` for every KEY_UP event. For details see `hook`.
+    """
+    return hook(lambda e: e.event_type == KEY_UP and callback(e))
+
 def _remove_named_hook(name_or_handler, names):
     """
     Removes a hook that was registered with a given name in a dictionary.
