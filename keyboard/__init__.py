@@ -2,6 +2,7 @@
 import time as _time
 from threading import Lock as _Lock
 from threading import Thread as _Thread
+from ._keyboard_event import KeyboardEvent
 
 # Just a dynamic object to store attributes for the closures.
 class _State(object): pass
@@ -186,7 +187,7 @@ def hook(callback):
     Installs a global listener on all available keyboards, invoking `callback`
     each time a key is pressed or released.
     
-    The event passed to the callback is of type `keyboard_event.KeyboardEvent`,
+    The event passed to the callback is of type `keyboard.KeyboardEvent`,
     with the following attributes:
 
     - `name`: an Unicode representation of the character (e.g. "&") or
@@ -468,7 +469,7 @@ def record(until='escape'):
     """
     Records all keyboard events from all keyboards until the user presses the
     given key combination. Then returns the list of events recorded, of type
-    `keyboard_event.KeyboardEvent`. Pairs well with
+    `keyboard.KeyboardEvent`. Pairs well with
     `play(events)`.
 
     Note: this is a blocking function.

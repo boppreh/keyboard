@@ -141,7 +141,9 @@ def get_position():
 def hook(callback):
     """
     Installs a global listener on all available mouses, invoking `callback`
-    each time it is moved or a key status changes.
+    each time it is moved, a key status changes or the wheel is spun. A mouse
+    event is passed as argument, with type either `mouse.ButtonEvent`,
+    `mouse.WheelEvent` or `mouse.MoveEvent`.
     
     Returns the given callback for easier development.
     """

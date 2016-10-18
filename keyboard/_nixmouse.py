@@ -20,7 +20,7 @@ def build_display():
     # such as the listener thread and then main using "move_to".
     x11.XInitThreads()
     display = x11.XOpenDisplay(None)
-    # Known to cause segafult in Fedora 23 64bits
+    # Known to cause segfault in Fedora 23 64bits, no known workarounds.
     # http://stackoverflow.com/questions/35137007/get-mouse-position-on-linux-pure-python
     window = x11.XDefaultRootWindow(display)
 
