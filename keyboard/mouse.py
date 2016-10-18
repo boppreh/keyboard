@@ -198,11 +198,5 @@ def play(events, speed_factor=1.0):
             _os_mouse.wheel(event.delta)
 
 if __name__ == '__main__':
-    print('Recording... Press middle button to stop.')
+    print('Recording... Press middle button to stop and replay.')
     print(play(record()))
-    exit()
-    print('Move the cursor somewhere and left-click.')
-    wait()
-    move(100, 100, absolute=True, duration=3)
-    double_click()
-    print(get_position())
