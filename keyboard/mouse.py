@@ -61,13 +61,15 @@ def move(x, y, absolute=True, duration=0):
     x = int(x)
     y = int(y)
 
+    # Requires an extra system call on Linux, but `move_relative` is measured
+    # in millimiters so we would lose precision.
+    position_x, position_y = get_position()
+
+    if not absolute:
+        x = position_x + x
+        y = position_y + y
+
     if duration:
-        position_x, position_y = get_position()
-
-        if not absolute:
-            x = position_x + x
-            y = position_y + y
-
         start_x = position_x
         start_y = position_y
         dx = x - start_x
@@ -83,10 +85,7 @@ def move(x, y, absolute=True, duration=0):
                 move(start_x + dx*i/steps, start_y + dy*i/steps)
                 _time.sleep(duration/steps)
     else:
-        if absolute:
-            _os_mouse.move_to(x, y)
-        else:
-            _os_mouse.move_relative(x, y)
+        _os_mouse.move_to(x, y)
 
 def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP, DOWN, DOUBLE)):
     """ Invokes `callback` with `args` when the specified event happens. """
