@@ -11,9 +11,10 @@ from ctypes import c_uint32, c_uint, c_int, byref
 
 display = None
 window = None
+x11 = None
 def build_display():
-    global display, window
-    if display and window: return
+    global display, window, x11
+    if display and window and x11: return
     x11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library('X11'))
     # Required because we will have multiple threads calling x11,
     # such as the listener thread and then main using "move_to".
