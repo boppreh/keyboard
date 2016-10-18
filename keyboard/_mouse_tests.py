@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import unittest
+import time
 
 from ._mouse_event import MoveEvent, ButtonEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
 from keyboard import mouse
@@ -27,7 +28,7 @@ class FakeOsMouse(object):
 class TestMouse(unittest.TestCase):
     def setUp(self):
         # We will use our own events, thank you very much.
-        mouse.listener.listening = True
+        mouse._listener.listening = True
         self.events = []
         mouse.os_mouse = FakeOsMouse(self.events.append)
         for button in (LEFT, RIGHT, MIDDLE, X, X2):
@@ -40,20 +41,20 @@ class TestMouse(unittest.TestCase):
         return events
 
     def press(self, button=LEFT):
-        mouse.listener.callback(ButtonEvent(DOWN, button))
+        mouse._listener.callback(ButtonEvent(DOWN, button, time.time()))
 
     def release(self, button=LEFT):
-        mouse.listener.callback(ButtonEvent(UP, button))
+        mouse._listener.callback(ButtonEvent(UP, button, time.time()))
 
     def double_click(self, button=LEFT):
-        mouse.listener.callback(ButtonEvent(DOUBLE, button))
+        mouse._listener.callback(ButtonEvent(DOUBLE, button, time.time()))
 
     def click(self, button=LEFT):
         self.press(button)
         self.release(button)
 
     def wheel(self, delta=1):
-        mouse.listener.callback(WheelEvent(delta))
+        mouse._listener.callback(WheelEvent(delta, time.time()))
 
     def test_is_pressed(self):
         self.assertFalse(mouse.is_pressed())
@@ -71,19 +72,19 @@ class TestMouse(unittest.TestCase):
         self.assertFalse(mouse.is_pressed(X2))
 
     def test_buttons(self):
-        mouse.press()
+        self.press()
         self.assertEqual(self.flush_events(), [(DOWN, LEFT)])
-        mouse.release()
+        self.release()
         self.assertEqual(self.flush_events(), [(UP, LEFT)])
-        mouse.click()
+        self.click()
         self.assertEqual(self.flush_events(), [(DOWN, LEFT), (UP, LEFT)])
         mouse.double_click()
         self.assertEqual(self.flush_events(), [(DOWN, LEFT), (UP, LEFT), (DOWN, LEFT), (UP, LEFT)])
         mouse.right_click()
         self.assertEqual(self.flush_events(), [(DOWN, RIGHT), (UP, RIGHT)])
-        mouse.click(RIGHT)
+        self.click(RIGHT)
         self.assertEqual(self.flush_events(), [(DOWN, RIGHT), (UP, RIGHT)])
-        mouse.press(X2)
+        self.press(X2)
         self.assertEqual(self.flush_events(), [(DOWN, X2)])
 
     def test_position(self):
@@ -121,7 +122,7 @@ class TestMouse(unittest.TestCase):
             elif event_type == 'WHEEL':
                 self.wheel()
 
-        mouse.listener.remove_handler(handler)
+        mouse._listener.remove_handler(handler)
         return self.triggered
 
     def test_on_button(self):
