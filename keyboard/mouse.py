@@ -162,6 +162,13 @@ def unhook_all():
     _listener.handlers.clear()
 
 def record(button=MIDDLE):
+    """
+    Records all mouse events until the user presses the given button.
+    Then returns the list of events recorded. Pairs well with `play(events)`.
+
+    Note: this is a blocking function.
+    Note: for more details on the mouse hook and events see `hook`.
+    """
     recorded = []
     hook(recorded.append)
     wait(button)
@@ -169,6 +176,11 @@ def record(button=MIDDLE):
     return recorded
 
 def play(events, speed_factor=1.0):
+    """
+    Plays a sequence of recorded events, maintaining the relative time
+    intervals. If speed_factor is <= 0 then the actions are replayed as fast
+    as the OS allows. Pairs well with `record()`.
+    """
     last_time = None
     for event in events:
         if speed_factor > 0 and last_time is not None:
