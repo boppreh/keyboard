@@ -1,50 +1,48 @@
 # -*- coding: utf-8 -*-
-import time
+import time as _time
 
-import platform
-if platform.system() == 'Windows':
-    from. import _winmouse as os_mouse
+import platform as _platform
+if _platform.system() == 'Windows':
+    from. import _winmouse as _os_mouse
 else:
-    from. import _nixmouse as os_mouse
+    from. import _nixmouse as _os_mouse
 
 from ._mouse_event import ButtonEvent, MoveEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
-from ._generic import GenericListener
-
-listening = False
+from ._generic import GenericListener as _GenericListener
 
 _pressed_events = set()
-class MouseListener(GenericListener):
+class _MouseListener(_GenericListener):
     def callback(self, event):
         if isinstance(event, ButtonEvent):
-            if event.type in (UP, DOUBLE):
+            if event.event_type in (UP, DOUBLE):
                 _pressed_events.discard(event.button)
-            elif event.type == DOWN:
+            elif event.event_type == DOWN:
                 _pressed_events.add(event.button)
 
         return self.invoke_handlers(event)
 
     def listen(self):
-        os_mouse.listen(self.callback)
+        _os_mouse.listen(self.callback)
 
-listener = MouseListener()
+_listener = _MouseListener()
 
 def is_pressed(button=LEFT):
     """ Returns True if the given button is currently pressed. """
-    listener.start_if_necessary()
+    _listener.start_if_necessary()
     return button in _pressed_events
 
 def press(button=LEFT):
     """ Presses the given button (but doesn't release). """
-    os_mouse.press(button)
+    _os_mouse.press(button)
 
 def release(button=LEFT):
     """ Releases the given button. """
-    os_mouse.release(button)
+    _os_mouse.release(button)
 
 def click(button=LEFT):
     """ Sends a click with the given button. """
-    os_mouse.press(button)
-    os_mouse.release(button)
+    _os_mouse.press(button)
+    _os_mouse.release(button)
 
 def double_click(button=LEFT):
     """ Sends a double click with the given button. """
@@ -76,19 +74,19 @@ def move(x, y, absolute=True, duration=0):
         dy = y - start_y
 
         if dx == 0 and dy == 0:
-            time.sleep(duration)
+            _time.sleep(duration)
         else:
             # 120 movements per second.
             # Round and keep float to ensure float division in Python 2
             steps = max(1.0, float(int(duration * 120.0)))
             for i in range(int(steps)+1):
                 move(start_x + dx*i/steps, start_y + dy*i/steps)
-                time.sleep(duration/steps)
+                _time.sleep(duration/steps)
     else:
         if absolute:
-            os_mouse.move_to(x, y)
+            _os_mouse.move_to(x, y)
         else:
-            os_mouse.move_relative(x, y)
+            _os_mouse.move_relative(x, y)
 
 def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP, DOWN, DOUBLE)):
     """ Invokes `callback` with `args` when the specified event happens. """
@@ -99,9 +97,9 @@ def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP
 
     def handler(event):
         if isinstance(event, ButtonEvent):
-            if event.type in types and event.button in buttons:
+            if event.event_type in types and event.button in buttons:
                 callback(*args)
-    listener.add_handler(handler)
+    _listener.add_handler(handler)
     return handler
 
 def on_click(callback, args=()):
@@ -131,12 +129,12 @@ def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
     lock.acquire()
     handler = on_button(lock.release, (), [button], target_types)
     lock.acquire()
-    listener.remove_handler(handler)
+    _listener.remove_handler(handler)
 
 def get_position():
     """ Returns the (x, y) mouse position. """
-    listener.start_if_necessary()
-    return os_mouse.get_position()
+    _listener.start_if_necessary()
+    return _os_mouse.get_position()
 
 def hook(callback):
     """
@@ -163,7 +161,34 @@ def unhook_all():
     """
     _listener.handlers.clear()
 
+def record(button=MIDDLE):
+    recorded = []
+    hook(recorded.append)
+    wait(button)
+    unhook(recorded.append)
+    return recorded
+
+def play(events, speed_factor=1.0):
+    last_time = None
+    for event in events:
+        if speed_factor > 0 and last_time is not None:
+            _time.sleep((event.time - last_time) / speed_factor)
+        last_time = event.time
+
+        if isinstance(event, ButtonEvent):
+            if event.event_type == UP:
+                _os_mouse.release(event.button)
+            else:
+                _os_mouse.press(event.button)
+        elif isinstance(event, MoveEvent):
+            _os_mouse.move_to(event.x, event.y)
+        elif isinstance(event, WheelEvent):
+            _os_mouse.wheel(event.delta)
+
 if __name__ == '__main__':
+    print('Recording... Press middle button to stop.')
+    print(play(record()))
+    exit()
     print('Move the cursor somewhere and left-click.')
     wait()
     move(100, 100, absolute=True, duration=3)

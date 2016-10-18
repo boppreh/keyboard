@@ -12,6 +12,6 @@ DOWN = 'down'
 DOUBLE = 'double'
 
 
-ButtonEvent = namedtuple('ButtonEvent', ['type', 'button'])
-WheelEvent = namedtuple('WheelEvent', ['delta'])
-MoveEvent = namedtuple('MoveEvent', ['dx', 'dy'])
+ButtonEvent = namedtuple('ButtonEvent', ['event_type', 'button', 'time'])
+WheelEvent = namedtuple('WheelEvent', ['delta', 'time'])
+MoveEvent = namedtuple('MoveEvent', ['x', 'y', 'time'])
