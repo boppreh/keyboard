@@ -174,11 +174,14 @@ def record(button=MIDDLE):
     unhook(recorded.append)
     return recorded
 
-def play(events, speed_factor=1.0):
+def play(events, speed_factor=1.0, include_clicks=True, include_moves=True, include_wheel=True):
     """
     Plays a sequence of recorded events, maintaining the relative time
     intervals. If speed_factor is <= 0 then the actions are replayed as fast
     as the OS allows. Pairs well with `record()`.
+
+    The parameters `include_*` define if events of that type should be inluded
+    in the replay or ignored.
     """
     last_time = None
     for event in events:
@@ -186,15 +189,17 @@ def play(events, speed_factor=1.0):
             _time.sleep((event.time - last_time) / speed_factor)
         last_time = event.time
 
-        if isinstance(event, ButtonEvent):
+        if isinstance(event, ButtonEvent) and include_clicks:
             if event.event_type == UP:
                 _os_mouse.release(event.button)
             else:
                 _os_mouse.press(event.button)
-        elif isinstance(event, MoveEvent):
+        elif isinstance(event, MoveEvent) and include_moves:
             _os_mouse.move_to(event.x, event.y)
-        elif isinstance(event, WheelEvent):
+        elif isinstance(event, WheelEvent) and include_wheel:
             _os_mouse.wheel(event.delta)
+
+replay = play
 
 if __name__ == '__main__':
     print('Recording... Press middle button to stop and replay.')
