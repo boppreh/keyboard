@@ -138,6 +138,29 @@ def get_position():
     listener.start_if_necessary()
     return os_mouse.get_position()
 
+def hook(callback):
+    """
+    Installs a global listener on all available mouses, invoking `callback`
+    each time it is moved or a key status changes.
+    
+    Returns the given callback for easier development.
+    """
+    _listener.add_handler(callback)
+    return callback
+
+def unhook(callback):
+    """
+    Removes a previously installed hook.
+    """
+    _listener.remove_handler(callback)
+
+def unhook_all():
+    """
+    Removes all hooks registered by this application. Note this may include
+    hooks installed by high level functions, such as `record`.
+    """
+    _listener.handlers.clear()
+
 if __name__ == '__main__':
     print('Move the cursor somewhere and left-click.')
     wait()
