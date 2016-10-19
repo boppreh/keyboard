@@ -132,7 +132,6 @@ def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
 
 def get_position():
     """ Returns the (x, y) mouse position. """
-    _listener.start_if_necessary()
     return _os_mouse.get_position()
 
 def hook(callback):
