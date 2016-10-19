@@ -30,7 +30,7 @@ class TestMouse(unittest.TestCase):
         # We will use our own events, thank you very much.
         mouse._listener.listening = True
         self.events = []
-        mouse.os_mouse = FakeOsMouse(self.events.append)
+        mouse._os_mouse = FakeOsMouse(self.events.append)
         for button in (LEFT, RIGHT, MIDDLE, X, X2):
             self.release(button)
 
@@ -72,39 +72,39 @@ class TestMouse(unittest.TestCase):
         self.assertFalse(mouse.is_pressed(X2))
 
     def test_buttons(self):
-        self.press()
+        mouse.press()
         self.assertEqual(self.flush_events(), [(DOWN, LEFT)])
-        self.release()
+        mouse.release()
         self.assertEqual(self.flush_events(), [(UP, LEFT)])
-        self.click()
+        mouse.click()
         self.assertEqual(self.flush_events(), [(DOWN, LEFT), (UP, LEFT)])
         mouse.double_click()
         self.assertEqual(self.flush_events(), [(DOWN, LEFT), (UP, LEFT), (DOWN, LEFT), (UP, LEFT)])
         mouse.right_click()
         self.assertEqual(self.flush_events(), [(DOWN, RIGHT), (UP, RIGHT)])
-        self.click(RIGHT)
+        mouse.click(RIGHT)
         self.assertEqual(self.flush_events(), [(DOWN, RIGHT), (UP, RIGHT)])
-        self.press(X2)
+        mouse.press(X2)
         self.assertEqual(self.flush_events(), [(DOWN, X2)])
 
     def test_position(self):
-        self.assertEqual(mouse.get_position(), mouse.os_mouse.get_position())
+        self.assertEqual(mouse.get_position(), mouse._os_mouse.get_position())
 
     def test_move(self):
         mouse.move(0, 0)
-        self.assertEqual(mouse.os_mouse.get_position(), (0, 0))
+        self.assertEqual(mouse._os_mouse.get_position(), (0, 0))
         mouse.move(100, 500)
-        self.assertEqual(mouse.os_mouse.get_position(), (100, 500))
+        self.assertEqual(mouse._os_mouse.get_position(), (100, 500))
         mouse.move(1, 2, False)
-        self.assertEqual(mouse.os_mouse.get_position(), (101, 502))
+        self.assertEqual(mouse._os_mouse.get_position(), (101, 502))
 
         mouse.move(0, 0)
         mouse.move(100, 499, True, duration=0.01)
-        self.assertEqual(mouse.os_mouse.get_position(), (100, 499))
+        self.assertEqual(mouse._os_mouse.get_position(), (100, 499))
         mouse.move(100, 1, False, duration=0.01)
-        self.assertEqual(mouse.os_mouse.get_position(), (200, 500))
+        self.assertEqual(mouse._os_mouse.get_position(), (200, 500))
         mouse.move(0, 0, False, duration=0.01)
-        self.assertEqual(mouse.os_mouse.get_position(), (200, 500))
+        self.assertEqual(mouse._os_mouse.get_position(), (200, 500))
 
     def triggers(self, fn, events, **kwargs):
         self.triggered = False
