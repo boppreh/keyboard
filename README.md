@@ -95,7 +95,30 @@ This program makes no attempt to hide itself, so don't use it for keyloggers.
 
 
 
-<generator object convert at 0x7688a468>
+<a name="KeyboardEvent.event_type"/>
+### KeyboardEvent.**event\_type**
+
+
+<a name="KeyboardEvent.name"/>
+### KeyboardEvent.**name**
+
+
+<a name="KeyboardEvent.scan_code"/>
+### KeyboardEvent.**scan\_code**
+
+
+<a name="KeyboardEvent.time"/>
+### KeyboardEvent.**time**
+
+
+<a name="KeyboardEvent.matches"/>
+### KeyboardEvent.**matches**(self, description)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/_keyboard_event.py#L20)
+
+
+
+
 
 
 <a name="keyboard.all_modifiers"/>

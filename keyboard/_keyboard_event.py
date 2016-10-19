@@ -6,6 +6,11 @@ KEY_DOWN = 'down'
 KEY_UP = 'up'
 
 class KeyboardEvent(object):
+    event_type = None
+    scan_code = None
+    name = None
+    time = None
+
     def __init__(self, event_type, scan_code, name=None, time=None):
         self.event_type = event_type
         self.scan_code = scan_code
