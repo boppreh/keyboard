@@ -517,6 +517,8 @@ def play(events, speed_factor=1.0):
 
     restore_state(state)
 
+replay = play
+
 def get_typed_strings(events, allow_backspace=True):
     """
     Given a sequence of events, tries to deduce what strings were typed.
