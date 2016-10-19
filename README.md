@@ -95,7 +95,7 @@ This program makes no attempt to hide itself, so don't use it for keyloggers.
 
 
 
-<generator object convert at 0x76850468>
+<generator object convert at 0x7688a468>
 
 
 <a name="keyboard.all_modifiers"/>
