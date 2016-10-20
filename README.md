@@ -179,7 +179,7 @@ Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
 internally use hotkeys and will be affected by this call.
 
 Abbreviations and word listeners are not hotkeys and therefore not affected.  
-To remove all hooks use `unhook_all()`.
+To remove all hooks use [`unhook_all()`](#keyboard.unhook_all).
 
 
 
@@ -209,7 +209,7 @@ from processing the key.
 - `timeout` is the amount of seconds allowed to pass between key presses
 
 The event handler function is returned. To remove a hotkey call
-`remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
+[`remove_hotkey(hotkey)`](#keyboard.remove_hotkey) or [`remove_hotkey(handler)`](#keyboard.remove_hotkey).
 before the combination state is reset.
 
 Note: hotkeys are activated when the last key is *pressed*, not released.
@@ -280,8 +280,8 @@ listeners, [`record`](#keyboard.record)ers and [`wait`](#keyboard.wait)s.
 
 
 Hooks key up and key down events for a single key. Returns the event handler
-created. To remove a hooked key use `unhook_key(key)` or
-`unhook_key(handler)`.
+created. To remove a hooked key use [`unhook_key(key)`](#keyboard.unhook_key) or
+[`unhook_key(handler)`](#keyboard.unhook_key).
 
 Note: this function shares state with hotkeys, so [`clear_all_hotkeys`](#keyboard.clear_all_hotkeys)
 affects it aswell.
@@ -350,7 +350,7 @@ listener for 'pet'. Defaults to false, only whole words are checked.
 the current word is discarded. Defaults to 2 seconds.
 
 Returns the event handler created. To remove a word listener use
-`remove_word_listener(word)` or `remove_word_listener(handler)`.
+[`remove_word_listener(word)`](#keyboard.remove_word_listener) or [`remove_word_listener(handler)`](#keyboard.remove_word_listener).
 
 Note: all actions are performed on key down. Key up events are ignored.
 Note: word mathes are **case sensitive**.
@@ -518,7 +518,7 @@ Blocks the program execution until the given key combination is pressed.
 Records all keyboard events from all keyboards until the user presses the
 given key combination. Then returns the list of events recorded, of type
 `keyboard.KeyboardEvent`. Pairs well with
-`play(events)`.
+[`play(events)`](#keyboard.play).
 
 Note: this is a blocking function.
 Note: for more details on the keyboard hook and events see [`hook`](#keyboard.hook).
@@ -533,7 +533,7 @@ Note: for more details on the keyboard hook and events see [`hook`](#keyboard.ho
 
 Plays a sequence of recorded events, maintaining the relative time
 intervals. If speed_factor is <= 0 then the actions are replayed as fast
-as the OS allows. Pairs well with `record()`.
+as the OS allows. Pairs well with [`record()`](#keyboard.record).
 
 Note: the current keyboard state is cleared at the beginning and restored at
 the end of the function.
