@@ -214,7 +214,7 @@ before the combination state is reset.
 
 Note: hotkeys are activated when the last key is *pressed*, not released.
 Note: the callback is executed in a separate thread, asynchronously. For an
-example of how to use a callback synchronously, see `wait`.
+example of how to use a callback synchronously, see [`wait`](#keyboard.wait).
 
     add_hotkey(57, print, args=['space was pressed'])
     add_hotkey(' ', print, args=['space was pressed'])
@@ -269,7 +269,7 @@ Removes a previously hooked callback.
 
 
 Removes all keyboard hooks in use, including hotkeys, abbreviations, word
-listeners, `record`ers and `wait`s.
+listeners, [`record`](#keyboard.record)ers and [`wait`](#keyboard.wait)s.
 
 
 
@@ -283,7 +283,7 @@ Hooks key up and key down events for a single key. Returns the event handler
 created. To remove a hooked key use `unhook_key(key)` or
 `unhook_key(handler)`.
 
-Note: this function shares state with hotkeys, so `clear_all_hotkeys`
+Note: this function shares state with hotkeys, so [`clear_all_hotkeys`](#keyboard.clear_all_hotkeys)
 affects it aswell.
 
 
@@ -294,7 +294,7 @@ affects it aswell.
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L275)
 
 
-Invokes `callback` for every KEY_DOWN event. For details see `hook`.
+Invokes `callback` for every KEY_DOWN event. For details see [`hook`](#keyboard.hook).
 
 
 
@@ -304,7 +304,7 @@ Invokes `callback` for every KEY_DOWN event. For details see `hook`.
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L281)
 
 
-Invokes `callback` for every KEY_UP event. For details see `hook`.
+Invokes `callback` for every KEY_UP event. For details see [`hook`](#keyboard.hook).
 
 
 
@@ -316,7 +316,7 @@ Invokes `callback` for every KEY_UP event. For details see `hook`.
 
 Removes a previously registered hotkey. Accepts either the hotkey used
 during registration (exact string) or the event handler returned by the
-`add_hotkey` or `hook_key` functions.
+[`add_hotkey`](#keyboard.add_hotkey) or [`hook_key`](#keyboard.hook_key) functions.
 
 
 
@@ -371,7 +371,7 @@ Alias for `add_word_listener`.
 
 Removes a previously registered word listener. Accepts either the word used
 during registration (exact string) or the event handler returned by the
-`add_word_listener` or `add_abbreviation` functions.
+[`add_word_listener`](#keyboard.add_word_listener) or [`add_abbreviation`](#keyboard.add_abbreviation) functions.
 
 
 
@@ -400,7 +400,7 @@ listener for 'pet'. Defaults to false, only whole words are checked.
 - `timeout` is the maximum number of seconds between typed characters before
 the current word is discarded. Defaults to 2 seconds.
 
-For more details see `add_word_listener`.
+For more details see [`add_word_listener`](#keyboard.add_word_listener).
 
 
 
@@ -417,7 +417,7 @@ Alias for `add_abbreviation`.
 
 
 Builds a list of all currently pressed scan codes, releases them and returns
-the list. Pairs well with `restore_state`.
+the list. Pairs well with [`restore_state`](#keyboard.restore_state).
 
 
 
@@ -428,7 +428,7 @@ the list. Pairs well with `restore_state`.
 
 
 Given a list of scan_codes ensures these keys, and only these keys, are
-pressed. Pairs well with `stash_state`.
+pressed. Pairs well with [`stash_state`](#keyboard.stash_state).
 
 
 
@@ -480,7 +480,7 @@ Note: keys are released in the opposite order they were pressed.
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L495)
 
-Presses and holds down a key combination (see `send`). 
+Presses and holds down a key combination (see [`send`](#keyboard.send)). 
 
 
 <a name="keyboard.release"/>
@@ -488,7 +488,7 @@ Presses and holds down a key combination (see `send`).
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L499)
 
-Releases a key combination (see `send`). 
+Releases a key combination (see [`send`](#keyboard.send)). 
 
 
 <a name="keyboard.press_and_release"/>
@@ -496,7 +496,7 @@ Releases a key combination (see `send`).
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L503)
 
-Presses and releases the key combination (see `send`). 
+Presses and releases the key combination (see [`send`](#keyboard.send)). 
 
 
 <a name="keyboard.wait"/>
@@ -521,7 +521,7 @@ given key combination. Then returns the list of events recorded, of type
 `play(events)`.
 
 Note: this is a blocking function.
-Note: for more details on the keyboard hook and events see `hook`.
+Note: for more details on the keyboard hook and events see [`hook`](#keyboard.hook).
 
 
 
