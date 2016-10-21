@@ -136,7 +136,7 @@ class TestKeyboard(unittest.TestCase):
                 self.release(key)
         keyboard.remove_hotkey(combination)
 
-        # This line is required because hotkey processing wait a moment
+        # This line is required because hotkey processing waits a moment
         # before invoking the function. This is required in Windows systems
         # or else the rest of the system would process the key *after* the
         # callback executed.
