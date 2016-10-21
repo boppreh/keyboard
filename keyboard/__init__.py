@@ -209,8 +209,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
                 state.step += 1
                 if state.step == len(steps):
                     state.step = 0
-                    # Leave some time for Windows to process the last key.
-                    call_later(callback, args)
+                    callback(*args)
                     return blocking
 
     _hotkeys[hotkey] = handler
@@ -355,7 +354,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
 
         matched = state.current == word or (match_suffix and state.current.endswith(word))
         if name in triggers and matched:
-            call_later(callback)
+            callback()
             state.current = ''
         elif len(name) > 1:
             state.current = ''
