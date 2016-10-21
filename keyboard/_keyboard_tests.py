@@ -2,6 +2,7 @@
 import time
 import unittest
 import string
+import threading
 
 import keyboard
 
@@ -124,9 +125,18 @@ class TestKeyboard(unittest.TestCase):
             keyboard.is_pressed('space, space')
 
     def triggers(self, combination, keys):
+        lock = threading.Event()
+
         self.triggered = False
         def on_triggered():
             self.triggered = True
+
+        def detect_end(e):
+            if hasattr(e, 'end_of_test'):
+                lock.set()
+                keyboard._listener.remove_handler(detect_end)
+        keyboard._listener.add_handler(detect_end)
+
         keyboard.add_hotkey(combination, on_triggered)
         for group in keys:
             for key in group:
@@ -134,13 +144,13 @@ class TestKeyboard(unittest.TestCase):
                 self.press(key)
             for key in reversed(group):
                 self.release(key)
+
         keyboard.remove_hotkey(combination)
 
-        # This line is required because hotkey processing waits a moment
-        # before invoking the function. This is required in Windows systems
-        # or else the rest of the system would process the key *after* the
-        # callback executed.
-        time.sleep(0.01)
+        end_of_test_event = FakeEvent(KEY_UP, 'space')
+        end_of_test_event.end_of_test = True
+        keyboard._listener.callback(end_of_test_event)
+        assert lock.wait(timeout=2)
 
         return self.triggered
 
