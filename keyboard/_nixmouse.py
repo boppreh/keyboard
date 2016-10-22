@@ -71,7 +71,7 @@ def build_device():
     ensure_root()
     device = aggregate_devices('mouse')
 
-def listen(callback):
+def listen(queue):
     build_device()
 
     while True:
@@ -97,7 +97,7 @@ def listen(callback):
             # Unknown event type.
             continue
             
-        callback(event)
+        queue.put(event)
 
 def press(button=LEFT):
     build_device()

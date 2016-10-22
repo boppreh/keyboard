@@ -22,7 +22,7 @@ class _MouseListener(_GenericListener):
         return self.invoke_handlers(event)
 
     def listen(self):
-        _os_mouse.listen(self.callback)
+        _os_mouse.listen(self.queue)
 
 _listener = _MouseListener()
 

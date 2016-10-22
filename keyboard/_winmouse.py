@@ -123,7 +123,7 @@ NULL = c_int(0)
 
 WHEEL_DELTA = 120
 
-def listen(handler):
+def listen(queue):
     def low_level_mouse_handler(nCode, wParam, lParam):
         struct = lParam.contents
 
@@ -137,10 +137,8 @@ def listen(handler):
                 button = {0x10000: X, 0x20000: X2}[struct.data]
             event = ButtonEvent(type, button)
         
-        if event and handler(event):
-            return 1
-        else:
-            return CallNextHookEx(NULL, nCode, wParam, lParam)
+        queue.put(event)
+        return CallNextHookEx(NULL, nCode, wParam, lParam)
 
     WH_MOUSE_LL = c_int(14)
     mouse_callback = LowLevelMouseProc(low_level_mouse_handler)
