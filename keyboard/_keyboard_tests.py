@@ -415,8 +415,9 @@ class TestKeyboard(unittest.TestCase):
         self.click('t')
         self.click('m')
         self.click('space')
-        time.sleep(0.01)
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'backspace'),
+        self.assertEqual(self.flush_events(), [
+            (KEY_UP, 'space'),
+            (KEY_DOWN, 'backspace'),
             (KEY_UP, 'backspace'),
             (KEY_DOWN, 'backspace'),
             (KEY_UP, 'backspace'),
