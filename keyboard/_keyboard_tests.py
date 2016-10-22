@@ -71,7 +71,7 @@ class TestKeyboard(unittest.TestCase):
         self.release(name)
 
     def flush_events(self):
-        events = list(self.events)
+        events = [e for e in self.events if not hasattr(e, 'end_of_test')]
         # Ugly, but requried to work in Python2. Python3 has list.clear
         del self.events[:]
         return events
