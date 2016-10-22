@@ -458,6 +458,14 @@ class TestKeyboard(unittest.TestCase):
         self.press('a')
         self.release('a')
 
+    def test_call_later(self):
+        self.triggered = False
+        def trigger(): self.triggered = True
+        keyboard.call_later(trigger, delay=0.1)
+        self.assertFalse(self.triggered)
+        time.sleep(0.2)
+        self.assertTrue(self.triggered)
+
 
 if __name__ == '__main__':
     unittest.main()
