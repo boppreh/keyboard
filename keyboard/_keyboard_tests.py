@@ -326,8 +326,6 @@ class TestKeyboard(unittest.TestCase):
         self.click('d')
         self.assertFalse(self.triggered)
         self.click('space')
-        # Callback is called after a moment to let the OS process the last key.
-        time.sleep(0.01)
         self.assertTrue(self.triggered)
         keyboard.remove_word_listener('bird')
 
@@ -342,7 +340,6 @@ class TestKeyboard(unittest.TestCase):
         self.click('d')
         self.assertFalse(self.triggered)
         self.click('space')
-        time.sleep(0.01)
         self.assertFalse(self.triggered)
         self.press('shift')
         self.click('b')
@@ -351,7 +348,6 @@ class TestKeyboard(unittest.TestCase):
         self.click('r')
         self.click('d')
         self.click('space')
-        time.sleep(0.01)
         self.assertTrue(self.triggered)
         keyboard.remove_word_listener('Bird')
 
@@ -365,7 +361,6 @@ class TestKeyboard(unittest.TestCase):
         self.click('r')
         self.click('d')
         self.click('space')
-        time.sleep(0.01)
         # We overwrote the triggers to remove space. Should not trigger.
         self.assertFalse(self.triggered)
         self.click('b')
@@ -374,7 +369,6 @@ class TestKeyboard(unittest.TestCase):
         self.click('d')
         self.assertFalse(self.triggered)
         self.click('enter')
-        time.sleep(0.01)
         self.assertTrue(self.triggered)
         with self.assertRaises(ValueError):
             # Must pass handler returned by function, not passed callback.
@@ -392,7 +386,6 @@ class TestKeyboard(unittest.TestCase):
         self.click('d')
         self.assertFalse(self.triggered)
         self.click('space')
-        time.sleep(0.01)
         self.assertTrue(self.triggered)
         keyboard.remove_word_listener('bird')
 
@@ -405,7 +398,6 @@ class TestKeyboard(unittest.TestCase):
         self.click('d')
         self.assertFalse(self.triggered)
         self.click('space')
-        time.sleep(0.01)
         # Should have timed out.
         self.assertFalse(self.triggered)
         keyboard.remove_word_listener('bird')
