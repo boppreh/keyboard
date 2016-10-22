@@ -448,6 +448,16 @@ class TestKeyboard(unittest.TestCase):
         self.click('w')
         self.assertEqual(keyboard.get_typed_strings(self.events), ['biRd.', 'new'])
 
+    def test_on_press(self):
+        keyboard.on_press(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_DOWN))
+        self.release('a')
+        self.press('a')
+
+    def test_on_release(self):
+        keyboard.on_release(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_UP))
+        self.press('a')
+        self.release('a')
+
 
 if __name__ == '__main__':
     unittest.main()
