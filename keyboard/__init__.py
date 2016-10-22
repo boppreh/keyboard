@@ -196,6 +196,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
 
         timed_out = state.step > 0 and timeout and event.time - state.time > timeout
         unexpected = not any(event.matches(part) for part in steps[state.step])
+
         if unexpected or timed_out:
             if state.step > 0:
                 state.step = 0

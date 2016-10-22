@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from threading import Thread
+from threading import Thread, Lock
 import traceback
 import functools
 from ._keyboard_event import normalize_name
@@ -10,6 +10,8 @@ except 	ImportError:
     from Queue import Queue
 
 class GenericListener(object):
+    lock = Lock()
+
     def __init__(self):
         self.handlers = []
         self.listening = False
@@ -28,16 +30,20 @@ class GenericListener(object):
         """
         Starts the listening thread if it wans't already.
         """
-        if not self.listening:
-            print('Listening!')
-            self.listening = True
-            self.listening_thread = Thread(target=self.listen)
-            self.listening_thread.daemon = True
-            self.listening_thread.start()
+        self.lock.acquire()
+        try:
+            if not self.listening:
+                print('Listening!')
+                self.listening = True
+                self.listening_thread = Thread(target=self.listen)
+                self.listening_thread.daemon = True
+                self.listening_thread.start()
 
-            self.processing_thread = Thread(target=self.process)
-            self.processing_thread.daemon = True
-            self.processing_thread.start()
+                self.processing_thread = Thread(target=self.process)
+                self.processing_thread.daemon = True
+                self.processing_thread.start()
+        finally:
+            self.lock.release()
 
     def process(self):
         """

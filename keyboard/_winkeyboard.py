@@ -197,7 +197,8 @@ def listen(queue):
         elif event_type == KEY_UP and name == 'shift':
             shift_is_pressed = False
 
-        queue.put(KeyboardEvent(event_type, scan_code, name))
+        event = KeyboardEvent(event_type, scan_code, name)
+        queue.put(event)
         
         return CallNextHookEx(NULL, nCode, wParam, lParam)
 
