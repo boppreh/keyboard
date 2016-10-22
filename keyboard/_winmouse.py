@@ -128,14 +128,14 @@ def listen(queue):
         struct = lParam.contents
 
         if wParam == WM_MOUSEMOVE:
-            event = MoveEvent(struct.x, struct.y)
+            event = MoveEvent(struct.x, struct.y, struct.time)
         elif wParam == WM_MOUSEWHEEL:
-            event = WheelEvent(struct.data / (WHEEL_DELTA * (2<<15)))
+            event = WheelEvent(struct.data / (WHEEL_DELTA * (2<<15)), struct.time)
         elif wParam in buttons_by_wm_code:
             type, button = buttons_by_wm_code.get(wParam, ('?', '?'))
             if wParam >= WM_XBUTTONDOWN:
                 button = {0x10000: X, 0x20000: X2}[struct.data]
-            event = ButtonEvent(type, button)
+            event = ButtonEvent(type, button, struct.time)
         
         queue.put(event)
         return CallNextHookEx(NULL, nCode, wParam, lParam)
