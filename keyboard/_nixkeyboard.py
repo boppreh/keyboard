@@ -78,7 +78,7 @@ def build_device():
 
 pressed_modifiers = set()
 
-def listen(callback):
+def listen(queue):
     build_device()
     build_tables()
 
@@ -101,11 +101,7 @@ def listen(callback):
             else:
                 pressed_modifiers.discard(name)
 
-        event = KeyboardEvent(event_type, scan_code, name, time)
-        blocking = callback(event)
-        # Unfortunately we don't have a way to block events, so this feature
-        # is not available on nix.
-
+        queue.put(KeyboardEvent(event_type, scan_code, name, time))
 
 def write_event(scan_code, is_down):
     build_device()
