@@ -3,11 +3,7 @@
 Code heavily adapted from http://pastebin.com/wzYZGZrs
 """
 import atexit
-from threading import Lock, Thread
-try:
-    from queue import Queue
-except 	ImportError:
-    from Queue import Queue
+from threading import Lock
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
@@ -178,9 +174,8 @@ def setup_tables():
 
 shift_is_pressed = False
 
-def listen(handler):
+def listen(queue):
     setup_tables()
-    queue = Queue()
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
         # You may be tempted to use ToUnicode to extract the character from
@@ -205,14 +200,6 @@ def listen(handler):
         queue.put(KeyboardEvent(event_type, scan_code, name))
         
         return CallNextHookEx(NULL, nCode, wParam, lParam)
-
-    def queue_popper():
-        while True:
-            handler(queue.get())
-
-    popper = Thread(target=queue_popper)
-    popper.isDaemon = True
-    popper.start()
 
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)

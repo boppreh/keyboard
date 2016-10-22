@@ -70,7 +70,7 @@ class _KeyboardListener(_GenericListener):
         return self.invoke_handlers(event)
 
     def listen(self):
-        _os_keyboard.listen(self.callback)
+        _os_keyboard.listen(self.queue)
 _listener = _KeyboardListener()
 
 def is_pressed(key):
