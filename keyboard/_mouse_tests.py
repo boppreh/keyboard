@@ -6,9 +6,14 @@ from ._mouse_event import MoveEvent, ButtonEvent, WheelEvent, LEFT, RIGHT, MIDDL
 from keyboard import mouse
 
 class FakeOsMouse(object):
-    def __init__(self, append):
-        self.append = append
+    def __init__(self):
+        self.append = None
         self.position = (0, 0)
+        self.queue = None
+
+    def listen(self, queue):
+        self.listening = True
+        self.queue = queue
 
     def press(self, button):
         self.append((DOWN, button))
@@ -26,35 +31,51 @@ class FakeOsMouse(object):
         self.position = (self.position[0] + x, self.position[1] + y)
 
 class TestMouse(unittest.TestCase):
+    @staticmethod
+    def setUpClass():
+        mouse._os_mouse= FakeOsMouse()
+        mouse._listener.start_if_necessary()
+        assert mouse._os_mouse.listening
+
     def setUp(self):
-        # We will use our own events, thank you very much.
-        mouse._listener.listening = True
         self.events = []
-        mouse._os_mouse = FakeOsMouse(self.events.append)
-        for button in (LEFT, RIGHT, MIDDLE, X, X2):
-            self.release(button)
+        mouse._pressed_events.clear()
+        mouse._os_mouse.append = self.events.append
+
+    def tearDown(self):
+        mouse.unhook_all()
+        # Make sure there's no spill over between tests.
+        self.wait_for_events_queue()
+
+    def wait_for_events_queue(self):
+        mouse._listener.queue.join()
 
     def flush_events(self):
+        self.wait_for_events_queue()
         events = list(self.events)
         # Ugly, but requried to work in Python2. Python3 has list.clear
         del self.events[:]
         return events
 
     def press(self, button=LEFT):
-        mouse._listener.callback(ButtonEvent(DOWN, button, time.time()))
+        mouse._os_mouse.queue.put(ButtonEvent(DOWN, button, time.time()))
+        self.wait_for_events_queue()
 
     def release(self, button=LEFT):
-        mouse._listener.callback(ButtonEvent(UP, button, time.time()))
+        mouse._os_mouse.queue.put(ButtonEvent(UP, button, time.time()))
+        self.wait_for_events_queue()
 
     def double_click(self, button=LEFT):
-        mouse._listener.callback(ButtonEvent(DOUBLE, button, time.time()))
+        mouse._os_mouse.queue.put(ButtonEvent(DOUBLE, button, time.time()))
+        self.wait_for_events_queue()
 
     def click(self, button=LEFT):
         self.press(button)
         self.release(button)
 
     def wheel(self, delta=1):
-        mouse._listener.callback(WheelEvent(delta, time.time()))
+        mouse._os_mouse.queue.put(WheelEvent(delta, time.time()))
+        self.wait_for_events_queue()
 
     def test_is_pressed(self):
         self.assertFalse(mouse.is_pressed())

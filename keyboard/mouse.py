@@ -12,14 +12,14 @@ from ._generic import GenericListener as _GenericListener
 
 _pressed_events = set()
 class _MouseListener(_GenericListener):
-    def callback(self, event):
+    def pre_process_event(self, event):
         if isinstance(event, ButtonEvent):
             if event.event_type in (UP, DOUBLE):
                 _pressed_events.discard(event.button)
-            elif event.event_type == DOWN:
+            else:
                 _pressed_events.add(event.button)
 
-        return self.invoke_handlers(event)
+        return True
 
     def listen(self):
         _os_mouse.listen(self.queue)
