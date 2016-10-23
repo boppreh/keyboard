@@ -15,10 +15,7 @@ scan_codes_by_name.update({key: scan_codes_by_name[value]
 
 class FakeEvent(KeyboardEvent):
     def __init__(self, event_type, name):
-        self.event_type = event_type
-        self.name = name
-        self.scan_code = scan_codes_by_name[name]
-        self.time = time.time()
+        KeyboardEvent.__init__(self, event_type, scan_codes_by_name[name], name)
 
 class FakeOsKeyboard(object):
     def __init__(self):

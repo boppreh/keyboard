@@ -89,6 +89,7 @@ canonical_names = {
     'parenright': ')',
 
     'period': '.',
+    'dot': '.',
     'comma': ',',
     'semicolon': ';',
     'colon': ':',

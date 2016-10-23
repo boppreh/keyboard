@@ -571,18 +571,23 @@ def get_typed_strings(events, allow_backspace=True):
     capslock_pressed = False
     strings = ['']
     for event in events:
-        if event.matches('shift'):
+        name = event.name
+        if name == 'space':
+            # Space is the only key that we canonicalize to the spelled out name
+            # because of legibility.
+            name = ' '
+
+        if name == 'shift':
             shift_pressed = event.event_type == 'down'
-        elif event.matches('caps lock') and event.event_type == 'down':
+        elif name == 'caps lock' and event.event_type == 'down':
             capslock_pressed = not capslock_pressed
-        elif allow_backspace and event.matches('backspace') and event.event_type == 'down':
+        elif allow_backspace and name == 'backspace' and event.event_type == 'down':
             strings[-1] = strings[-1][:-1]
         elif event.event_type == 'down':
-            if len(event.name) == 1:
-                single_char = event.name
+            if len(name) == 1:
                 if shift_pressed ^ capslock_pressed:
-                    single_char = single_char.upper()
-                strings[-1] = strings[-1] + single_char
+                    name = name.upper()
+                strings[-1] = strings[-1] + name
             else:
                 strings.append('')
     return strings
