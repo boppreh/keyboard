@@ -6,7 +6,7 @@ from ._keyboard_event import normalize_name
 
 try:
     from queue import Queue
-except 	ImportError:
+except ImportError:
     from Queue import Queue
 
 class GenericListener(object):
