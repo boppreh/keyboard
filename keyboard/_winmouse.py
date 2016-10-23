@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import ctypes
+import time
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, byref, Structure, CFUNCTYPE, POINTER
 from ctypes.wintypes import DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM
 LPMSG = POINTER(MSG)
@@ -126,16 +127,18 @@ WHEEL_DELTA = 120
 def listen(queue):
     def low_level_mouse_handler(nCode, wParam, lParam):
         struct = lParam.contents
+        # Can't use struct.time because it's usually zero.
+        t = time.time()
 
         if wParam == WM_MOUSEMOVE:
-            event = MoveEvent(struct.x, struct.y, struct.time)
+            event = MoveEvent(struct.x, struct.y, t)
         elif wParam == WM_MOUSEWHEEL:
-            event = WheelEvent(struct.data / (WHEEL_DELTA * (2<<15)), struct.time)
+            event = WheelEvent(struct.data / (WHEEL_DELTA * (2<<15)), t)
         elif wParam in buttons_by_wm_code:
             type, button = buttons_by_wm_code.get(wParam, ('?', '?'))
             if wParam >= WM_XBUTTONDOWN:
                 button = {0x10000: X, 0x20000: X2}[struct.data]
-            event = ButtonEvent(type, button, struct.time)
+            event = ButtonEvent(type, button, t)
         
         queue.put(event)
         return CallNextHookEx(NULL, nCode, wParam, lParam)
