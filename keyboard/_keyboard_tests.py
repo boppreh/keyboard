@@ -2,7 +2,6 @@
 import time
 import unittest
 import string
-import threading
 
 import keyboard
 
@@ -66,6 +65,8 @@ class TestKeyboard(unittest.TestCase):
 
     def tearDown(self):
         keyboard.unhook_all()
+        # Make sure there's no spill over between tests.
+        self.wait_for_events_queue()
 
     def press(self, name):
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name))
@@ -81,7 +82,7 @@ class TestKeyboard(unittest.TestCase):
 
     def flush_events(self):
         self.wait_for_events_queue()
-        events = [e for e in self.events if not hasattr(e, 'end_of_test')]
+        events = list(self.events)
         # Ugly, but requried to work in Python2. Python3 has list.clear
         del self.events[:]
         return events
@@ -138,17 +139,9 @@ class TestKeyboard(unittest.TestCase):
             keyboard.is_pressed('space, space')
 
     def triggers(self, combination, keys):
-        lock = threading.Event()
-
         self.triggered = False
         def on_triggered():
             self.triggered = True
-
-        def detect_end(e):
-            if hasattr(e, 'end_of_test'):
-                lock.set()
-                keyboard._listener.remove_handler(detect_end)
-        keyboard._listener.add_handler(detect_end)
 
         keyboard.add_hotkey(combination, on_triggered)
         for group in keys:
@@ -160,10 +153,7 @@ class TestKeyboard(unittest.TestCase):
 
         keyboard.remove_hotkey(combination)
 
-        end_of_test_event = FakeEvent(KEY_UP, 'space')
-        end_of_test_event.end_of_test = True
-        keyboard._os_keyboard.queue.put(end_of_test_event)
-        assert lock.wait(timeout=2)
+        self.wait_for_events_queue()
 
         return self.triggered
 
@@ -302,7 +292,6 @@ class TestKeyboard(unittest.TestCase):
         self.recorded = None
         def t():
             self.recorded = keyboard.record('esc')
-            keyboard.play(self.recorded, speed_factor=0)
             lock.release()
         Thread(target=t).start()
         self.click('a')
@@ -310,12 +299,21 @@ class TestKeyboard(unittest.TestCase):
         self.press('b')
         self.release('b')
         self.release('shift')
-        self.click('esc')
+        self.press('esc')
         lock.acquire()
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc'), (KEY_UP, 'esc')])
+        expected = [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc')]
+        for event_recorded, expected_pair in zip(self.recorded, expected):
+            expected_type, expected_name = expected_pair
+            self.assertEqual(event_recorded.event_type, expected_type)
+            self.assertEqual(event_recorded.name, expected_name)
+
+        keyboard._pressed_events.clear()
+
+        keyboard.play(self.recorded, speed_factor=0)
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc')])
 
         keyboard.play(self.recorded, speed_factor=100)
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc'), (KEY_UP, 'esc')])
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc')])
 
     def test_word_listener_normal(self):
         keyboard.add_word_listener('bird', self.fail)
