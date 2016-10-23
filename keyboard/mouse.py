@@ -159,7 +159,7 @@ def unhook_all():
     """
     _listener.handlers.clear()
 
-def record(button=MIDDLE):
+def record(button=RIGHT, target_types=(DOWN,)):
     """
     Records all mouse events until the user presses the given button.
     Then returns the list of events recorded. Pairs well with `play(events)`.
@@ -169,7 +169,7 @@ def record(button=MIDDLE):
     """
     recorded = []
     hook(recorded.append)
-    wait(button)
+    wait(button=button, target_types=target_types)
     unhook(recorded.append)
     return recorded
 
@@ -201,5 +201,5 @@ def play(events, speed_factor=1.0, include_clicks=True, include_moves=True, incl
 replay = play
 
 if __name__ == '__main__':
-    print('Recording... Press middle button to stop and replay.')
-    print(play(record()))
+    print('Recording... Double click to stop and replay.')
+    play(record())
