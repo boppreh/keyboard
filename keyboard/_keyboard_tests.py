@@ -22,11 +22,14 @@ class FakeEvent(KeyboardEvent):
         self.time = time.time()
 
 class FakeOsKeyboard(object):
-    def __init__(self, append):
-        self.append = append
+    def __init__(self):
+        self.listening = False
+        self.append = None
+        self.queue = None
 
-    def listen(self, callback):
-        pass
+    def listen(self, queue):
+        self.listening = True
+        self.queue = queue
 
     def press(self, scan_code):
         self.append((KEY_DOWN, next(name for name, i in scan_codes_by_name.items() if i == scan_code and name not in canonical_names)))
@@ -49,37 +52,47 @@ class TestKeyboard(unittest.TestCase):
     # Without this attribute Python2 tests fail for some unknown reason.
     __name__ = 'what'
 
+    @staticmethod
+    def setUpClass():
+        keyboard._os_keyboard = FakeOsKeyboard()
+        keyboard._listener.start_if_necessary()
+        assert keyboard._os_keyboard.listening
+        assert keyboard._listener.listening
+
     def setUp(self):
-        # We will use our own events, thank you very much.
-        keyboard._listener.listening = True
         self.events = []
         keyboard._pressed_events.clear()
-        keyboard._os_keyboard = FakeOsKeyboard(self.events.append)
-        keyboard._listener.listen()
+        keyboard._os_keyboard.append = self.events.append
 
     def tearDown(self):
         keyboard.unhook_all()
 
     def press(self, name):
-        keyboard._listener.callback(FakeEvent(KEY_DOWN, name))
+        keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name))
+        self.wait_for_events_queue()
 
     def release(self, name):
-        keyboard._listener.callback(FakeEvent(KEY_UP, name))
+        keyboard._os_keyboard.queue.put(FakeEvent(KEY_UP, name))
+        self.wait_for_events_queue()
 
     def click(self, name):
         self.press(name)
         self.release(name)
 
     def flush_events(self):
+        self.wait_for_events_queue()
         events = [e for e in self.events if not hasattr(e, 'end_of_test')]
         # Ugly, but requried to work in Python2. Python3 has list.clear
         del self.events[:]
         return events
 
+    def wait_for_events_queue(self):
+        keyboard._listener.queue.join()
+
     def test_listener(self):
         empty_event = FakeEvent(KEY_DOWN, 'space')
         empty_event.scan_code = None
-        keyboard._listener.callback(empty_event)
+        keyboard._os_keyboard.queue.put(empty_event)
         self.assertEqual(self.flush_events(), [])
 
     def test_canonicalize(self):
@@ -149,7 +162,7 @@ class TestKeyboard(unittest.TestCase):
 
         end_of_test_event = FakeEvent(KEY_UP, 'space')
         end_of_test_event.end_of_test = True
-        keyboard._listener.callback(end_of_test_event)
+        keyboard._os_keyboard.queue.put(end_of_test_event)
         assert lock.wait(timeout=2)
 
         return self.triggered

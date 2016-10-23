@@ -58,16 +58,17 @@ all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
-    def callback(self, event):
+    def pre_process_event(self, event):
         if not event.scan_code:
-            return
+            return False
 
         if event.event_type == KEY_UP:
             if event.scan_code in _pressed_events:
                 del _pressed_events[event.scan_code]
         else:
             _pressed_events[event.scan_code] = event
-        return self.invoke_handlers(event)
+
+        return True
 
     def listen(self):
         _os_keyboard.listen(self.queue)

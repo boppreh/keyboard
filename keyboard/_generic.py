@@ -44,15 +44,20 @@ class GenericListener(object):
         finally:
             self.lock.release()
 
+    def pre_process_event(self, event):
+        raise NotImplementedError('This method should be implemented in the child class.')
+
     def process(self):
         """
         Loops over the underlying queue of events and processes them in order.
         """
         assert self.queue is not None
         while True:
-            self.callback(self.queue.get())
+            event = self.queue.get()
+            if self.pre_process_event(event):
+                self.invoke_handlers(event)
+            self.queue.task_done()
             
-
     def add_handler(self, handler):
         """
         Adds a function to receive each event captured, starting the capturing
