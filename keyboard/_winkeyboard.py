@@ -169,6 +169,13 @@ def setup_tables():
                     char = name_buffer.value[-1]
                     to_scan_code[char] = (scan_code, bool(shift_state))
                     from_scan_code[scan_code][0][shift_state] = char
+
+        # Alt GR is way outside the usual range of keys (0..127) and on my
+        # computer is named as 'ctrl'. Therefore we add it manually and hope
+        # Windows is consistent in its inconsistency.
+        alt_gr_scan_code = 541
+        from_scan_code[alt_gr_scan_code] = (['alt gr', 'alt gr'], False)
+        to_scan_code['alt gr'] = alt_gr_scan_code
     finally:
         tables_lock.release()
 
@@ -244,10 +251,6 @@ def type_unicode(character):
     SendInput(nInputs, pInputs, cbSize)
 
 if __name__ == '__main__':
-    setup_tables()
-    import time
-    #type_unicode('💩')
-    def p(e):
-        if e.matches('space'): exit()
-        print(e)
-    listen(p)
+    import keyboard
+    keyboard.hook(print)
+    input()
