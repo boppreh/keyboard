@@ -114,6 +114,10 @@ class TestKeyboard(unittest.TestCase):
         with self.assertRaises(ValueError):
             keyboard.canonicalize(keyboard)
 
+        underscore = [[scan_codes_by_name['_']]]
+        self.assertEqual(keyboard.canonicalize('_'), underscore)
+        self.assertEqual(keyboard.canonicalize('space_bar'), space)
+
     def test_is_pressed(self):
         self.assertFalse(keyboard.is_pressed('enter'))
         self.assertFalse(keyboard.is_pressed(scan_codes_by_name['enter']))
