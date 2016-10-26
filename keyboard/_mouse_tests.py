@@ -77,6 +77,15 @@ class TestMouse(unittest.TestCase):
         mouse._os_mouse.queue.put(WheelEvent(delta, time.time()))
         self.wait_for_events_queue()
 
+    def test_hook(self):
+        events = []
+        self.press()
+        mouse.hook(events.append)
+        self.press()
+        mouse.unhook(events.append)
+        self.press()
+        self.assertEquals(len(events), 1)
+
     def test_is_pressed(self):
         self.assertFalse(mouse.is_pressed())
         self.press()
