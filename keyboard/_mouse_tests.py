@@ -25,7 +25,11 @@ class FakeOsMouse(object):
         return self.position
 
     def move_to(self, x, y):
+        self.append(('move', (x, y)))
         self.position = (x, y)
+
+    def wheel(self, delta):
+        self.append(('wheel', delta))
 
     def move_relative(self, x, y):
         self.position = (self.position[0] + x, self.position[1] + y)
@@ -75,6 +79,10 @@ class TestMouse(unittest.TestCase):
 
     def wheel(self, delta=1):
         mouse._os_mouse.queue.put(WheelEvent(delta, time.time()))
+        self.wait_for_events_queue()
+
+    def move(self, x=0, y=0):
+        mouse._os_mouse.queue.put(MoveEvent(x, y, time.time()))
         self.wait_for_events_queue()
 
     def test_hook(self):
@@ -196,6 +204,29 @@ class TestMouse(unittest.TestCase):
         Thread(target=t).start()
         self.press()
         lock.acquire()
+
+    def test_record_play(self):
+        from threading import Thread, Lock
+        lock = Lock()
+        lock.acquire()
+        def t():
+            self.recorded = mouse.record(RIGHT)
+            lock.release()
+        Thread(target=t).start()
+        self.click()
+        self.wheel(5)
+        self.move(100, 50)
+        self.press(RIGHT)
+        lock.acquire()
+
+        self.assertEquals(len(self.recorded), 5)
+        self.assertEquals(self.recorded[0]._replace(time=None), ButtonEvent(DOWN, LEFT, None))
+        self.assertEquals(self.recorded[1]._replace(time=None), ButtonEvent(UP, LEFT, None))
+        self.assertEquals(self.recorded[2]._replace(time=None), WheelEvent(5, None))
+        self.assertEquals(self.recorded[3]._replace(time=None), MoveEvent(100, 50, None))
+        self.assertEquals(self.recorded[4]._replace(time=None), ButtonEvent(DOWN, RIGHT, None))
+        #expected = [(DOWN, LEFT), (UP, LEFT), ('wheel', 5), ('move', (100, 50))]
+        #self.assertEqual(self.flush_events(), )
 
 
 if __name__ == '__main__':
