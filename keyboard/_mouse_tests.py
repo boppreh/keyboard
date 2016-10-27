@@ -92,7 +92,7 @@ class TestMouse(unittest.TestCase):
         self.press()
         mouse.unhook(events.append)
         self.press()
-        self.assertEquals(len(events), 1)
+        self.assertEqual(len(events), 1)
 
     def test_is_pressed(self):
         self.assertFalse(mouse.is_pressed())
