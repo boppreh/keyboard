@@ -254,11 +254,11 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'a'), (KEY_UP, 'a')])
 
     def test_type_unicode(self):
-        keyboard.write('û')
+        keyboard.write(u'û')
         events = self.flush_events()
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].event_type, 'unicode')
-        self.assertEqual(events[0].name, 'û')
+        self.assertEqual(events[0].name, u'û')
 
     def test_press_release(self):
         keyboard.press('a')
