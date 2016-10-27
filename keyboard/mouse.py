@@ -157,7 +157,7 @@ def unhook_all():
     Removes all hooks registered by this application. Note this may include
     hooks installed by high level functions, such as `record`.
     """
-    _listener.handlers.clear()
+    del _listener.handlers[:]
 
 def record(button=RIGHT, target_types=(DOWN,)):
     """
