@@ -250,7 +250,7 @@ def unhook_all():
     """
     _hotkeys.clear()
     _word_listeners.clear()
-    _listener.handlers.clear()
+    del _listener.handlers[:]
 
 def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     """
