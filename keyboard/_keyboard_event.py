@@ -2,6 +2,11 @@
 
 from time import time as now
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 KEY_DOWN = 'down'
 KEY_UP = 'up'
 
@@ -175,7 +180,7 @@ canonical_names = {
 }
 
 def normalize_name(name):
-    if not isinstance(name, str):
+    if not isinstance(name, basestring):
         raise ValueError('Can only normalize string names. Unexpected '+ repr(name))
 
     name = name.lower()
