@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import keyboard
-#keyboard.add_abbreviation('aaa', '123456')
-#input()
-#keyboard.hook(print)
+#keyboard.add_abbreviation('123', '123456/!') and input()
 
 print('Press space twice to replay keyboard actions.')
 keyboard.play(keyboard.record('space, space'), 3)

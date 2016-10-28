@@ -148,18 +148,17 @@ def setup_tables():
                 if not ret:
                     continue
                 name = name_buffer.value
-                if name.startswith('NUM '):
+                if name.lower().startswith('num ') and name.lower() != 'num lock':
                     is_keypad = True
                     name = name[len('NUM '):]
                 else:
                     is_keypad = False
 
                 name = normalize_name(name.replace('Right ', '').replace('Left ', ''))
-                if name in to_scan_code and is_keypad:
-                    # Prefer non-keypad mappings.
-                    continue
                 from_scan_code[scan_code] = ([name, name], is_keypad)
-                to_scan_code[name] = (scan_code, False)
+
+                if name not in to_scan_code or not is_keypad:
+                    to_scan_code[name] = (scan_code, False)
 
             # Get associated character, such as "^", possibly overwriting the pure key name.
             for shift_state in [0, 1]:
@@ -170,7 +169,8 @@ def setup_tables():
                     # Sometimes two characters are written before the char we want,
                     # usually an accented one such as Â. Couldn't figure out why.
                     char = name_buffer.value[-1]
-                    to_scan_code[char] = (scan_code, bool(shift_state))
+                    if name not in to_scan_code or not is_keypad:
+                        to_scan_code[char] = (scan_code, bool(shift_state))
                     from_scan_code[scan_code][0][shift_state] = char
 
         # Alt GR is way outside the usual range of keys (0..127) and on my
