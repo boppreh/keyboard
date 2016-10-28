@@ -225,7 +225,8 @@ def listen(queue):
 def map_char(character):
     setup_tables()
     try:
-        return to_scan_code[character]
+        scan_code, shift = to_scan_code[character]
+        return scan_code, ['shift'] if shift else []
     except KeyError:
         raise ValueError('Character {} is not mapped to any known key.'.format(repr(character)))
 
