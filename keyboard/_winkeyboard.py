@@ -155,6 +155,9 @@ def setup_tables():
                     is_keypad = False
 
                 name = normalize_name(name.replace('Right ', '').replace('Left ', ''))
+                if name in to_scan_code and is_keypad:
+                    # Prefer non-keypad mappings.
+                    continue
                 from_scan_code[scan_code] = ([name, name], is_keypad)
                 to_scan_code[name] = (scan_code, False)
 
@@ -215,7 +218,6 @@ def listen(queue):
                 shift_is_pressed = True
             elif event_type == KEY_UP and name == 'shift':
                 shift_is_pressed = False
-
             queue.put(KeyboardEvent(event_type, scan_code, name))
 
         return ret
