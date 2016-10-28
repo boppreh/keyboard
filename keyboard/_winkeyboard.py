@@ -148,9 +148,9 @@ def setup_tables():
                 if not ret:
                     continue
                 name = name_buffer.value
-                if name.startswith('Num ') and name != 'Num Lock':
+                if name.startswith('NUM '):
                     is_keypad = True
-                    name = name[len('Num '):]
+                    name = name[len('NUM '):]
                 else:
                     is_keypad = False
 
