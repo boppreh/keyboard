@@ -162,7 +162,7 @@ def setup_tables():
             for shift_state in [0, 1]:
                 keyboard_state[0x10] = shift_state * 0xFF
                 key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-                ret = ToUnicode(key_code, scan_code, keyboard_state, name_buffer, len(name_buffer) * 2, 0)
+                ret = ToUnicode(key_code, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
                 if ret:
                     # Sometimes two characters are written before the char we want,
                     # usually an accented one such as Â. Couldn't figure out why.
