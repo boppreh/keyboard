@@ -180,6 +180,7 @@ def setup_tables():
         tables_lock.release()
 
 shift_is_pressed = False
+alt_gr_is_pressed = False
 
 def listen(queue):
     setup_tables()
@@ -199,7 +200,17 @@ def listen(queue):
             names, is_keypad = from_scan_code[scan_code]
 
             global shift_is_pressed
+            global alt_gr_is_pressed
             name = names[shift_is_pressed]
+            
+            is_extended = lParam.contents.flags & 1
+            if name == 'alt' and is_extended and alt_gr_is_pressed:
+                # Pressing AltGr also triggers regular alt quickly after. We
+                # try to filter out this event. The `alt_gr_is_pressed` flag
+                # is to avoid messing with keyboards that don't even have an
+                # alt gr key.
+                return
+
             if event_type == KEY_DOWN and name == 'shift':
                 shift_is_pressed = True
             elif event_type == KEY_UP and name == 'shift':
