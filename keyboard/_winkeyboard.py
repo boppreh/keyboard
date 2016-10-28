@@ -253,5 +253,7 @@ def type_unicode(character):
 
 if __name__ == '__main__':
     import keyboard
-    keyboard.hook(print)
+    def p(event):
+        print(event)
+    keyboard.hook(p)
     input()
