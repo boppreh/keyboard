@@ -154,7 +154,7 @@ def setup_tables():
                 else:
                     is_keypad = False
 
-                name = normalize_name(name.replace('Right ', '').replace('Left ', ''))
+                name = normalize_name(name.lower().replace('right ', '').replace('left ', ''))
                 from_scan_code[scan_code] = ([name, name], is_keypad)
 
                 if name not in to_scan_code or not is_keypad:
