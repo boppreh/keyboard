@@ -272,6 +272,15 @@ class TestKeyboard(unittest.TestCase):
         # keys correctly, it's not a bug in the keyboard module itself.
         self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'a'), (KEY_UP, 'a')])
 
+        shift_scan_code = scan_codes_by_name['shift']
+
+        keyboard.send(shift_scan_code, True, False)
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift')])
+        keyboard.send([[shift_scan_code]], True, False)
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift')])
+        keyboard.send([['shift']], True, False)
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift')])
+
     def test_type_unicode(self):
         keyboard.write(u'û')
         events = self.flush_events()
