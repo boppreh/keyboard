@@ -147,13 +147,17 @@ Returns True if the key is pressed.
 
 
 Splits a user provided hotkey into a list of steps, each one made of a list
-of scan codes. Used to normalize input at the API boundary. When a combo is
-given (e.g. 'ctrl + a, b') spaces are ignored.
+of scan codes or names. Used to normalize input at the API boundary. When a
+combo is given (e.g. 'ctrl + a, b') spaces are ignored.
 
     canonicalize(57) -> [[57]]
-    canonicalize('space') -> [[57]]
-    canonicalize('ctrl+space') -> [[97, 57]]
-    canonicalize('ctrl+space, space') -> [[97, 57], [57]]
+    canonicalize([[57]]) -> [[57]]
+    canonicalize('space') -> [['space']]
+    canonicalize('ctrl+space') -> [['ctrl', 'space']]
+    canonicalize('ctrl+space, space') -> [['ctrl', 'space'], ['space']]
+
+Note we must not convert names into scan codes because a name may represent
+more than one physical key (e.g. two 'ctrl' keys).
 
 
 
