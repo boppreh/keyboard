@@ -99,17 +99,19 @@ def is_pressed(key):
 def canonicalize(hotkey):
     """
     Splits a user provided hotkey into a list of steps, each one made of a list
-    of scan codes. Used to normalize input at the API boundary. When a combo is
-    given (e.g. 'ctrl + a, b') spaces are ignored.
+    of scan codes or names. Used to normalize input at the API boundary. When a
+    combo is given (e.g. 'ctrl + a, b') spaces are ignored.
 
         canonicalize(57) -> [[57]]
-        canonicalize('space') -> [[57]]
-        canonicalize('ctrl+space') -> [[97, 57]]
-        canonicalize('ctrl+space, space') -> [[97, 57], [57]]
+        canonicalize([[57]]) -> [[57]]
+        canonicalize('space') -> [['space']]
+        canonicalize('ctrl+space') -> [['ctrl', 'space']]
+        canonicalize('ctrl+space, space') -> [['ctrl', 'space'], ['space']]
+
+    Note we must not convert names into scan codes because a name may represent
+    more than one physical key (e.g. two 'ctrl' keys).
     """
-    if (isinstance(hotkey, list)
-            and all(isinstance(step, list) for step in hotkey)
-            and all(isinstance(part, int) for step in hotkey for part in step)):
+    if isinstance(hotkey, list) and all(isinstance(step, list) for step in hotkey):
         # Already canonicalized, nothing to do.
         return hotkey
     elif isinstance(hotkey, int):
@@ -119,15 +121,13 @@ def canonicalize(hotkey):
         raise ValueError('Unexpected hotkey: {}. Expected int scan code, str key combination or normalized hotkey.'.format(hotkey))
 
     if len(hotkey) == 1 or ('+' not in hotkey and ',' not in hotkey):
-        scan_code, modifiers = _os_keyboard.map_char(_normalize_name(hotkey))
-        return [[scan_code]]
+        return [[_normalize_name(hotkey)]]
     else:
         steps = []
         for str_step in hotkey.replace(' ', '').split(','):
             steps.append([])
             for part in str_step.split('+'):
-                scan_code, modifiers = _os_keyboard.map_char(_normalize_name(part))
-                steps[-1].append(scan_code)
+                steps[-1].append(_normalize_name(part))
         return steps
 
 def call_later(fn, args=(), delay=0.001):

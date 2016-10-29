@@ -186,4 +186,5 @@ def normalize_name(name):
     name = name.lower()
     if name != '_':
         name = name.replace('_', ' ')
+
     return canonical_names.get(name, name)

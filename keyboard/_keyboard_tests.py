@@ -14,8 +14,8 @@ scan_codes_by_name.update({key: scan_codes_by_name[value]
     for key, value in canonical_names.items()})
 
 class FakeEvent(KeyboardEvent):
-    def __init__(self, event_type, name):
-        KeyboardEvent.__init__(self, event_type, scan_codes_by_name[name], name)
+    def __init__(self, event_type, name, scan_code=None):
+        KeyboardEvent.__init__(self, event_type, scan_code or scan_codes_by_name[name], name)
 
 class FakeOsKeyboard(object):
     def __init__(self):
@@ -27,11 +27,18 @@ class FakeOsKeyboard(object):
         self.listening = True
         self.queue = queue
 
-    def press(self, scan_code):
-        self.append((KEY_DOWN, next(name for name, i in scan_codes_by_name.items() if i == scan_code and name not in canonical_names)))
+    def get_key_name(self, scan_code):
+        return next(name for name, i in scan_codes_by_name.items() if i == scan_code and name not in canonical_names)
 
-    def release(self, scan_code):
-        self.append((KEY_UP, next(name for name, i in scan_codes_by_name.items() if i == scan_code and name not in canonical_names)))
+    def press(self, key):
+        if not isinstance(key, str):
+            key = self.get_key_name(key)
+        self.append((KEY_DOWN, key))
+
+    def release(self, key):
+        if not isinstance(key, str):
+            key = self.get_key_name(key)
+        self.append((KEY_UP, key))
 
     def map_char(self, char):
         try:
@@ -65,17 +72,17 @@ class TestKeyboard(unittest.TestCase):
         # Make sure there's no spill over between tests.
         self.wait_for_events_queue()
 
-    def press(self, name):
-        keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name))
+    def press(self, name, scan_code=None):
+        keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name, scan_code))
         self.wait_for_events_queue()
 
-    def release(self, name):
-        keyboard._os_keyboard.queue.put(FakeEvent(KEY_UP, name))
+    def release(self, name, scan_code=None):
+        keyboard._os_keyboard.queue.put(FakeEvent(KEY_UP, name, scan_code))
         self.wait_for_events_queue()
 
-    def click(self, name):
-        self.press(name)
-        self.release(name)
+    def click(self, name, scan_code=None):
+        self.press(name, scan_code)
+        self.release(name, scan_code)
 
     def flush_events(self):
         self.wait_for_events_queue()
@@ -94,26 +101,24 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(self.flush_events(), [])
 
     def test_canonicalize(self):
-        space = [[scan_codes_by_name['space']]]
-        self.assertEqual(keyboard.canonicalize(space), space)
-        self.assertEqual(keyboard.canonicalize(space[0][0]), space)
-        self.assertEqual(keyboard.canonicalize('space'), space)
-        self.assertEqual(keyboard.canonicalize(' '), space)
-        self.assertEqual(keyboard.canonicalize('spacebar'), space)
-        self.assertEqual(keyboard.canonicalize('Space'), space)
-        self.assertEqual(keyboard.canonicalize('SPACE'), space)
-        with self.assertRaises(ValueError):
-            keyboard.canonicalize('invalid')
+        space_scan_code = [[scan_codes_by_name['space']]]
+        space_name = [['space']]
+        self.assertEqual(keyboard.canonicalize(space_scan_code), space_scan_code)
+        self.assertEqual(keyboard.canonicalize(space_name), space_name)
+        self.assertEqual(keyboard.canonicalize(scan_codes_by_name['space']), space_scan_code)
+        self.assertEqual(keyboard.canonicalize('space'), space_name)
+        self.assertEqual(keyboard.canonicalize(' '), space_name)
+        self.assertEqual(keyboard.canonicalize('spacebar'), space_name)
+        self.assertEqual(keyboard.canonicalize('Space'), space_name)
+        self.assertEqual(keyboard.canonicalize('SPACE'), space_name)
+        
         with self.assertRaises(ValueError):
             keyboard.canonicalize(['space'])
         with self.assertRaises(ValueError):
-            keyboard.canonicalize([['space']])
-        with self.assertRaises(ValueError):
             keyboard.canonicalize(keyboard)
 
-        underscore = [[scan_codes_by_name['_']]]
-        self.assertEqual(keyboard.canonicalize('_'), underscore)
-        self.assertEqual(keyboard.canonicalize('space_bar'), space)
+        self.assertEqual(keyboard.canonicalize('_'), [['_']])
+        self.assertEqual(keyboard.canonicalize('space_bar'), space_name)
 
     def test_is_pressed(self):
         self.assertFalse(keyboard.is_pressed('enter'))
@@ -138,6 +143,23 @@ class TestKeyboard(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             keyboard.is_pressed('space, space')
+
+    def test_is_pressed_duplicated_key(self):
+        self.assertFalse(keyboard.is_pressed(100))
+        self.assertFalse(keyboard.is_pressed(101))
+        self.assertFalse(keyboard.is_pressed('ctrl'))
+
+        self.press('ctrl', 100)
+        self.assertTrue(keyboard.is_pressed(100))
+        self.assertFalse(keyboard.is_pressed(101))
+        self.assertTrue(keyboard.is_pressed('ctrl'))
+        self.release('ctrl', 100)
+
+        self.press('ctrl', 101)
+        self.assertFalse(keyboard.is_pressed(100))
+        self.assertTrue(keyboard.is_pressed(101))
+        self.assertTrue(keyboard.is_pressed('ctrl'))
+        self.release('ctrl', 101)
 
     def triggers(self, combination, keys):
         self.triggered = False
@@ -243,9 +265,6 @@ class TestKeyboard(unittest.TestCase):
 
         keyboard.send('shift+a, b')
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift'), (KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_UP, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b')])
-
-        with self.assertRaises(ValueError):
-            keyboard.send('foo', True, False)
 
         self.press('a')
         keyboard.write('a', restore_state_after=False, delay=0.001)
