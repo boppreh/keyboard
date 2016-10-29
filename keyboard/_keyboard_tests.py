@@ -335,6 +335,9 @@ class TestKeyboard(unittest.TestCase):
         keyboard.play(self.recorded, speed_factor=100)
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc')])
 
+        # Should be ignored and not throw an error.
+        keyboard.play([FakeEvent('fake type', 'a')])
+
     def test_word_listener_normal(self):
         keyboard.add_word_listener('bird', self.fail)
         self.click('b')
