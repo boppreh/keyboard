@@ -44,6 +44,7 @@ canonical_names = {
     'control': 'ctrl',
     'altgr': 'alt gr',
 
+    ' ': 'space', # Prefer to spell out keys that would be hard to read.
     '\x1b': 'esc',
     '\x08': 'backspace',
     '\n': 'enter',
@@ -62,15 +63,14 @@ canonical_names = {
     'space bar': 'space',
     'spacebar': 'space',
     'linefeed': 'enter',
+    'win': 'windows',
 
     'pagedown': 'page down',
     'next': 'page down', # This looks wrong, but this is how Linux reports.
     'pageup': 'page up',
     'prior': 'page up',
 
-    ' ': 'space', # Prefer to spell out keys that would be hard to read.
     'underscore': '_',
-
     'equal': '=',
     'minplus': '+',
     'plus': '+',
