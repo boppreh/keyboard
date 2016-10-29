@@ -548,10 +548,12 @@ def play(events, speed_factor=1.0):
             _time.sleep((event.time - last_time) / speed_factor)
         last_time = event.time
 
+        key = event.scan_code or event.name
         if event.event_type == KEY_DOWN:
-            _os_keyboard.press(event.scan_code)
-        else:
-            _os_keyboard.release(event.scan_code)
+            _os_keyboard.press(key)
+        elif event.event_type == KEY_UP:
+            _os_keyboard.release(key)
+        # Ignore other types of events.
 
     restore_state(state)
 

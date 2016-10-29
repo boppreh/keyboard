@@ -5,19 +5,13 @@ import json
 import sys
 
 def print_event_json(event):
+	# Could use json.dumps(event.__dict__()), but this way we guarantee semantic order.
 	if event.name.isalnum():
-		print('{{"type": "{}", "name": "{}", "scan_code": {}, "time": {}}}'.format(event.event_type, event.name, event.scan_code, event.time))
+		print('{{"event_type": "{}", "name": "{}", "scan_code": {}, "time": {}}}'.format(event.event_type, event.name, event.scan_code, event.time))
 	else:
-		print('{{"type": "{}", "scan_code": {}, "time": {}}}'.format(event.event_type, event.scan_code, event.time))
+		print('{{"event_type": "{}", "scan_code": {}, "time": {}}}'.format(event.event_type, event.scan_code, event.time))
 	sys.stdout.flush()
 keyboard.hook(print_event_json)
 
-for line in fileinput.input():
-	event_json = json.loads(line)
-	key = event_json.get('name') or event_json.get('scan_code')
-	if event_json['type'] == keyboard.KEY_DOWN:
-		keyboard.press(key)
-	elif event_json['type'] == keyboard.KEY_UP:
-		keyboard.release(key)
-	else:
-		raise ValueError('Invalid event type: {}'.format(event_json['type']))
+parse_event_json = lambda line: keyboard.KeyboardEvent(**json.loads(line))
+keyboard.play(parse_event_json(line) for line in fileinput.input())
