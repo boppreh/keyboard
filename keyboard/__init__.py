@@ -164,9 +164,8 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
 
     - `args` is an optional list of arguments to passed to the callback during
     each invocation.
-    - `blocking` defines if the system should block processing other hotkeys
-    after a match is found. In Windows also tries to block other processes
-    from processing the key.
+    - `blocking` defines if the it should block processing other hotkeys after
+    a match is found.
     - `timeout` is the amount of seconds allowed to pass between key presses
 
     The event handler function is returned. To remove a hotkey call
