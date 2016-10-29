@@ -47,9 +47,9 @@ This program makes no attempt to hide itself, so don't use it for keyloggers.
 - [keyboard.**canonicalize**](#keyboard.canonicalize)
 - [keyboard.**call\_later**](#keyboard.call_later)
 - [keyboard.**clear\_all\_hotkeys**](#keyboard.clear_all_hotkeys)
-- [keyboard.**remove\_all\_hotkeys**](#keyboard.remove_all_hotkeys)
+- [keyboard.**remove\_all\_hotkeys**](#keyboard.remove_all_hotkeys) *(alias)*
 - [keyboard.**add\_hotkey**](#keyboard.add_hotkey)
-- [keyboard.**register\_hotkey**](#keyboard.register_hotkey)
+- [keyboard.**register\_hotkey**](#keyboard.register_hotkey) *(alias)*
 - [keyboard.**hook**](#keyboard.hook)
 - [keyboard.**unhook**](#keyboard.unhook)
 - [keyboard.**unhook\_all**](#keyboard.unhook_all)
@@ -57,13 +57,13 @@ This program makes no attempt to hide itself, so don't use it for keyloggers.
 - [keyboard.**on\_press**](#keyboard.on_press)
 - [keyboard.**on\_release**](#keyboard.on_release)
 - [keyboard.**remove\_hotkey**](#keyboard.remove_hotkey)
-- [keyboard.**unhook\_key**](#keyboard.unhook_key)
+- [keyboard.**unhook\_key**](#keyboard.unhook_key) *(alias)*
 - [keyboard.**add\_word\_listener**](#keyboard.add_word_listener)
-- [keyboard.**register\_word\_listener**](#keyboard.register_word_listener)
+- [keyboard.**register\_word\_listener**](#keyboard.register_word_listener) *(alias)*
 - [keyboard.**remove\_word\_listener**](#keyboard.remove_word_listener)
-- [keyboard.**remove\_abbreviation**](#keyboard.remove_abbreviation)
+- [keyboard.**remove\_abbreviation**](#keyboard.remove_abbreviation) *(alias)*
 - [keyboard.**add\_abbreviation**](#keyboard.add_abbreviation)
-- [keyboard.**register\_abbreviation**](#keyboard.register_abbreviation)
+- [keyboard.**register\_abbreviation**](#keyboard.register_abbreviation) *(alias)*
 - [keyboard.**stash\_state**](#keyboard.stash_state)
 - [keyboard.**restore\_state**](#keyboard.restore_state)
 - [keyboard.**write**](#keyboard.write)
@@ -75,9 +75,8 @@ This program makes no attempt to hide itself, so don't use it for keyloggers.
 - [keyboard.**wait**](#keyboard.wait)
 - [keyboard.**record**](#keyboard.record)
 - [keyboard.**play**](#keyboard.play)
-- [keyboard.**replay**](#keyboard.replay)
+- [keyboard.**replay**](#keyboard.replay) *(alias)*
 - [keyboard.**get\_typed\_strings**](#keyboard.get_typed_strings)
-
 
 
 <a name="keyboard.KEY_DOWN"/>
