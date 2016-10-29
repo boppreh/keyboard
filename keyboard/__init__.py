@@ -467,6 +467,18 @@ def write(text, delay=0, restore_state_after=True):
     if restore_state_after:
         restore_state(state)
 
+def to_scan_code(key):
+    """
+    Returns the scan code for a given key name (or scan code, i.e. do nothing).
+    Note that a name may belong to more than one physical key, in which case
+    one of the scan codes will be chosen.
+    """
+    if isinstance(key, int):
+        return key
+    else:
+        scan_code, modifiers = _os_keyboard.map_char(_normalize_name(key))
+        return scan_code
+
 def send(combination, do_press=True, do_release=True):
     """
     Sends OS events that perform the given hotkey combination.
@@ -483,14 +495,14 @@ def send(combination, do_press=True, do_release=True):
 
     Note: keys are released in the opposite order they were pressed.
     """
-    for scan_codes in canonicalize(combination):
+    for keys in canonicalize(combination):
         if do_press:
-            for scan_code in scan_codes:
-                _os_keyboard.press(scan_code)
+            for key in keys:
+                _os_keyboard.press(to_scan_code(key))
 
         if do_release:
-            for scan_code in reversed(scan_codes):
-                _os_keyboard.release(scan_code)
+            for key in reversed(keys):
+                _os_keyboard.release(to_scan_code(key))
 
 def press(combination):
     """ Presses and holds down a key combination (see `send`). """
@@ -549,9 +561,9 @@ def play(events, speed_factor=1.0):
 
         key = event.scan_code or event.name
         if event.event_type == KEY_DOWN:
-            _os_keyboard.press(key)
+            press(key)
         elif event.event_type == KEY_UP:
-            _os_keyboard.release(key)
+            release(key)
         # Ignore other types of events.
 
     restore_state(state)

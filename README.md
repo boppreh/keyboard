@@ -67,6 +67,7 @@ This program makes no attempt to hide itself, so don't use it for keyloggers.
 - [keyboard.**stash\_state**](#keyboard.stash_state)
 - [keyboard.**restore\_state**](#keyboard.restore_state)
 - [keyboard.**write**](#keyboard.write)
+- [keyboard.**to\_scan\_code**](#keyboard.to_scan_code)
 - [keyboard.**send**](#keyboard.send)
 - [keyboard.**press**](#keyboard.press)
 - [keyboard.**release**](#keyboard.release)
@@ -456,10 +457,22 @@ beginning. Defaults to True.
 
 
 
+<a name="keyboard.to_scan_code"/>
+## keyboard.**to\_scan\_code**(key)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L470)
+
+
+Returns the scan code for a given key name (or scan code, i.e. do nothing).
+Note that a name may belong to more than one physical key, in which case
+one of the scan codes will be chosen.
+
+
+
 <a name="keyboard.send"/>
 ## keyboard.**send**(combination, do\_press=True, do\_release=True)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L470)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L482)
 
 
 Sends OS events that perform the given hotkey combination.
@@ -481,7 +494,7 @@ Note: keys are released in the opposite order they were pressed.
 <a name="keyboard.press"/>
 ## keyboard.**press**(combination)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L495)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L507)
 
 Presses and holds down a key combination (see [`send`](#keyboard.send)). 
 
@@ -489,7 +502,7 @@ Presses and holds down a key combination (see [`send`](#keyboard.send)).
 <a name="keyboard.release"/>
 ## keyboard.**release**(combination)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L499)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L511)
 
 Releases a key combination (see [`send`](#keyboard.send)). 
 
@@ -497,7 +510,7 @@ Releases a key combination (see [`send`](#keyboard.send)).
 <a name="keyboard.press_and_release"/>
 ## keyboard.**press\_and\_release**(combination)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L503)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L515)
 
 Presses and releases the key combination (see [`send`](#keyboard.send)). 
 
@@ -505,7 +518,7 @@ Presses and releases the key combination (see [`send`](#keyboard.send)).
 <a name="keyboard.wait"/>
 ## keyboard.**wait**(combination)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L507)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L519)
 
 
 Blocks the program execution until the given key combination is pressed.
@@ -515,7 +528,7 @@ Blocks the program execution until the given key combination is pressed.
 <a name="keyboard.record"/>
 ## keyboard.**record**(until=&#x27;escape&#x27;)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L517)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L529)
 
 
 Records all keyboard events from all keyboards until the user presses the
@@ -531,7 +544,7 @@ Note: for more details on the keyboard hook and events see [`hook`](#keyboard.ho
 <a name="keyboard.play"/>
 ## keyboard.**play**(events, speed\_factor=1.0)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L533)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L545)
 
 
 Plays a sequence of recorded events, maintaining the relative time
@@ -552,7 +565,7 @@ Alias for `play`.
 <a name="keyboard.get_typed_strings"/>
 ## keyboard.**get\_typed\_strings**(events, allow\_backspace=True)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L561)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L573)
 
 
 Given a sequence of events, tries to deduce what strings were typed.
