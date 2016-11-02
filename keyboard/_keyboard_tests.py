@@ -8,7 +8,7 @@ import keyboard
 from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
 
 # Fake events with fake scan codes for a totally deterministic test.
-all_names = set(canonical_names.values()) | set(string.ascii_lowercase) | {'shift'}
+all_names = set(canonical_names.values()) | set(string.ascii_lowercase) | set(string.ascii_uppercase) | {'shift'}
 scan_codes_by_name = {name: i for i, name in enumerate(sorted(all_names))}
 scan_codes_by_name.update({key: scan_codes_by_name[value]
     for key, value in canonical_names.items()})
@@ -253,6 +253,9 @@ class TestKeyboard(unittest.TestCase):
         keyboard.write('Ab')
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift'), (KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_UP, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b')])
 
+        keyboard.write('\n')
+        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'enter'), (KEY_UP, 'enter')])
+
     def test_send(self):
         keyboard.send('shift', True, False)
         self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift')])
@@ -465,12 +468,12 @@ class TestKeyboard(unittest.TestCase):
         self.press('a')
         self.press('b')
         state = keyboard.stash_state()
-        self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'b')])
+        self.assertEqual(sorted(self.flush_events()), [(KEY_UP, 'a'), (KEY_UP, 'b')])
         keyboard._pressed_events.clear()
         assert len(state) == 2
         self.press('c')
         keyboard.restore_state(state)
-        self.assertEqual(self.flush_events(), [(KEY_UP, 'c'), (KEY_DOWN, 'b'), (KEY_DOWN, 'a')])
+        self.assertEqual(sorted(self.flush_events()), [(KEY_DOWN, 'a'), (KEY_DOWN, 'b'), (KEY_UP, 'c')])
 
     def test_get_typed_strings(self):
         keyboard.hook(self.events.append)
