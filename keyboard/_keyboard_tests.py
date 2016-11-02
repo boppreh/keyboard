@@ -450,6 +450,11 @@ class TestKeyboard(unittest.TestCase):
 
     def test_abbreviation(self):
         keyboard.add_abbreviation('tm', 'a')
+        self.press('shift')
+        self.click('t')
+        self.release('shift')
+        self.click('space')
+        self.assertEqual(self.flush_events(), []) # abbreviations should be case sensitive
         self.click('t')
         self.click('m')
         self.click('space')
@@ -463,6 +468,31 @@ class TestKeyboard(unittest.TestCase):
             (KEY_UP, 'backspace'),
             (KEY_DOWN, 'a'),
             (KEY_UP, 'a')])
+
+        keyboard.add_abbreviation('TM', 'A')
+        self.press('shift')
+        self.click('t')
+        self.release('shift')
+        self.click('m')
+        self.click('space')
+        self.assertEqual(self.flush_events(), [])
+        self.press('shift')
+        self.click('t')
+        self.click('m')
+        self.release('shift')
+        self.click('space')
+        self.assertEqual(self.flush_events(), [
+            (KEY_UP, 'space'),
+            (KEY_DOWN, 'backspace'),
+            (KEY_UP, 'backspace'),
+            (KEY_DOWN, 'backspace'),
+            (KEY_UP, 'backspace'),
+            (KEY_DOWN, 'backspace'),
+            (KEY_UP, 'backspace'),
+            (KEY_DOWN, 'shift'),
+            (KEY_DOWN, 'a'),
+            (KEY_UP, 'a'),
+            (KEY_UP, 'shift'),])
 
     def test_stash_restore_state(self):
         self.press('a')
