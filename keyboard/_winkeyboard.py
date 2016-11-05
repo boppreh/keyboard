@@ -235,13 +235,13 @@ def listen(queue):
         TranslateMessage(msg)
         DispatchMessage(msg)
 
-def map_char(character):
+def map_char(name):
     setup_tables()
     try:
-        scan_code, shift = to_scan_code[character]
+        scan_code, shift = to_scan_code[name]
         return scan_code, ['shift'] if shift else []
     except KeyError:
-        raise ValueError('Character {} is not mapped to any known key.'.format(repr(character)))
+        raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
 def press(scan_code):
     user32.keybd_event(MapVirtualKey(scan_code, MAPVK_VSC_TO_VK), 0, 0, 0)
