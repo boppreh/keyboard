@@ -139,7 +139,9 @@ class TestKeyboard(unittest.TestCase):
 
         self.press('space')
         self.assertTrue(keyboard.is_pressed('space'))
-        self.assertFalse(keyboard.is_pressed('invalid key'))
+
+        with self.assertRaises(ValueError):
+            self.assertFalse(keyboard.is_pressed('invalid key'))
 
         with self.assertRaises(ValueError):
             keyboard.is_pressed('space, space')
