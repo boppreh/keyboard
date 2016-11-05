@@ -607,16 +607,17 @@ def get_typed_strings(events, allow_backspace=True):
     strings = ['']
     for event in events:
         name = event.name
-        if name == 'space':
-            # Space is the only key that we canonicalize to the spelled out name
-            # because of legibility.
+
+        # Space is the only key that we canonicalize to the spelled out name
+        # because of legibility. Now we have to undo that.
+        if matches(event, 'space'):
             name = ' '
 
-        if name == 'shift':
+        if matches(event, 'shift'):
             shift_pressed = event.event_type == 'down'
-        elif name == 'caps lock' and event.event_type == 'down':
+        elif matches(event, 'caps lock') and event.event_type == 'down':
             capslock_pressed = not capslock_pressed
-        elif allow_backspace and name == 'backspace' and event.event_type == 'down':
+        elif allow_backspace and matches(event, 'backspace') and event.event_type == 'down':
             strings[-1] = strings[-1][:-1]
         elif event.event_type == 'down':
             if len(name) == 1:
