@@ -41,6 +41,11 @@ from threading import Lock as _Lock
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 # Just a dynamic object to store attributes for the closures.
 class _State(object): pass
 
@@ -117,7 +122,7 @@ def canonicalize(hotkey):
     elif isinstance(hotkey, int):
         return [[hotkey]]
 
-    if not isinstance(hotkey, str):
+    if not isinstance(hotkey, basestring):
         raise ValueError('Unexpected hotkey: {}. Expected int scan code, str key combination or normalized hotkey.'.format(hotkey))
 
     if len(hotkey) == 1 or ('+' not in hotkey and ',' not in hotkey):
