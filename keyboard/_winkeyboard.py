@@ -128,6 +128,167 @@ keyboard_event_types = {
     WM_SYSKEYUP: KEY_UP,
 }
 
+virtual_key_to_name = {
+0x03: 'control-break processing',
+0x08: 'backspace',
+0x09: 'tab',
+0x0c: 'clear',
+0x0d: 'enter',
+0x10: 'shift',
+0x11: 'ctrl',
+0x12: 'alt',
+0x13: 'pause',
+0x14: 'caps lock',
+0x15: 'ime kana mode',
+0x15: 'ime hanguel mode',
+0x15: 'ime hangul mode',
+0x17: 'ime junja mode',
+0x18: 'ime final mode',
+0x19: 'ime hanja mode',
+0x19: 'ime kanji mode',
+0x1b: 'esc',
+0x1c: 'ime convert',
+0x1d: 'ime nonconvert',
+0x1e: 'ime accept',
+0x1f: 'ime mode change request',
+0x20: 'spacebar',
+0x21: 'page up',
+0x22: 'page down',
+0x23: 'end',
+0x24: 'home',
+0x25: 'left arrow',
+0x26: 'up arrow',
+0x27: 'right arrow',
+0x28: 'down arrow',
+0x29: 'select',
+0x2a: 'print',
+0x2b: 'execute',
+0x2c: 'print screen',
+0x2d: 'ins',
+0x2e: 'del',
+0x2f: 'help',
+0x30: '0',
+0x31: '1',
+0x32: '2',
+0x33: '3',
+0x34: '4',
+0x35: '5',
+0x36: '6',
+0x37: '7',
+0x38: '8',
+0x39: '9',
+0x41: 'a',
+0x42: 'b',
+0x43: 'c',
+0x44: 'd',
+0x45: 'e',
+0x46: 'f',
+0x47: 'g',
+0x48: 'h',
+0x49: 'i',
+0x4a: 'j',
+0x4b: 'k',
+0x4c: 'l',
+0x4d: 'm',
+0x4e: 'n',
+0x4f: 'o',
+0x50: 'p',
+0x51: 'q',
+0x52: 'r',
+0x53: 's',
+0x54: 't',
+0x55: 'u',
+0x56: 'v',
+0x57: 'w',
+0x58: 'x',
+0x59: 'y',
+0x5a: 'z',
+0x5b: 'windows',
+0x5c: 'windows',
+0x5d: 'applications',
+0x5f: 'sleep',
+0x60: '0',
+0x61: '1',
+0x62: '2',
+0x63: '3',
+0x64: '4',
+0x65: '5',
+0x66: '6',
+0x67: '7',
+0x68: '8',
+0x69: '9',
+0x6a: 'multiply',
+0x6b: 'add',
+0x6c: 'separator',
+0x6d: 'subtract',
+0x6e: 'decimal',
+0x6f: 'divide',
+0x70: 'f1',
+0x71: 'f2',
+0x72: 'f3',
+0x73: 'f4',
+0x74: 'f5',
+0x75: 'f6',
+0x76: 'f7',
+0x77: 'f8',
+0x78: 'f9',
+0x79: 'f10',
+0x7a: 'f11',
+0x7b: 'f12',
+0x7c: 'f13',
+0x7d: 'f14',
+0x7e: 'f15',
+0x7f: 'f16',
+0x80: 'f17',
+0x81: 'f18',
+0x82: 'f19',
+0x83: 'f20',
+0x84: 'f21',
+0x85: 'f22',
+0x86: 'f23',
+0x87: 'f24',
+0x90: 'num lock',
+0x91: 'scroll lock',
+0xa0: 'left shift',
+0xa1: 'right shift',
+0xa2: 'left control',
+0xa3: 'right control',
+0xa4: 'left menu',
+0xa5: 'right menu',
+0xa6: 'browser back',
+0xa7: 'browser forward',
+0xa8: 'browser refresh',
+0xa9: 'browser stop',
+0xaa: 'browser search key ',
+0xab: 'browser favorites',
+0xac: 'browser start and home',
+0xad: 'volume mute',
+0xae: 'volume down',
+0xaf: 'volume up',
+0xb0: 'next track',
+0xb1: 'previous track',
+0xb2: 'stop media',
+0xb3: 'play/pause media',
+0xb4: 'start mail',
+0xb5: 'select media',
+0xb6: 'start application 1',
+0xb7: 'start application 2',
+0xbb: '+',
+0xbc: ',',
+0xbd: '-',
+0xbe: '.',
+0xe5: 'ime process',
+0xf6: 'attn',
+0xf7: 'crsel',
+0xf8: 'exsel',
+0xf9: 'erase eof',
+0xfa: 'play',
+0xfb: 'zoom',
+0xfc: 'reserved ',
+0xfd: 'pa1',
+0xfe: 'clear',
+}
+
 from_scan_code = {}
 to_scan_code = {}
 tables_lock = Lock()
@@ -143,7 +304,20 @@ def setup_tables():
         for scan_code in range(2**(23-16)):
             from_scan_code[scan_code] = (['', ''], False)
 
-            # Get pure key name, such as "shift".
+            # Get associated virtual key code (if any) and map to fixed table of
+            # names. Necessary for non-English versions of Windows where the
+            # other functions return localized names. This is done first to
+            # allow the next functions to overwrite with something more
+            # accurate in the from_scan_code table, but leaving a useful
+            # to_scan_code entry.
+            key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+            if key_code and key_code in virtual_key_to_name:
+                name = normalize_name(virtual_key_to_name[key_code])
+                from_scan_code[scan_code] = ([name, name], None)
+                to_scan_code[name] = (scan_code, False) 
+
+            # Get pure key name, such as "shift". This depends on locale and
+            # may return a translated name.
             for enhanced in [1, 0]:
                 ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
                 if not ret:
@@ -155,8 +329,6 @@ def setup_tables():
                 else:
                     is_keypad = False
 
-                # TODO: find an alternative that doesn't require translation to
-                # every known language.
                 extra_name_parts = r'(right|left|droite|gauche)\s*'
                 name = normalize_name(re.sub(extra_name_parts, '', name.lower()))
                 from_scan_code[scan_code] = ([name, name], is_keypad)
@@ -167,7 +339,6 @@ def setup_tables():
             # Get associated character, such as "^", possibly overwriting the pure key name.
             for shift_state in [0, 1]:
                 keyboard_state[0x10] = shift_state * 0xFF
-                key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
                 ret = ToUnicode(key_code, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
                 if ret:
                     # Sometimes two characters are written before the char we want,
