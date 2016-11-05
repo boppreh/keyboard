@@ -79,6 +79,23 @@ class _KeyboardListener(_GenericListener):
         _os_keyboard.listen(self.queue)
 _listener = _KeyboardListener()
 
+def matches(event, name):
+    """
+    Returns True if the given event represents the same key as the one given in
+    `name`.
+    """
+    if isinstance(name, int):
+        return event.scan_code == int
+    elif _os_keyboard.map_char(name) == event.scan_code:
+        return True
+    else:
+        normalized = _normalize_name(name)
+        return (
+            normalized == event.name
+            or 'left ' + normalized == event.name
+            or 'right ' + normalized == event.name
+        )
+
 def is_pressed(key):
     """
     Returns True if the key is pressed.
@@ -97,7 +114,7 @@ def is_pressed(key):
         return all(is_pressed(part) for part in parts[0])
     else:
         for event in _pressed_events.values():
-            if event.matches(key):
+            if matches(event, key):
                 return True
         return False
 
@@ -200,7 +217,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
             return
 
         timed_out = state.step > 0 and timeout and event.time - state.time > timeout
-        unexpected = not any(event.matches(part) for part in steps[state.step])
+        unexpected = not any(matches(event, part) for part in steps[state.step])
 
         if unexpected or timed_out:
             if state.step > 0:
@@ -266,7 +283,7 @@ def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
     affects it aswell.
     """
     def handler(event):
-        if not event.matches(key):
+        if not matches(event, key):
             return
 
         if event.event_type == KEY_DOWN:

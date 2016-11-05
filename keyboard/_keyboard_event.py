@@ -22,17 +22,6 @@ class KeyboardEvent(object):
         self.time = now() if time is None else time
         self.name = normalize_name(name)
 
-    def matches(self, description):
-        if isinstance(description, int):
-            return self.scan_code == description
-        else:
-            normalized = normalize_name(description)
-            return (
-                normalized == self.name
-                or 'left ' + normalized == self.name
-                or 'right ' + normalized == self.name
-            )
-
     def __repr__(self):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
 
