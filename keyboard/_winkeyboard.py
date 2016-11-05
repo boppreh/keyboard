@@ -4,6 +4,7 @@ Code heavily adapted from http://pastebin.com/wzYZGZrs
 """
 import atexit
 from threading import Lock
+import re
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
@@ -154,7 +155,10 @@ def setup_tables():
                 else:
                     is_keypad = False
 
-                name = normalize_name(name.lower().replace('right ', '').replace('left ', ''))
+                # TODO: find an alternative that doesn't require translation to
+                # every known language.
+                extra_name_parts = r'(right|left|droite|gauche)\s*'
+                name = normalize_name(re.sub(extra_name_parts, '', name.lower()))
                 from_scan_code[scan_code] = ([name, name], is_keypad)
 
                 if name not in to_scan_code or not is_keypad:

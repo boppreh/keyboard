@@ -177,6 +177,11 @@ canonical_names = {
     'seven': '7',
     'eight': '8',
     'nine': '9',
+
+    # French names.
+    'maj': 'shift',
+    'impr.ecran': 'print screen',
+    'entree': 'enter',
 }
 
 def normalize_name(name):
