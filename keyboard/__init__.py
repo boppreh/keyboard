@@ -86,15 +86,15 @@ def matches(event, name):
     """
     if isinstance(name, int):
         return event.scan_code == int
-    elif _os_keyboard.map_char(name) == event.scan_code:
-        return True
-    else:
-        normalized = _normalize_name(name)
-        return (
-            normalized == event.name
-            or 'left ' + normalized == event.name
-            or 'right ' + normalized == event.name
-        )
+
+    normalized = _normalize_name(name)
+    matched_name = (
+        normalized == event.name
+        or 'left ' + normalized == event.name
+        or 'right ' + normalized == event.name
+    )
+
+    return matched_name or _os_keyboard.map_char(name) == event.scan_code
 
 def is_pressed(key):
     """
