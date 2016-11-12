@@ -93,7 +93,7 @@ def listen(queue):
         try:
             name = to_name[(scan_code, tuple(sorted(pressed_modifiers)))]
         except KeyError:
-            name = to_name[(scan_code, ())]
+            name = to_name.get((scan_code, ()), 'unknown')
             
         if name in ('alt', 'alt gr', 'ctrl', 'shift'):
             if event_type == KEY_DOWN:
