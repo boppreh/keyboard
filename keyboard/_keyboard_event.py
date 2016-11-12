@@ -20,7 +20,8 @@ class KeyboardEvent(object):
         self.event_type = event_type
         self.scan_code = scan_code
         self.time = now() if time is None else time
-        self.name = normalize_name(name)
+        if name:
+            self.name = normalize_name(name)
 
     def __repr__(self):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
