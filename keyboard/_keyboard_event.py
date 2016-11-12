@@ -54,6 +54,11 @@ canonical_names = {
     'linefeed': 'enter',
     'win': 'windows',
 
+    'app': 'menu',
+    'apps': 'menu',
+    'application': 'menu',
+    'applications': 'menu',
+
     'pagedown': 'page down',
     'next': 'page down', # This looks wrong, but this is how Linux reports.
     'pageup': 'page up',
