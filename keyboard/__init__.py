@@ -85,7 +85,7 @@ def matches(event, name):
     `name`.
     """
     if isinstance(name, int):
-        return event.scan_code == int
+        return event.scan_code == name
 
     normalized = _normalize_name(name)
     matched_name = (

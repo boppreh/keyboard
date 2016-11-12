@@ -13,6 +13,8 @@ scan_codes_by_name = {name: i for i, name in enumerate(sorted(all_names))}
 scan_codes_by_name.update({key: scan_codes_by_name[value]
     for key, value in canonical_names.items()})
 
+scan_codes_by_name['shift2'] = scan_codes_by_name['shift']
+
 class FakeEvent(KeyboardEvent):
     def __init__(self, event_type, name, scan_code=None):
         KeyboardEvent.__init__(self, event_type, scan_code or scan_codes_by_name[name], name)
@@ -93,6 +95,12 @@ class TestKeyboard(unittest.TestCase):
 
     def wait_for_events_queue(self):
         keyboard._listener.queue.join()
+
+    def test_matches(self):
+        self.assertTrue(keyboard.matches(FakeEvent(KEY_DOWN, 'shift'), scan_codes_by_name['shift']))
+        self.assertTrue(keyboard.matches(FakeEvent(KEY_DOWN, 'shift'), 'shift'))
+        self.assertTrue(keyboard.matches(FakeEvent(KEY_DOWN, 'shift'), 'shift2'))
+        self.assertTrue(keyboard.matches(FakeEvent(KEY_DOWN, 'shift2'), 'shift'))
 
     def test_listener(self):
         empty_event = FakeEvent(KEY_DOWN, 'space')
