@@ -30,7 +30,7 @@ class FakeOsKeyboard(object):
         self.queue = queue
 
     def get_key_name(self, scan_code):
-        return next(name for name, i in scan_codes_by_name.items() if i == scan_code and name not in canonical_names)
+        return next(name for name, i in sorted(scan_codes_by_name.items()) if i == scan_code and name not in canonical_names)
 
     def press(self, key):
         if not isinstance(key, str):
