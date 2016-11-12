@@ -94,7 +94,7 @@ def matches(event, name):
         or 'right ' + normalized == event.name
     )
 
-    return matched_name or _os_keyboard.map_char(name) == event.scan_code
+    return matched_name or _os_keyboard.map_char(name)[0] == event.scan_code
 
 def is_pressed(key):
     """
