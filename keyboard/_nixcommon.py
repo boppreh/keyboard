@@ -20,6 +20,35 @@ EV_REL = 0x02
 EV_ABS = 0x03
 EV_MSC = 0x04
 
+def make_uinput():
+    import fcntl, struct
+
+    # Requires uinput driver, but it's usually available.
+    uinput = open("/dev/uinput", 'wb')
+    UI_SET_EVBIT = 0x40045564
+    fcntl.ioctl(uinput, UI_SET_EVBIT, EV_KEY)
+
+    UI_SET_KEYBIT = 0x40045565
+    for i in range(256):
+        fcntl.ioctl(uinput, UI_SET_KEYBIT, i)
+
+    BUS_USB = 0x03
+    uinput_user_dev = "80sHHHHi64i64i64i64i"
+    axis = [0] * 64 * 4
+    uinput.write(struct.pack(uinput_user_dev, b"Virtual Keyboard", BUS_USB, 1, 1, 1, 0, *axis))
+    uinput.flush() # Without this you may get Errno 22: Invalid argument.
+
+    UI_DEV_CREATE = 0x5501
+    fcntl.ioctl(uinput, UI_DEV_CREATE)
+    UI_DEV_DESTROY = 0x5502
+    #fcntl.ioctl(uinput, UI_DEV_DESTROY)
+
+    # The file is not readable, so replace read function with something that
+    # will block forever.
+    uinput.read = lambda n: Queue().get()
+
+    return uinput
+
 class EventDevice(object):
     def __init__(self, path):
         self.path = path
@@ -119,7 +148,11 @@ def aggregate_devices(type_name):
     if devices_from_proc:
         return AggregatedEventDevice(devices_from_proc)
 
-    raise ValueError('No {0} device found in /proc/bus/input/devices or /dev/input/by-id/*-event-{0}'.format(type_name))
+    uinput = make_uinput()
+    device = EventDevice('uinput Fake Device')
+    device._input_file = uinput
+    device._output_file = uinput
+    return device
 
 
 def ensure_root():
