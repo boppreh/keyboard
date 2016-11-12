@@ -69,6 +69,20 @@ def build_tables():
             from_name[upper] = pair
             to_name[pair] = upper
 
+    # dumpkeys consistently misreports the Windows key, sometimes
+    # skipping it completely or reporting as 'alt. 125 = left win,
+    # 126 = right win.
+    if (125, ()) not in to_name or to_name[(125, ())] == 'alt':
+        to_name[125, ()] = 'windows'
+        from_name['windows'] = (125, ())
+    if (126, ()) not in to_name or to_name[(126, ())] == 'alt':
+        to_name[126, ()] = 'windows'
+
+    # The menu key is usually skipped altogether, so we also add it manually.
+    if (127, ()) not in to_name:
+        to_name[127, ()] = 'menu'
+        from_name['menu'] = (127, ())
+
 device = None
 def build_device():
     global device
