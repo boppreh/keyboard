@@ -45,6 +45,10 @@ import re
 to_name = {}
 from_name = {}
 
+def register_key(key_and_modifiers, name):
+    to_name[key_and_modifiers] = name
+    from_name[name] = key_and_modifiers
+
 def build_tables():
     if to_name and from_name: return
     ensure_root()
@@ -65,23 +69,30 @@ def build_tables():
     for name, (scan_code, modifiers) in list(from_name.items()):
         upper = name.upper()
         if len(name) == 1 and upper not in from_name:
-            pair = (scan_code, modifiers + ('shift',))
-            from_name[upper] = pair
-            to_name[pair] = upper
+            register_key((scan_code, modifiers + ('shift',)), upper)
 
     # dumpkeys consistently misreports the Windows key, sometimes
     # skipping it completely or reporting as 'alt. 125 = left win,
     # 126 = right win.
     if (125, ()) not in to_name or to_name[(125, ())] == 'alt':
-        to_name[125, ()] = 'windows'
-        from_name['windows'] = (125, ())
+        register_key((125, ()), 'windows')
     if (126, ()) not in to_name or to_name[(126, ())] == 'alt':
-        to_name[126, ()] = 'windows'
+        register_key((126, ()), 'windows')
 
     # The menu key is usually skipped altogether, so we also add it manually.
     if (127, ()) not in to_name:
-        to_name[127, ()] = 'menu'
-        from_name['menu'] = (127, ())
+        register_key((127, ()), 'menu')
+
+    synonyms_template = r'^(\S+)\s+for (.+)$'
+    dump = check_output(['dumpkeys', '--long-info'], universal_newlines=True)
+    for synonym_str, original_str in re.findall(synonyms_template, dump, re.MULTILINE):
+        synonym, _ = cleanup_key(synonym_str)
+        original, _ = cleanup_key(original_str)
+        try:
+            from_name[synonym] = from_name[original]
+        except KeyError:
+            # Dumpkeys reported a synonym to an unknown key.
+            pass
 
 device = None
 def build_device():
