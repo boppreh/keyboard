@@ -33,7 +33,7 @@ with open('message.txt', 'w') as message_file:
 run(['vim', 'message.txt'])
 with open('message.txt') as message_file:
     lines = [line for line in message_file.readlines() if not line.startswith('#')]
-message = '\n'.join(lines).strip()
+message = ''.join(lines).strip()
 if not message:
     print('Aborting release due to empty message.')
     exit()
