@@ -59,8 +59,9 @@ keyboard.play(recorded, speed_factor=3)
 ## Known limitations:
 
 - Events generated under Windows don't report device id (`event.device == None`).
-- Media keys are not hooked under Windows (the system doesn't consider them keys).
+- Media keys are not hooked (neither Linux nor Windows report them as normal keys).
 - Currently no way to suppress keys.
+- Requires root on Linux.
 """
 
 import time as _time
