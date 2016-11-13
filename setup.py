@@ -4,18 +4,22 @@ Usage instructions:
 - If you are installing: `python setup.py install`
 - If you are developing: `python setup.py sdist bdist --format=zip bdist_wheel --universal`
 """
-
 try:
     long_description = open('README.rst').read()
-except ImportError:
-    import pypandoc
-    long_description = pypandoc.convert('README.md', 'rst')
+except FileNotFoundError:
+    try:
+        import pypandoc
+        long_description = pypandoc.convert('README.md', 'rst')
+    except ImportError:
+        long_description = open('README.md').read()
+
+import re
+last_version = re.search('(\d+(?:\.\d+)+)', open('CHANGES.md').read()).group(1)
 
 from setuptools import setup
-
 setup(
     name='keyboard',
-    version='0.7.1',
+    version=last_version,
     author='BoppreH',
     author_email='boppreh@gmail.com',
     packages=['keyboard'],
