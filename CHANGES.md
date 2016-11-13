@@ -1,3 +1,9 @@
+# 0.9.4
+
+- Distinguish events from numeric pad keys (`event.is_keypad`).
+- [Linux] Annotate event with device id (`event.device`).
+
+
 # 0.9.3
 
 - [Linux] Create fake keyboard with uinput if none is available.
