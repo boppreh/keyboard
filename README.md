@@ -4,7 +4,7 @@ keyboard
 
 Take full control of your keyboard with this small Python library. Hook global events, register hotkeys, simulate key presses and much more.
 
-**Source and API docs: [https://github.com/boppreh/keyboard](https://github.com/boppreh/keyboard)**
+**API docs**: https://github.com/boppreh/keyboard#api
 
 - Global event hook on all keyboards (captures keys regardless of focus).
 - **Listen** and **sends** keyboard events.

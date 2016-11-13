@@ -12,7 +12,16 @@ run(['python', 'setup.py', 'check', '-rms'], check=True)
 version_pattern = '(\d+(?:\.\d+)+)'
 last_version = re.search(version_pattern, open('CHANGES.md').read()).group(1)
 print('The last version was: {}'.format(last_version))
-new_version = input('Enter new version: ') if len(sys.argv) == 1 else sys.argv[1]
+new_version = input('Enter new version or leave empty to only update metadata: ') if len(sys.argv) == 1 else sys.argv[1]
+
+if not new_version:
+    if input('Commit README.md files? ').lower().startswith('y'):
+        run(['git', 'add', 'README.md'])
+        run(['git', 'commit', '-m', 'Update README'])
+        run(['git', 'push'])
+    run(['python', 'setup.py', 'register'], check=True)
+    exit()
+
 assert re.fullmatch(version_pattern, new_version)
 
 commits = check_output(['git', 'log', 'v{}..HEAD'.format(last_version), '--oneline'], universal_newlines=True)
@@ -46,6 +55,7 @@ tag_name = 'v' + new_version
 if input('Commit README.md and CHANGES.md files? ').lower().startswith('y'):
     run(['git', 'add', 'CHANGES.md', 'README.md'])
     run(['git', 'commit', '-m', 'Update changes for {}'.format(tag_name)])
+    run(['git', 'push'])
 run(['git', 'tag', '-a', tag_name, '--file', 'message.txt'], check=True)
 run(['git', 'push', 'origin', tag_name], check=True)
 
