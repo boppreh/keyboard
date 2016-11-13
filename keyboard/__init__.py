@@ -5,9 +5,7 @@ keyboard
 
 Take full control of your keyboard with this small Python library. Hook global events, register hotkeys, simulate key presses and much more.
 
-**API docs**: https://github.com/boppreh/keyboard#api
-
-**Installation**: `pip install keyboard`
+## Features
 
 - Global event hook on all keyboards (captures keys regardless of focus).
 - **Listen** and **sends** keyboard events.
@@ -23,7 +21,23 @@ Take full control of your keyboard with this small Python library. Hook global e
 - Doesn't break accented dead keys (I'm looking at you, pyHook).
 - Mouse support coming soon.
 
-Example:
+This program makes no attempt to hide itself, so don't use it for keyloggers.
+
+## Usage
+
+Install the [PyPI package](https://pypi.python.org/pypi/keyboard/):
+
+    $ sudo pip install keyboard
+
+or clone the repository (no installation required, source files are sufficient):
+
+    $ git clone https://github.com/boppreh/keyboard
+
+Then check the [API docs](https://github.com/boppreh/keyboard#api) to see what features are available.
+
+
+## Example
+
 
 ```
 import keyboard
@@ -35,9 +49,18 @@ keyboard.press_and_release('shift+s, space')
 
 # Blocks until you press esc.
 keyboard.wait('esc')
+
+# Record events until 'esc' is pressed.
+recorded = keyboard.record(until='esc')
+# Then replay back at three times the speed.
+keyboard.play(recorded, speed_factor=3)
 ```
 
-This program makes no attempt to hide itself, so don't use it for keyloggers.
+## Known limitations:
+
+- Events generated under Windows don't report device id (`event.device == None`).
+- Media keys are not hooked under Windows (the system doesn't consider them keys).
+- Currently no way to suppress keys.
 """
 
 import time as _time
