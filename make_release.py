@@ -9,8 +9,9 @@ run(['bash', 'make_readme.sh'], check=True)
 
 if not os.path.exists('README.rst'):
     import pypandoc
-    long_description = pypandoc.convert_file('README.md', 'rst', outputfile='README.rst')
+    long_description = pypandoc.convert_file('README.md', 'rst', outputfile='README.rst', extra_args=['--no-wrap'])
     atexit.register(lambda: os.remove('README.rst'))
+run(['python', 'setup.py', 'check', '-rms'], check=True)
 
 version_pattern = '(\d+(?:\.\d+)+)'
 last_version = re.search(version_pattern, open('CHANGES.md').read()).group(1)
