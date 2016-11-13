@@ -39,7 +39,16 @@ if not message:
 with open('message.txt', 'w') as message_file:
     message_file.write(message)
 
+with open('CHANGES.md') as changes_file:
+    old_changes = changes_file.read()
+with open('CHANGES.md', 'w') as changes_file:
+    changes_file.write('# {}\n\n{}\n\n\n{}'.format(new_version, message, old_changes))
+
+
 tag_name = 'v' + new_version
+if input('Commit CHANGES.md file? ').lower().startswith('y'):
+    run(['git', 'add', 'CHANGES.md'])
+    run(['git', 'commit', '-m', 'Update changes for {}'.format(tag_name)])
 run(['git', 'tag', '-a', tag_name, '--file', 'message.txt'], check=True)
 run(['git', 'push', 'origin', tag_name], check=True)
 
@@ -59,10 +68,5 @@ if token:
     }
     response = requests.post(releases_url, json=release, headers={'Authorization': 'token ' + token})
     print(response.status_code, response.text)
-
-with open('CHANGES.md') as changes_file:
-    old_changes = changes_file.read()
-with open('CHANGES.md', 'w') as changes_file:
-    changes_file.write('# {}\n\n{}\n\n\n{}'.format(new_version, message, old_changes))
 
 run(['python', 'setup.py', 'sdist', '--format=zip', 'bdist', '--format=zip', 'bdist_wheel', '--universal', 'bdist_wininst', 'register', 'upload'], check=True)

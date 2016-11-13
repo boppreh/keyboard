@@ -1,3 +1,8 @@
+# 0.9.2
+
+- Streamline release process
+
+
 # 0.9.1
 
 - Add `add_abbreviation` and `register_word_listener` functions.
