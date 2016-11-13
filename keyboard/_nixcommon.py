@@ -83,7 +83,7 @@ class EventDevice(object):
     def read_event(self):
         data = self.input_file.read(struct.calcsize(event_bin_format))
         seconds, microseconds, type, code, value = struct.unpack(event_bin_format, data)
-        return (seconds + microseconds / 1e6, type, code, value)
+        return seconds + microseconds / 1e6, type, code, value, self.path
 
     def write_event(self, type, code, value):
         integer, fraction = divmod(now(), 1)

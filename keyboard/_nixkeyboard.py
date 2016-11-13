@@ -108,7 +108,7 @@ def listen(queue):
     build_tables()
 
     while True:
-        time, type, code, value = device.read_event()
+        time, type, code, value, device = device.read_event()
         if type != EV_KEY:
             continue
 
@@ -126,7 +126,7 @@ def listen(queue):
             else:
                 pressed_modifiers.discard(name)
 
-        queue.put(KeyboardEvent(event_type, scan_code, name, time))
+        queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, time=time, device=device))
 
 def write_event(scan_code, is_down):
     build_device()

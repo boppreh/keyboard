@@ -16,10 +16,12 @@ class KeyboardEvent(object):
     name = None
     time = None
 
-    def __init__(self, event_type, scan_code, name=None, time=None):
+    def __init__(self, event_type, scan_code, name=None, time=None, device=None, is_keypad=None):
         self.event_type = event_type
         self.scan_code = scan_code
         self.time = now() if time is None else time
+        self.device = device
+        self.is_keypad = is_keypad
         if name:
             self.name = normalize_name(name)
 
