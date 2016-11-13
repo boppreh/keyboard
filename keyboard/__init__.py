@@ -62,6 +62,8 @@ keyboard.play(recorded, speed_factor=3)
 - Media keys are not hooked (neither Linux nor Windows report them as normal keys).
 - Currently no way to suppress keys.
 - Requires root on Linux.
+- Other applications, such as some games, may register hooks that swallow all
+key events. In this case `keyboard` will be unable to report events.
 """
 
 import time as _time
