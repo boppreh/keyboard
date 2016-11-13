@@ -44,6 +44,7 @@ import re
 
 to_name = {}
 from_name = {}
+keypad_scan_codes = set()
 
 def register_key(key_and_modifiers, name):
     to_name[key_and_modifiers] = name
@@ -61,6 +62,8 @@ def build_tables():
         scan_code = int(str_scan_code)
         name, is_keypad = cleanup_key(str_names.strip().split()[0])
         to_name[(scan_code, modifiers)] = name
+        if is_keypad:
+            keypad_scan_codes.add(scan_code)
         if name not in from_name or len(modifiers) < len(from_name[name][1]):
             from_name[name] = (scan_code, modifiers)
 
@@ -126,7 +129,8 @@ def listen(queue):
             else:
                 pressed_modifiers.discard(name)
 
-        queue.put(KeyboardEvent(event_type, scan_code, name, time))
+        is_keypad = scan_code in keypad_scan_codes
+        queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, time=time, is_keypad=is_keypad))
 
 def write_event(scan_code, is_down):
     build_device()
