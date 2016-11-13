@@ -1,3 +1,9 @@
+# 0.9.3
+
+- [Linux] Create fake keyboard with uinput if none is available.
+- [Linux] Avoid errors when an unknown key is pressed.
+
+
 # 0.9.2
 
 - Streamline release process
