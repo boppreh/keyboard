@@ -4,14 +4,12 @@ Usage instructions:
 - If you are installing: `python setup.py install`
 - If you are developing: `python setup.py sdist bdist --format=zip bdist_wheel --universal`
 """
+import keyboard
 try:
-    long_description = open('README.rst').read()
-except FileNotFoundError:
-    try:
-        import pypandoc
-        long_description = pypandoc.convert('README.md', 'rst')
-    except ImportError:
-        long_description = open('README.md').read()
+    import pypandoc
+    long_description = pypandoc.convert_text(keyboard.__doc__, format='md', to='rst')
+except ImportError:
+    long_description = keyboard.__doc__
 
 import re
 last_version = re.search('(\d+(?:\.\d+)+)', open('CHANGES.md').read()).group(1)

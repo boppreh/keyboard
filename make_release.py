@@ -7,10 +7,6 @@ import requests
 
 run(['bash', 'make_readme.sh'], check=True)
 
-if not os.path.exists('README.rst'):
-    import pypandoc
-    long_description = pypandoc.convert_file('README.md', 'rst', outputfile='README.rst', extra_args=['--no-wrap'])
-    atexit.register(lambda: os.remove('README.rst'))
 run(['python', 'setup.py', 'check', '-rms'], check=True)
 
 version_pattern = '(\d+(?:\.\d+)+)'
@@ -47,8 +43,8 @@ with open('CHANGES.md', 'w') as changes_file:
 
 
 tag_name = 'v' + new_version
-if input('Commit CHANGES.md file? ').lower().startswith('y'):
-    run(['git', 'add', 'CHANGES.md'])
+if input('Commit README.md and CHANGES.md files? ').lower().startswith('y'):
+    run(['git', 'add', 'CHANGES.md', 'README.md'])
     run(['git', 'commit', '-m', 'Update changes for {}'.format(tag_name)])
 run(['git', 'tag', '-a', tag_name, '--file', 'message.txt'], check=True)
 run(['git', 'push', 'origin', tag_name], check=True)
