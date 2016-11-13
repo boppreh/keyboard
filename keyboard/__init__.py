@@ -7,6 +7,8 @@ Take full control of your keyboard with this small Python library. Hook global e
 
 **API docs**: https://github.com/boppreh/keyboard#api
 
+**Installation**: `pip install keyboard`
+
 - Global event hook on all keyboards (captures keys regardless of focus).
 - **Listen** and **sends** keyboard events.
 - Works with **Windows** and **Linux** (requires sudo).

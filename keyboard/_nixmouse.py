@@ -75,7 +75,7 @@ def listen(queue):
     build_device()
 
     while True:
-        time, type, code, value = device.read_event()
+        time, type, code, value, device = device.read_event()
         if type == EV_SYN or type == EV_MSC:
             continue
 
