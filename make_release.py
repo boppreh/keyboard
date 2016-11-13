@@ -1,3 +1,27 @@
+"""
+This little guy streamliens the release process of Python packages.
+
+By running `python3 make_release.py` it'll do the following tasks automatically:
+
+- Update README by calling `make_readme.sh` if this file exists.
+- Check PyPI RST long_description syntax.
+- Show the latest version from CHANGES.md and ask for a new version number.
+- Open vim to allow you to edit the list of changes for this new version, showing a list of commits since the last version.
+- Prepend your list of changes to CHANGES.md (and ask if you want to commit it now).
+- Add a git tag to the current commit.
+- Push tag to GitHub.
+- Publish a new release to GitHub, asking for the authentication token (optional).
+- Publish a new release on PyPI.
+
+Suggested way to organize your project for a smooth process:
+
+- Use Markdown everywhere.
+- Keep a description of your project in the package's docstring.
+- Generate your README from the package docstring plus API docs.
+- Convert your package docstring to RST in setup.py and use that as long_description.
+- Use raw semantic versioning for CHANGES.md and PyPI (e.g. 2.3.1), and prepend 'v' for git tags and releases (e.g. v2.3.1).
+
+"""
 import re
 import sys
 import os
@@ -5,7 +29,8 @@ from subprocess import run, check_output
 import atexit
 import requests
 
-run(['bash', 'make_readme.sh'], check=True)
+if os.path.exists('make_readme.sh'):
+    run(['bash', 'make_readme.sh'], check=True)
 
 run(['python', 'setup.py', 'check', '-rms'], check=True)
 
@@ -13,6 +38,8 @@ version_pattern = '(\d+(?:\.\d+)+)'
 last_version = re.search(version_pattern, open('CHANGES.md').read()).group(1)
 print('The last version was: {}'.format(last_version))
 new_version = input('Enter new version or leave empty to only update metadata: ') if len(sys.argv) == 1 else sys.argv[1]
+if new_version.startswith('v'):
+    new_version = new_version[1:]
 
 if not new_version:
     if input('Commit README.md files? ').lower().startswith('y'):
