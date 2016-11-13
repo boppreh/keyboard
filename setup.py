@@ -6,17 +6,10 @@ Usage instructions:
 """
 
 try:
+    long_description = open('README.rst').read()
+except ImportError:
     import pypandoc
     long_description = pypandoc.convert('README.md', 'rst')
-except ImportError:
-    try:
-        long_description = open('README.md').read()
-    except:
-        try:
-            long_description = open('README.rst').read()
-        except:
-            print('Failed to convert README to rst.')
-            long_description = ''
 
 from setuptools import setup
 
