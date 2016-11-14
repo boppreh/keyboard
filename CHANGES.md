@@ -1,3 +1,10 @@
+# 0.9.5
+
+- [Windows] Add aliases to correct page down/page up names.
+- [Windows] Fixed a bug where left and right key events were being created without names.
+- [Windows] Prefer to report home/page up/page down/end keys as such instead of their keypad names.
+
+
 # 0.9.4
 
 - Distinguish events from numeric pad keys (`event.is_keypad`).
