@@ -63,10 +63,10 @@ canonical_names = {
     'applications': 'menu',
 
     'pagedown': 'page down',
+    'pageup': 'page up',
     'pgdown': 'page down',
     'pgup': 'page up',
     'next': 'page down', # This looks wrong, but this is how Linux reports.
-    'pageup': 'page up',
     'prior': 'page up',
 
     'underscore': '_',
