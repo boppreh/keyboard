@@ -532,7 +532,7 @@ class TestKeyboard(unittest.TestCase):
         self.click('n')
         self.click('e')
         self.click('w')
-        self.assertEqual(keyboard.get_typed_strings(self.events), ['biRd.', 'new'])
+        self.assertEqual(list(keyboard.get_typed_strings(self.events)), ['biRd.', 'new'])
 
     def test_on_press(self):
         keyboard.on_press(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_DOWN))

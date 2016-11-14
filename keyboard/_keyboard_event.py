@@ -36,6 +36,11 @@ canonical_names = {
     'control': 'ctrl',
     'altgr': 'alt gr',
 
+    'left arrow': 'left',
+    'up arrow': 'up',
+    'down arrow': 'down',
+    'right arrow': 'right',
+
     ' ': 'space', # Prefer to spell out keys that would be hard to read.
     '\x1b': 'esc',
     '\x08': 'backspace',
@@ -176,9 +181,13 @@ canonical_names = {
     'seven': '7',
     'eight': '8',
     'nine': '9',
+
+    'play/pause': 'play/pause media',
 }
 
 def normalize_name(name):
+    if not name:
+        return 'unknown'
     if not isinstance(name, basestring):
         raise ValueError('Can only normalize string names. Unexpected '+ repr(name))
 

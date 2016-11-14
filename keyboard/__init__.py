@@ -59,7 +59,8 @@ keyboard.play(recorded, speed_factor=3)
 ## Known limitations:
 
 - Events generated under Windows don't report device id (`event.device == None`).
-- Media keys are not hooked (neither Linux nor Windows report them as normal keys).
+- Media keys don't have scan codes, which limits them a bit. Linux is not able
+to play back those events, for example.
 - Currently no way to suppress keys.
 - Requires root on Linux.
 - Other applications, such as some games, may register hooks that swallow all
@@ -97,7 +98,9 @@ all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
     def pre_process_event(self, event):
-        if not event.scan_code:
+        # Note media keys don't have scan code.
+        
+        if not event.scan_code and event.name == 'unknown':
             return False
 
         if event.event_type == KEY_UP:

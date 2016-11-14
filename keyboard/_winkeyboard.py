@@ -129,171 +129,182 @@ keyboard_event_types = {
     WM_SYSKEYUP: KEY_UP,
 }
 
-virtual_key_to_name = {
-    0x03: 'control-break processing',
-    0x08: 'backspace',
-    0x09: 'tab',
-    0x0c: 'clear',
-    0x0d: 'enter',
-    0x10: 'shift',
-    0x11: 'ctrl',
-    0x12: 'alt',
-    0x13: 'pause',
-    0x14: 'caps lock',
-    0x15: 'ime kana mode',
-    0x15: 'ime hanguel mode',
-    0x15: 'ime hangul mode',
-    0x17: 'ime junja mode',
-    0x18: 'ime final mode',
-    0x19: 'ime hanja mode',
-    0x19: 'ime kanji mode',
-    0x1b: 'esc',
-    0x1c: 'ime convert',
-    0x1d: 'ime nonconvert',
-    0x1e: 'ime accept',
-    0x1f: 'ime mode change request',
-    0x20: 'spacebar',
-    0x21: 'page up',
-    0x22: 'page down',
-    0x23: 'end',
-    0x24: 'home',
-    0x25: 'left arrow',
-    0x26: 'up arrow',
-    0x27: 'right arrow',
-    0x28: 'down arrow',
-    0x29: 'select',
-    0x2a: 'print',
-    0x2b: 'execute',
-    0x2c: 'print screen',
-    0x2d: 'ins',
-    0x2e: 'del',
-    0x2f: 'help',
-    0x30: '0',
-    0x31: '1',
-    0x32: '2',
-    0x33: '3',
-    0x34: '4',
-    0x35: '5',
-    0x36: '6',
-    0x37: '7',
-    0x38: '8',
-    0x39: '9',
-    0x41: 'a',
-    0x42: 'b',
-    0x43: 'c',
-    0x44: 'd',
-    0x45: 'e',
-    0x46: 'f',
-    0x47: 'g',
-    0x48: 'h',
-    0x49: 'i',
-    0x4a: 'j',
-    0x4b: 'k',
-    0x4c: 'l',
-    0x4d: 'm',
-    0x4e: 'n',
-    0x4f: 'o',
-    0x50: 'p',
-    0x51: 'q',
-    0x52: 'r',
-    0x53: 's',
-    0x54: 't',
-    0x55: 'u',
-    0x56: 'v',
-    0x57: 'w',
-    0x58: 'x',
-    0x59: 'y',
-    0x5a: 'z',
-    0x5b: 'windows',
-    0x5c: 'windows',
-    0x5d: 'applications',
-    0x5f: 'sleep',
-    0x60: '0',
-    0x61: '1',
-    0x62: '2',
-    0x63: '3',
-    0x64: '4',
-    0x65: '5',
-    0x66: '6',
-    0x67: '7',
-    0x68: '8',
-    0x69: '9',
-    0x6a: 'multiply',
-    0x6b: 'add',
-    0x6c: 'separator',
-    0x6d: 'subtract',
-    0x6e: 'decimal',
-    0x6f: 'divide',
-    0x70: 'f1',
-    0x71: 'f2',
-    0x72: 'f3',
-    0x73: 'f4',
-    0x74: 'f5',
-    0x75: 'f6',
-    0x76: 'f7',
-    0x77: 'f8',
-    0x78: 'f9',
-    0x79: 'f10',
-    0x7a: 'f11',
-    0x7b: 'f12',
-    0x7c: 'f13',
-    0x7d: 'f14',
-    0x7e: 'f15',
-    0x7f: 'f16',
-    0x80: 'f17',
-    0x81: 'f18',
-    0x82: 'f19',
-    0x83: 'f20',
-    0x84: 'f21',
-    0x85: 'f22',
-    0x86: 'f23',
-    0x87: 'f24',
-    0x90: 'num lock',
-    0x91: 'scroll lock',
-    0xa0: 'left shift',
-    0xa1: 'right shift',
-    0xa2: 'left control',
-    0xa3: 'right control',
-    0xa4: 'left menu',
-    0xa5: 'right menu',
-    0xa6: 'browser back',
-    0xa7: 'browser forward',
-    0xa8: 'browser refresh',
-    0xa9: 'browser stop',
-    0xaa: 'browser search key ',
-    0xab: 'browser favorites',
-    0xac: 'browser start and home',
-    0xad: 'volume mute',
-    0xae: 'volume down',
-    0xaf: 'volume up',
-    0xb0: 'next track',
-    0xb1: 'previous track',
-    0xb2: 'stop media',
-    0xb3: 'play/pause media',
-    0xb4: 'start mail',
-    0xb5: 'select media',
-    0xb6: 'start application 1',
-    0xb7: 'start application 2',
-    0xbb: '+',
-    0xbc: ',',
-    0xbd: '-',
-    0xbe: '.',
-    0xe5: 'ime process',
-    0xf6: 'attn',
-    0xf7: 'crsel',
-    0xf8: 'exsel',
-    0xf9: 'erase eof',
-    0xfa: 'play',
-    0xfb: 'zoom',
-    0xfc: 'reserved ',
-    0xfd: 'pa1',
-    0xfe: 'clear',
+from_virtual_key = {
+    0x03: ('control-break processing', False),
+    0x08: ('backspace', False),
+    0x09: ('tab', False),
+    0x0c: ('clear', False),
+    0x0d: ('enter', False),
+    0x10: ('shift', False),
+    0x11: ('ctrl', False),
+    0x12: ('alt', False),
+    0x13: ('pause', False),
+    0x14: ('caps lock', False),
+    0x15: ('ime kana mode', False),
+    0x15: ('ime hanguel mode', False),
+    0x15: ('ime hangul mode', False),
+    0x17: ('ime junja mode', False),
+    0x18: ('ime final mode', False),
+    0x19: ('ime hanja mode', False),
+    0x19: ('ime kanji mode', False),
+    0x1b: ('esc', False),
+    0x1c: ('ime convert', False),
+    0x1d: ('ime nonconvert', False),
+    0x1e: ('ime accept', False),
+    0x1f: ('ime mode change request', False),
+    0x20: ('spacebar', False),
+    0x21: ('page up', False),
+    0x22: ('page down', False),
+    0x23: ('end', False),
+    0x24: ('home', False),
+    0x25: ('left arrow', False),
+    0x26: ('up arrow', False),
+    0x27: ('right arrow', False),
+    0x28: ('down arrow', False),
+    0x29: ('select', False),
+    0x2a: ('print', False),
+    0x2b: ('execute', False),
+    0x2c: ('print screen', False),
+    0x2d: ('ins', False),
+    0x2e: ('del', False),
+    0x2f: ('help', False),
+    0x30: ('0', False),
+    0x31: ('1', False),
+    0x32: ('2', False),
+    0x33: ('3', False),
+    0x34: ('4', False),
+    0x35: ('5', False),
+    0x36: ('6', False),
+    0x37: ('7', False),
+    0x38: ('8', False),
+    0x39: ('9', False),
+    0x41: ('a', False),
+    0x42: ('b', False),
+    0x43: ('c', False),
+    0x44: ('d', False),
+    0x45: ('e', False),
+    0x46: ('f', False),
+    0x47: ('g', False),
+    0x48: ('h', False),
+    0x49: ('i', False),
+    0x4a: ('j', False),
+    0x4b: ('k', False),
+    0x4c: ('l', False),
+    0x4d: ('m', False),
+    0x4e: ('n', False),
+    0x4f: ('o', False),
+    0x50: ('p', False),
+    0x51: ('q', False),
+    0x52: ('r', False),
+    0x53: ('s', False),
+    0x54: ('t', False),
+    0x55: ('u', False),
+    0x56: ('v', False),
+    0x57: ('w', False),
+    0x58: ('x', False),
+    0x59: ('y', False),
+    0x5a: ('z', False),
+    0x5b: ('left windows', False),
+    0x5c: ('right windows', False),
+    0x5d: ('applications', False),
+    0x5f: ('sleep', False),
+    0x60: ('0', True),
+    0x61: ('1', True),
+    0x62: ('2', True),
+    0x63: ('3', True),
+    0x64: ('4', True),
+    0x65: ('5', True),
+    0x66: ('6', True),
+    0x67: ('7', True),
+    0x68: ('8', True),
+    0x69: ('9', True),
+    0x6a: ('multiply', False),
+    0x6b: ('add', False),
+    0x6c: ('separator', False),
+    0x6d: ('subtract', False),
+    0x6e: ('decimal', False),
+    0x6f: ('divide', False),
+    0x70: ('f1', False),
+    0x71: ('f2', False),
+    0x72: ('f3', False),
+    0x73: ('f4', False),
+    0x74: ('f5', False),
+    0x75: ('f6', False),
+    0x76: ('f7', False),
+    0x77: ('f8', False),
+    0x78: ('f9', False),
+    0x79: ('f10', False),
+    0x7a: ('f11', False),
+    0x7b: ('f12', False),
+    0x7c: ('f13', False),
+    0x7d: ('f14', False),
+    0x7e: ('f15', False),
+    0x7f: ('f16', False),
+    0x80: ('f17', False),
+    0x81: ('f18', False),
+    0x82: ('f19', False),
+    0x83: ('f20', False),
+    0x84: ('f21', False),
+    0x85: ('f22', False),
+    0x86: ('f23', False),
+    0x87: ('f24', False),
+    0x90: ('num lock', False),
+    0x91: ('scroll lock', False),
+    0xa0: ('left shift', False),
+    0xa1: ('right shift', False),
+    0xa2: ('left control', False),
+    0xa3: ('right control', False),
+    0xa4: ('left menu', False),
+    0xa5: ('right menu', False),
+    0xa6: ('browser back', False),
+    0xa7: ('browser forward', False),
+    0xa8: ('browser refresh', False),
+    0xa9: ('browser stop', False),
+    0xaa: ('browser search key ', False),
+    0xab: ('browser favorites', False),
+    0xac: ('browser start and home', False),
+    0xad: ('volume mute', False),
+    0xae: ('volume down', False),
+    0xaf: ('volume up', False),
+    0xb0: ('next track', False),
+    0xb1: ('previous track', False),
+    0xb2: ('stop media', False),
+    0xb3: ('play/pause media', False),
+    0xb4: ('start mail', False),
+    0xb5: ('select media', False),
+    0xb6: ('start application 1', False),
+    0xb7: ('start application 2', False),
+    0xbb: ('+', False),
+    0xbc: (',', False),
+    0xbd: ('-', False),
+    0xbe: ('.', False),
+    # 0xbe: ('/', False), # Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '/?' key.
+    0xe5: ('ime process', False),
+    0xf6: ('attn', False),
+    0xf7: ('crsel', False),
+    0xf8: ('exsel', False),
+    0xf9: ('erase eof', False),
+    0xfa: ('play', False),
+    0xfb: ('zoom', False),
+    0xfc: ('reserved ', False),
+    0xfd: ('pa1', False),
+    0xfe: ('clear', False),
 }
+
+possible_extended_keys = [0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0xc, 0x6b, 0x2e, 0x2d, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f]
+reversed_extended_keys = [0x6f, 0xd]
 
 from_scan_code = {}
 to_scan_code = {}
 tables_lock = Lock()
 
+# Alt gr is way outside the usual range of keys (0..127) and on my
+# computer is named as 'ctrl'. Therefore we add it manually and hope
+# Windows is consistent in its inconsistency.
+alt_gr_scan_code = 541
+
+# These tables are used as backup when a key name can not be found by virtual
+# key code.
 def setup_tables():
     tables_lock.acquire()
 
@@ -303,19 +314,9 @@ def setup_tables():
         name_buffer = ctypes.create_unicode_buffer(32)
         keyboard_state = keyboard_state_type()
         for scan_code in range(2**(23-16)):
-            from_scan_code[scan_code] = (['', ''], False)
-
-            # Get associated virtual key code (if any) and map to fixed table of
-            # names. Necessary for non-English versions of Windows where the
-            # other functions return localized names. This is done first to
-            # allow the next functions to overwrite with something more
-            # accurate in the from_scan_code table, but leaving a useful
-            # to_scan_code entry.
             key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-            if key_code and key_code in virtual_key_to_name:
-                name = normalize_name(virtual_key_to_name[key_code])
-                from_scan_code[scan_code] = ([name, name], None)
-                to_scan_code[name] = (scan_code, False) 
+
+            from_scan_code[scan_code] = ['unknown', 'unknown']
 
             # Get pure key name, such as "shift". This depends on locale and
             # may return a translated name.
@@ -323,17 +324,10 @@ def setup_tables():
                 ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
                 if not ret:
                     continue
-                name = name_buffer.value
-                if name.lower().startswith('num ') and name.lower() != 'num lock':
-                    is_keypad = True
-                    name = name[len('NUM '):]
-                else:
-                    is_keypad = False
+                name = normalize_name(name_buffer.value)
+                from_scan_code[scan_code] = [name, name]
 
-                name = normalize_name(re.sub(r'(right|left)\s+', '', name.lower()))
-                from_scan_code[scan_code] = ([name, name], is_keypad)
-
-                if name not in to_scan_code or not is_keypad:
+                if name not in to_scan_code:
                     to_scan_code[name] = (scan_code, False)
 
             # Get associated character, such as "^", possibly overwriting the pure key name.
@@ -344,15 +338,11 @@ def setup_tables():
                     # Sometimes two characters are written before the char we want,
                     # usually an accented one such as Â. Couldn't figure out why.
                     char = name_buffer.value[-1]
-                    if name not in to_scan_code or not is_keypad:
+                    if name not in to_scan_code:
                         to_scan_code[char] = (scan_code, bool(shift_state))
-                    from_scan_code[scan_code][0][shift_state] = char
+                    from_scan_code[scan_code][shift_state] = char
 
-        # Alt GR is way outside the usual range of keys (0..127) and on my
-        # computer is named as 'ctrl'. Therefore we add it manually and hope
-        # Windows is consistent in its inconsistency.
-        alt_gr_scan_code = 541
-        from_scan_code[alt_gr_scan_code] = (['alt gr', 'alt gr'], False)
+        from_scan_code[alt_gr_scan_code] = ['alt gr', 'alt gr']
         to_scan_code['alt gr'] = alt_gr_scan_code
     finally:
         tables_lock.release()
@@ -363,40 +353,57 @@ alt_gr_is_pressed = False
 def listen(queue):
     setup_tables()
 
+    def process_key(event_type, vk, scan_code, is_extended):
+        global alt_gr_is_pressed
+        global shift_is_pressed
+        
+        if scan_code == alt_gr_scan_code:
+            alt_gr_is_pressed = event_type == KEY_DOWN
+            name = 'alt gr'
+            is_keypad = False
+        elif vk in from_virtual_key:
+            # Pressing AltGr also triggers "right menu" quickly after. We
+            # try to filter out this event. The `alt_gr_is_pressed` flag
+            # is to avoid messing with keyboards that don't even have an
+            # alt gr key.
+            if vk == 165: return
+
+            name, is_keypad = from_virtual_key[vk]
+            if vk in possible_extended_keys and not is_extended:
+                is_keypad = True
+            # What the hell Windows?
+            if vk in reversed_extended_keys and is_extended:
+                is_keypad = True                
+        else:
+            names = from_scan_code[scan_code][shift_is_pressed]
+            # VirtualKey should include all keypad keys.
+            is_keypad = False
+            
+        if event_type == KEY_DOWN and name == 'shift':
+            shift_is_pressed = True
+        elif event_type == KEY_UP and name == 'shift':
+            shift_is_pressed = False
+
+        queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
+
     def low_level_keyboard_handler(nCode, wParam, lParam):
         # Call next hook as soon as possible to reduce delays.
         ret = CallNextHookEx(NULL, nCode, wParam, lParam)
 
         # You may be tempted to use ToUnicode to extract the character from
         # this event with more precision. Do not. ToUnicode breaks dead keys.
+        
+        try:
+            vk = lParam.contents.vk_code
+            # Ignore events generated by SendInput with Unicode.
+            if vk != VK_PACKET:
+                event_type = keyboard_event_types[wParam]
+                is_extended = lParam.contents.flags & 1
+                scan_code = lParam.contents.scan_code
+                process_key(event_type, vk, scan_code, is_extended)
+        finally:
+            return ret
 
-        # Ignore events generated by SendInput with Unicode.
-        if lParam.contents.vk_code != VK_PACKET:
-            scan_code = lParam.contents.scan_code
-            event_type = keyboard_event_types[wParam]
-
-            names, is_keypad = from_scan_code[scan_code]
-
-            global shift_is_pressed
-            global alt_gr_is_pressed
-            name = names[shift_is_pressed]
-            
-            is_extended = lParam.contents.flags & 1
-            if name == 'alt' and is_extended and alt_gr_is_pressed:
-                # Pressing AltGr also triggers regular alt quickly after. We
-                # try to filter out this event. The `alt_gr_is_pressed` flag
-                # is to avoid messing with keyboards that don't even have an
-                # alt gr key.
-                return
-
-            if event_type == KEY_DOWN and name == 'shift':
-                shift_is_pressed = True
-            elif event_type == KEY_UP and name == 'shift':
-                shift_is_pressed = False
-
-            queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
-
-        return ret
 
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
