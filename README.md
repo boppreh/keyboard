@@ -13,7 +13,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 - **Zero dependencies**. Trivial to install and deploy, just copy the files.
 - **Python 2 and 3**.
 - Complex hotkey support (e.g. `Ctrl+Shift+M, Ctrl+Space`) with controllable timeout.
-- Includes **high level API** (e.g. [`record`](#keyboard.record) and [`play`](#keyboard.play), [`add_abbreviation`](#keyboard.add_abbreviation)).
+- Includes **high level API** (e.g. [record](#keyboard.record) and [play](#keyboard.play), [add_abbreviation](#keyboard.add_abbreviation)).
 - Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+ç`).
 - Events automatically captured in separate thread, doesn't block main program.
 - Tested and documented.

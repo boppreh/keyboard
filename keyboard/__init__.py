@@ -14,7 +14,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 - **Zero dependencies**. Trivial to install and deploy, just copy the files.
 - **Python 2 and 3**.
 - Complex hotkey support (e.g. `Ctrl+Shift+M, Ctrl+Space`) with controllable timeout.
-- Includes **high level API** (e.g. [`record`](#keyboard.record) and [`play`](#keyboard.play), [`add_abbreviation`](#keyboard.add_abbreviation)).
+- Includes **high level API** (e.g. [record](#keyboard.record) and [play](#keyboard.play), [add_abbreviation](#keyboard.add_abbreviation)).
 - Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+ç`).
 - Events automatically captured in separate thread, doesn't block main program.
 - Tested and documented.
@@ -59,15 +59,12 @@ keyboard.play(recorded, speed_factor=3)
 ## Known limitations:
 
 - Events generated under Windows don't report device id (`event.device == None`).
-- Media keys don't have scan codes, which limits them a bit. Linux is not able
-to play back those events, for example.
+- Linux doesn't seem to report media keys.
 - Currently no way to suppress keys.
-- Requires root on Linux.
+- To avoid depending on X the Linux parts reads raw device files (`/dev/input/input*`)
+but this requries root.
 - Other applications, such as some games, may register hooks that swallow all
 key events. In this case `keyboard` will be unable to report events.
-- You can use [`get_typed_strings`](#keyboard.get_typed_strings) to figure out
-what is being typed, but don't expect 100% accuracy. Windows has per-process
-keyboard layouts and states, for example, and human languages are *hard*.
 """
 
 import time as _time
