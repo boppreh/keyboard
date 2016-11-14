@@ -418,18 +418,36 @@ def listen(queue):
         TranslateMessage(msg)
         DispatchMessage(msg)
 
+# HACK: use negative scan codes to identify virtual key codes.
+# This is required to correctly associate media keys, since they report a scan
+# code of 0 but still have valid virtual key codes.
+
 def map_char(name):
     setup_tables()
     try:
         scan_code, shift = to_scan_code[name]
         return scan_code, ['shift'] if shift else []
     except KeyError:
-        raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
+        return -media_name_to_vk(name), []
+
+def media_name_to_vk(name):
+    for vk in from_virtual_key:
+        if from_virtual_key[vk][0] == name:
+            return vk
+    raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
 def press(scan_code):
-    user32.keybd_event(MapVirtualKey(scan_code, MAPVK_VSC_TO_VK), 0, 0, 0)
+    if scan_code < 0:
+        vk = -scan_code
+    else:
+        vk = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+    user32.keybd_event(vk, 0, 0, 0)
 
 def release(scan_code):
+    if scan_code < 0:
+        vk = -scan_code
+    else:
+        vk = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
     user32.keybd_event(MapVirtualKey(scan_code, MAPVK_VSC_TO_VK), 0, 2, 0)
 
 def type_unicode(character):

@@ -98,10 +98,12 @@ all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
     def pre_process_event(self, event):
-        # Note media keys don't have scan code.
-        
         if not event.scan_code and event.name == 'unknown':
             return False
+
+        # Useful for media keys, which are reported with scan_code = 0.
+        if not event.scan_code:
+            event.scan_code = to_scan_code(event.name)
 
         if event.event_type == KEY_UP:
             if event.scan_code in _pressed_events:
