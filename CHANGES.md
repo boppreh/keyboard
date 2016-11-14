@@ -1,3 +1,10 @@
+# 0.9.6
+
+- [Windows] Modifier keys now report 'left' or 'right' on their names.
+- [Windows] Keypad attribute should be much more accurate even with NumLock.
+- [Windows] Media keys are now fully supported for both report and playback.
+
+
 # 0.9.5
 
 - [Windows] Add aliases to correct page down/page up names.
