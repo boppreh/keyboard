@@ -319,7 +319,7 @@ def setup_tables():
 
             # Get pure key name, such as "shift". This depends on locale and
             # may return a translated name.
-            for enhanced in [1, 0]:
+            for enhanced in [0, 1]:
                 ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
                 if not ret:
                     continue
