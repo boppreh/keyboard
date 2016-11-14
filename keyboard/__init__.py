@@ -64,6 +64,9 @@ keyboard.play(recorded, speed_factor=3)
 - Requires root on Linux.
 - Other applications, such as some games, may register hooks that swallow all
 key events. In this case `keyboard` will be unable to report events.
+- You can use [`get_typed_strings`](#keyboard.get_typed_strings) to figure out
+what is being typed, but don't expect 100% accuracy. Windows has per-process
+keyboard layouts and states, for example, and human languages are *hard*.
 """
 
 import time as _time
