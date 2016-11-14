@@ -630,11 +630,18 @@ def get_typed_strings(events, allow_backspace=True):
     capslock status. If `allow_backspace` is True, backspaces remove the last
     character typed.
 
+    This function is a generator, so you can pass an infinite stream of events
+    and convert them to strings in real time.
+
+    Note this functions is merely an heuristic. Windows for example keeps per-
+    process keyboard state such as keyboard layout, and this information is not
+    available for our hooks.
+
         get_type_strings(record()) -> ['This is what', 'I recorded', '']
     """
     shift_pressed = False
     capslock_pressed = False
-    strings = ['']
+    string = ''
     for event in events:
         name = event.name
 
@@ -648,12 +655,13 @@ def get_typed_strings(events, allow_backspace=True):
         elif matches(event, 'caps lock') and event.event_type == 'down':
             capslock_pressed = not capslock_pressed
         elif allow_backspace and matches(event, 'backspace') and event.event_type == 'down':
-            strings[-1] = strings[-1][:-1]
+            string = string[:-1]
         elif event.event_type == 'down':
             if len(name) == 1:
                 if shift_pressed ^ capslock_pressed:
                     name = name.upper()
-                strings[-1] = strings[-1] + name
+                string = string + name
             else:
-                strings.append('')
-    return strings
+                yield string
+                string = ''
+    yield string
