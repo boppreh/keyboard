@@ -432,7 +432,7 @@ def map_char(name):
 
 def media_name_to_vk(name):
     for vk in from_virtual_key:
-        if from_virtual_key[vk][0] == name:
+        if from_virtual_key[vk][0] in (name, 'left ' + name, 'right ' + name):
             return vk
     raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
