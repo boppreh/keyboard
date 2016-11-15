@@ -57,12 +57,12 @@ keyboard.play(recorded, speed_factor=3)
 
 ## Known limitations:
 
-- Events generated under Windows don't report device id (`event.device == None`).
-- Linux doesn't seem to report media keys.
-- Currently no way to suppress keys.
+- Events generated under Windows don't report device id (`event.device == None`). [#21](https://github.com/boppreh/keyboard/issues/21)
+- Linux doesn't seem to report media keys. [#20](https://github.com/boppreh/keyboard/issues/20)
+- Currently no way to suppress keys. [#22](https://github.com/boppreh/keyboard/issues/22)
 - To avoid depending on X the Linux parts reads raw device files (`/dev/input/input*`)
 but this requries root.
-- Other applications, such as some games, may register hooks that swallow all
+- Other applications, such as some games, may register hooks that swallow all 
 key events. In this case `keyboard` will be unable to report events.
 
 
