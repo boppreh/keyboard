@@ -1,3 +1,8 @@
+# 0.9.7
+
+- [Windows] Fixed a bug where the `windows` key name failed to map to a scan code.
+
+
 # 0.9.6
 
 - [Windows] Modifier keys now report 'left' or 'right' on their names.
