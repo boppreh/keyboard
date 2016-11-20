@@ -225,7 +225,7 @@ To remove all hooks use [`unhook_all()`](#keyboard.unhook_all).
 <a name="keyboard.remove_all_hotkeys"/>
 ## keyboard.**remove\_all\_hotkeys**
 
-Alias for `clear_all_hotkeys`.
+Alias for [`clear_all_hotkeys`](#keyboard.clear_all_hotkeys).
 
 
 <a name="keyboard.add_hotkey"/>
@@ -267,7 +267,7 @@ example of how to use a callback synchronously, see [`wait`](#keyboard.wait).
 <a name="keyboard.register_hotkey"/>
 ## keyboard.**register\_hotkey**
 
-Alias for `add_hotkey`.
+Alias for [`add_hotkey`](#keyboard.add_hotkey).
 
 
 <a name="keyboard.hook"/>
@@ -361,7 +361,7 @@ during registration (exact string) or the event handler returned by the
 <a name="keyboard.unhook_key"/>
 ## keyboard.**unhook\_key**
 
-Alias for `remove_hotkey`.
+Alias for [`remove_hotkey`](#keyboard.remove_hotkey).
 
 
 <a name="keyboard.add_word_listener"/>
@@ -398,7 +398,7 @@ Note: word mathes are **case sensitive**.
 <a name="keyboard.register_word_listener"/>
 ## keyboard.**register\_word\_listener**
 
-Alias for `add_word_listener`.
+Alias for [`add_word_listener`](#keyboard.add_word_listener).
 
 
 <a name="keyboard.remove_word_listener"/>
@@ -416,7 +416,7 @@ during registration (exact string) or the event handler returned by the
 <a name="keyboard.remove_abbreviation"/>
 ## keyboard.**remove\_abbreviation**
 
-Alias for `remove_word_listener`.
+Alias for [`remove_word_listener`](#keyboard.remove_word_listener).
 
 
 <a name="keyboard.add_abbreviation"/>
@@ -445,7 +445,7 @@ For more details see [`add_word_listener`](#keyboard.add_word_listener).
 <a name="keyboard.register_abbreviation"/>
 ## keyboard.**register\_abbreviation**
 
-Alias for `add_abbreviation`.
+Alias for [`add_abbreviation`](#keyboard.add_abbreviation).
 
 
 <a name="keyboard.stash_state"/>
@@ -593,7 +593,7 @@ the end of the function.
 <a name="keyboard.replay"/>
 ## keyboard.**replay**
 
-Alias for `play`.
+Alias for [`play`](#keyboard.play).
 
 
 <a name="keyboard.get_typed_strings"/>
