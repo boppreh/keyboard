@@ -98,9 +98,10 @@ class EventDevice(object):
         self.output_file.flush()
 
 class AggregatedEventDevice(object):
-    def __init__(self, devices):
+    def __init__(self, devices, output=None):
         self.event_queue = Queue()
         self.devices = devices
+        self.output = output or self.devices[0]
         def start_reading(device):
             while True:
                 self.event_queue.put(device.read_event())
@@ -113,7 +114,7 @@ class AggregatedEventDevice(object):
         return self.event_queue.get(block=True)
 
     def write_event(self, type, code, value):
-        self.devices[0].write_event(type, code, value)
+        self.output.write_event(type, code, value)
 
 import re
 from collections import namedtuple
@@ -137,22 +138,28 @@ def list_devices_from_by_id(type_name):
         yield EventDevice(path)
 
 def aggregate_devices(type_name):
+    # Some systems have multiple keyboards with different range of allowed keys
+    # on each one, like a notebook with a "keyboard" device exclusive for the
+    # power button. Instead of figuring out which keyboard allows which key to
+    # send events, we create a fake device and send all events through there.
+    uinput = make_uinput()
+    fake_device = EventDevice('uinput Fake Device')
+    fake_device._input_file = uinput
+    fake_device._output_file = uinput
+
     # We don't aggregate devices from different sources to avoid
     # duplicates.
 
     devices_from_by_id = list(list_devices_from_by_id(type_name))
     if devices_from_by_id:
-        return AggregatedEventDevice(devices_from_by_id)
+        return AggregatedEventDevice(devices_from_by_id, output=fake_device)
 
     devices_from_proc = list(list_devices_from_proc(type_name))
     if devices_from_proc:
-        return AggregatedEventDevice(devices_from_proc)
+        return AggregatedEventDevice(devices_from_proc, output=fake_device)
 
-    uinput = make_uinput()
-    device = EventDevice('uinput Fake Device')
-    device._input_file = uinput
-    device._output_file = uinput
-    return device
+    # If no keyboards were found we can only use the fake device to send keys.
+    return fake_device
 
 
 def ensure_root():
