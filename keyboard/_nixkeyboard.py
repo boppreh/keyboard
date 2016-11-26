@@ -64,6 +64,7 @@ def build_tables():
         to_name[(scan_code, modifiers)] = name
         if is_keypad:
             keypad_scan_codes.add(scan_code)
+            from_name['keypad ' + name] = (scan_code, ())
         if name not in from_name or len(modifiers) < len(from_name[name][1]):
             from_name[name] = (scan_code, modifiers)
 
@@ -136,12 +137,16 @@ def write_event(scan_code, is_down):
     build_device()
     device.write_event(EV_KEY, scan_code, int(is_down))
 
-def map_char(character):
+def map_char(name):
     build_tables()
-    try:
-        return from_name[character]
-    except KeyError:
-        raise ValueError('Character {} is not mapped to any known key.'.format(repr(character)))
+    if name in from_name:
+        return from_name[name]
+
+    parts = name.split(' ', 1)
+    if (name.startswith('left ') or name.startswith('right ')) and parts[1] in from_name:
+        return from_name[parts[1]]
+    else:
+        raise ValueError('Name {} is not mapped to any known key.'.format(repr(name)))
 
 def press(scan_code):
     write_event(scan_code, True)
