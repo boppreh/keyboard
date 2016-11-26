@@ -431,8 +431,12 @@ def map_char(name):
         return -media_name_to_vk(name), []
 
 def media_name_to_vk(name):
+    wants_keypad = name.startswith('keypad ')
+    if wants_keypad:
+        name = name[len('keypad '):]
     for vk in from_virtual_key:
-        if from_virtual_key[vk][0] in (name, 'left ' + name, 'right ' + name):
+        candidate_name, is_keypad = from_virtual_key[vk]
+        if candidate_name in (name, 'left ' + name, 'right ' + name) and is_keypad == wants_keypad:
             return vk
     raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
