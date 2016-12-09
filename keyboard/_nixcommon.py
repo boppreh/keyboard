@@ -43,10 +43,6 @@ def make_uinput():
     UI_DEV_DESTROY = 0x5502
     #fcntl.ioctl(uinput, UI_DEV_DESTROY)
 
-    # The file is not readable, so replace read function with something that
-    # will block forever.
-    uinput.read = lambda n: Queue().get()
-
     return uinput
 
 class EventDevice(object):
