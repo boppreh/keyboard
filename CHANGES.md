@@ -1,3 +1,9 @@
+# 0.9.8
+
+- Allow sending of keypad events on both Windows and Linux.
+- Fixed bug where key sending was failing on Linux notebooks.
+
+
 # 0.9.7
 
 - [Windows] Fixed a bug where the `windows` key name failed to map to a scan code.
