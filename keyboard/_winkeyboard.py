@@ -109,6 +109,7 @@ SendInput = user32.SendInput
 SendInput.argtypes = [c_uint, POINTER(INPUT), c_int]
 SendInput.restype = c_uint
 
+MAPVK_VK_TO_VSC = 0
 MAPVK_VSC_TO_VK = 1
 
 VkKeyScan = user32.VkKeyScanW
@@ -443,16 +444,18 @@ def media_name_to_vk(name):
 def press(scan_code):
     if scan_code < 0:
         vk = -scan_code
+        scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
     else:
         vk = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-    user32.keybd_event(vk, 0, 0, 0)
+    user32.keybd_event(vk, scan_code, 0, 0)
 
 def release(scan_code):
     if scan_code < 0:
         vk = -scan_code
+        scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
     else:
         vk = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-    user32.keybd_event(MapVirtualKey(scan_code, MAPVK_VSC_TO_VK), 0, 2, 0)
+    user32.keybd_event(vk, scan_code, 2, 0)
 
 def type_unicode(character):
     # This code and related structures are based on
