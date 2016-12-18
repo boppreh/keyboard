@@ -338,7 +338,7 @@ def setup_tables():
                     # Sometimes two characters are written before the char we want,
                     # usually an accented one such as Â. Couldn't figure out why.
                     char = name_buffer.value[-1]
-                    if name not in to_scan_code:
+                    if char not in to_scan_code:
                         to_scan_code[char] = (scan_code, bool(shift_state))
                     from_scan_code[scan_code][shift_state] = char
 
