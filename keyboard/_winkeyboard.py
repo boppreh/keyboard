@@ -376,7 +376,7 @@ def listen(queue):
             if vk in reversed_extended_keys and is_extended:
                 is_keypad = True                
         else:
-            names = from_scan_code[scan_code][shift_is_pressed]
+            name = from_scan_code[scan_code][shift_is_pressed]
             # VirtualKey should include all keypad keys.
             is_keypad = False
             
@@ -402,6 +402,8 @@ def listen(queue):
                 is_extended = lParam.contents.flags & 1
                 scan_code = lParam.contents.scan_code
                 process_key(event_type, vk, scan_code, is_extended)
+        except Exception as e:
+            print('Error in keyboard hook: ', e)
         finally:
             return ret
 
