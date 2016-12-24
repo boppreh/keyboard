@@ -7,7 +7,7 @@ from threading import Lock
 import re
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from ._suppress_keys import SuppressionTable
+from ._suppress import SuppressionTable
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
@@ -392,7 +392,7 @@ def listen(queue):
         queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
-
+        global suppression_table
         # You may be tempted to use ToUnicode to extract the character from
         # this event with more precision. Do not. ToUnicode breaks dead keys.
         try:

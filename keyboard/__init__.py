@@ -195,6 +195,25 @@ def call_later(fn, args=(), delay=0.001):
     """
     _Thread(target=lambda: _time.sleep(delay) or fn(*args)).start()
 
+def _suppress_hotkey(steps):
+    """
+    Adds a hotkey to the list of keys to be suppressed. Multistep combinations are
+    currently unsupported.
+
+    To unsuppress all hotkeys use `clear_all_hotkeys()`.
+    """
+    if len(steps) > 1:
+        ValueError('Cannot currently suppress multistep combinations.')  # Will be removed after testing
+
+    for i in steps:
+        for j in steps[i]:
+            if type(steps[i][j]) is not int:
+                steps[i][j] = _os_keyboard.map_char(steps[i][j])
+
+    # Credit: http://stackoverflow.com/questions/952914/making-a-flat-list-out-of-list-of-lists-in-python
+    _os_keyboard.suppression_table.suppress_sequence([item for sublist in steps for item in sublist])
+
+
 _hotkeys = {}
 def clear_all_hotkeys():
     """
@@ -207,11 +226,12 @@ def clear_all_hotkeys():
     for handler in _hotkeys.values():
         unhook(handler)
     _hotkeys.clear()
+    _os_keyboard.suppression_table.suppress_none()  # TODO: Allow specific keys to be unsuppressed
 
 # Alias.
 remove_all_hotkeys = clear_all_hotkeys
 
-def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
+def add_hotkey(hotkey, callback, args=(), blocking=True, suppress=False, timeout=1):
     """
     Invokes a callback every time a key combination is pressed. The hotkey must
     be in the format "ctrl+shift+a, s". This would trigger when the user holds
@@ -242,6 +262,9 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
         add_hotkey('ctrl+alt+enter, space', some_callback)
     """
     steps = canonicalize(hotkey)
+
+    if suppress:
+        _suppress_hotkey(steps)
 
     state = _State()
     state.step = 0
