@@ -1,10 +1,20 @@
 
-class SuppressTable(object):
+class SuppressionTable(object):
     _suppress_keys = {}
+    _current_table = {}
 
-    @property
-    def suppress_keys(self):
-        return self._suppress_keys
+    def is_allowed(self, key, advance=True):
+        suppress = key in self._current_table
+        if advance:
+            if suppress and type(self._current_table[key]) is dict:
+                self._current_table = self._current_table[key]
+            else:
+                self._current_table = self._suppress_keys
+
+        return suppress
+
+    def _refresh(self):
+        self._current_table = self._suppress_keys
 
     def _acquire_table(self, sequence, table):
         '''
@@ -14,7 +24,7 @@ class SuppressTable(object):
         :return:
         '''
         el = sequence.pop(0)
-        if el not in table:
+        if el not in table or (len(sequence) > 1 and type(table[el]) is not dict):
             if len(sequence) > 1:
                 table[el] = {}
             else:
@@ -45,6 +55,7 @@ class SuppressTable(object):
         # scan code is 'in current_dict'
         table = self._acquire_table(sequence, self._suppress_keys)
         table[sequence[0]] = True
+        self._refresh()
 
 
     def unsuppress_sequence(self, sequence):
@@ -59,6 +70,7 @@ class SuppressTable(object):
         table = self._acquire_table(sequence, self._suppress_keys)
         table[sequence[0]] = False
         self._suppress_keys = self._clean_table(self._suppress_keys)
+        self._refresh()
 
     def suppress_none(self):
         '''
@@ -67,3 +79,4 @@ class SuppressTable(object):
         :return:
         '''
         self._suppress_keys = {}
+        self._refresh()

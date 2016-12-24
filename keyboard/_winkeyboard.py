@@ -7,6 +7,7 @@ from threading import Lock
 import re
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from ._suppress_keys import SuppressionTable
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
@@ -297,8 +298,7 @@ reversed_extended_keys = [0x6f, 0xd]
 
 from_scan_code = {}
 to_scan_code = {}
-suppress_keys = {}
-current_suppress_keys = {}
+suppression_table = SuppressionTable()
 tables_lock = Lock()
 
 # Alt gr is way outside the usual range of keys (0..127) and on my
@@ -353,14 +353,14 @@ def setup_tables():
 shift_is_pressed = False
 alt_gr_is_pressed = False
 
+
 def listen(queue):
     setup_tables()
 
     def process_key(event_type, vk, scan_code, is_extended):
         global alt_gr_is_pressed
         global shift_is_pressed
-        global current_suppress_keys
-        
+
         if scan_code == alt_gr_scan_code:
             alt_gr_is_pressed = event_type == KEY_DOWN
             name = 'alt gr'
@@ -391,18 +391,7 @@ def listen(queue):
         # Not sure how long this takes, but may need to move it?
         queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
 
-        if scan_code in current_suppress_keys:  # Is scan code in table?
-            current_suppress_keys = current_suppress_keys[scan_code]  # should be quick because by reference
-            return True
-        else:
-            current_suppress_keys = suppress_keys
-            return False
-
-
     def low_level_keyboard_handler(nCode, wParam, lParam):
-        if not current_suppress_keys:  # TODO: Ensure race condition is avoided (lock current_suppress_keys)
-            # Call next hook as soon as possible to reduce delays.
-            ret = CallNextHookEx(NULL, nCode, wParam, lParam)
 
         # You may be tempted to use ToUnicode to extract the character from
         # this event with more precision. Do not. ToUnicode breaks dead keys.
@@ -413,19 +402,19 @@ def listen(queue):
                 event_type = keyboard_event_types[wParam]
                 is_extended = lParam.contents.flags & 1
                 scan_code = lParam.contents.scan_code
-                should_allow = process_key(event_type, vk, scan_code, is_extended)
-        except Exception as e:
-            print('Error in keyboard hook: ', e)
-            should_allow = True  # Always allow input in case of an exception
-        finally:
-            if current_suppress_keys:
-                if should_allow:
+                if suppression_table.is_allowed(scan_code):
+                    # Call next hook as soon as possible to reduce delays.
                     ret = CallNextHookEx(NULL, nCode, wParam, lParam)
                 else:
                     ret = -1
+                process_key(event_type, vk, scan_code, is_extended)
+        except Exception as e:
+            print('Error in keyboard hook: ', e)
+        finally:
+            if not ret:
+                ret = CallNextHookEx(NULL, nCode, wParam, lParam)
 
-        return ret
-
+            return ret
 
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
