@@ -6,6 +6,7 @@ import string
 import keyboard
 
 from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
+from ._suppress import SuppressionTable
 
 # Fake events with fake scan codes for a totally deterministic test.
 all_names = set(canonical_names.values()) | set(string.ascii_lowercase) | set(string.ascii_uppercase) | {'shift'}
@@ -24,6 +25,7 @@ class FakeOsKeyboard(object):
         self.listening = False
         self.append = None
         self.queue = None
+        self.suppression_table = SuppressionTable()
 
     def listen(self, queue):
         self.listening = True
@@ -552,6 +554,25 @@ class TestKeyboard(unittest.TestCase):
         time.sleep(0.2)
         self.assertTrue(self.triggered)
 
+    def test_suppression(self):
+        def dummy():
+            pass
+
+        keyboard.add_hotkey('a+b+c', dummy, suppress=True)
+        keyboard.add_hotkey('a+g+h', dummy, suppress=True)
+
+        for key in ['a', 'b', 'c']:
+            assert not keyboard._os_keyboard.suppression_table.is_allowed(key)
+
+        assert keyboard._os_keyboard.suppression_table.is_allowed('d')
+
+        for key in ['a', 'b', 'a']:
+            assert not keyboard._os_keyboard.suppression_table.is_allowed(key)
+
+        assert keyboard._os_keyboard.suppression_table.is_allowed('c')
+
+        for key in ['a', 'g', 'h']:
+            assert not keyboard._os_keyboard.suppression_table.is_allowed(key)
 
 if __name__ == '__main__':
     unittest.main()

@@ -391,6 +391,8 @@ def listen(queue):
         # Not sure how long this takes, but may need to move it?
         queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
 
+        return name
+
     def low_level_keyboard_handler(nCode, wParam, lParam):
         global suppression_table
         # You may be tempted to use ToUnicode to extract the character from
@@ -402,12 +404,11 @@ def listen(queue):
                 event_type = keyboard_event_types[wParam]
                 is_extended = lParam.contents.flags & 1
                 scan_code = lParam.contents.scan_code
-                if suppression_table.is_allowed(scan_code):
+                if suppression_table.is_allowed(process_key(event_type, vk, scan_code, is_extended)):
                     # Call next hook as soon as possible to reduce delays.
                     ret = CallNextHookEx(NULL, nCode, wParam, lParam)
                 else:
                     ret = -1
-                process_key(event_type, vk, scan_code, is_extended)
         except Exception as e:
             print('Error in keyboard hook: ', e)
         finally:

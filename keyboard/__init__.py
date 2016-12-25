@@ -205,12 +205,6 @@ def _suppress_hotkey(steps):
     if len(steps) > 1:
         ValueError('Cannot currently suppress multistep combinations.')  # Will be removed after testing
 
-    for i in steps:
-        for j in steps[i]:
-            if type(steps[i][j]) is not int:
-                steps[i][j] = _os_keyboard.map_char(steps[i][j])
-
-    # Credit: http://stackoverflow.com/questions/952914/making-a-flat-list-out-of-list-of-lists-in-python
     _os_keyboard.suppression_table.suppress_sequence([item for sublist in steps for item in sublist])
 
 
