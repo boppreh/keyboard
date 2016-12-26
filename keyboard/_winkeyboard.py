@@ -391,7 +391,7 @@ def listen(queue):
         # Not sure how long this takes, but may need to move it?
         queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
 
-        return name
+        return name, event_type
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
         global allowed_keys
@@ -404,7 +404,8 @@ def listen(queue):
                 event_type = keyboard_event_types[wParam]
                 is_extended = lParam.contents.flags & 1
                 scan_code = lParam.contents.scan_code
-                if allowed_keys.is_allowed(process_key(event_type, vk, scan_code, is_extended)):
+                (name, event_type) = process_key(event_type, vk, scan_code, is_extended)
+                if allowed_keys.is_allowed(name, event_type == KEY_UP):
                     # Call next hook as soon as possible to reduce delays.
                     ret = CallNextHookEx(NULL, nCode, wParam, lParam)
                 else:

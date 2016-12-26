@@ -9,8 +9,10 @@ class KeyTable(object):
     _time = 0
     _elapsed = 0  # Maximum time that has elapsed so far in the sequence
     _read = Lock()  # Required to edit table
+    _depressed = 0  # Number of keys that are currently depressed
+    SEQUENCE_END = 2  # Delimeter that signifies the end of the sequence
 
-    def is_allowed(self, key, advance=True):
+    def is_allowed(self, key, is_up, advance=True):
         """
         The goal of this function is to be very fast. This is accomplished
         through the table structure, which ensures that we only need to
@@ -29,6 +31,14 @@ class KeyTable(object):
             if self._elapsed > elapsed:
                 elapsed = self._elapsed
 
+        if is_up:
+            depressed = self._depressed - 1
+        else:
+            depressed = self._depressed + 1
+
+        if not depressed:
+            key = self.SEQUENCE_END
+
         in_sequence = key in self._table and elapsed < self._table[key][0]
         suppress = in_sequence or key in self._keys
         if advance:
@@ -41,6 +51,7 @@ class KeyTable(object):
                 self._table = self._keys
                 self._time = 0
                 self._elapsed = -1
+            self._depressed = depressed
             self._read.release()
 
         return not suppress
@@ -79,8 +90,13 @@ class KeyTable(object):
         # as a dict of dicts so that the critical
         # path is only checking whether the
         # scan code is 'in current_dict'
+        flat = []
+        for subsequence in sequence:
+            flat.extend(subsequence)
+            flat.append(self.SEQUENCE_END)
+
         self._write.acquire()
-        self._acquire_table(sequence, self._keys, timeout)
+        self._acquire_table(flat, self._keys, timeout)
         self._refresh()
         self._write.release()
 

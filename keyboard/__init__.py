@@ -202,10 +202,8 @@ def _suppress_hotkey(steps, timeout):
 
     To unsuppress all hotkeys use `clear_all_hotkeys()`.
     """
-    if len(steps) > 1:
-        ValueError('Cannot currently suppress multistep combinations.')  # Will be removed after testing
 
-    _os_keyboard.allowed_keys.suppress_sequence([item for sublist in steps for item in sublist], timeout)
+    _os_keyboard.allowed_keys.suppress_sequence(steps, timeout)
 
 
 _hotkeys = {}

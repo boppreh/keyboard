@@ -80,13 +80,16 @@ class TestKeyboard(unittest.TestCase):
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name, scan_code))
         self.wait_for_events_queue()
 
+        return keyboard._os_keyboard.allowed_keys.is_allowed(name, False)
+
     def release(self, name, scan_code=None):
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_UP, name, scan_code))
         self.wait_for_events_queue()
 
+        return keyboard._os_keyboard.allowed_keys.is_allowed(name, True)
+
     def click(self, name, scan_code=None):
-        self.press(name, scan_code)
-        self.release(name, scan_code)
+        return self.press(name, scan_code) and self.release(name, scan_code)
 
     def flush_events(self):
         self.wait_for_events_queue()
@@ -562,20 +565,20 @@ class TestKeyboard(unittest.TestCase):
         keyboard.add_hotkey('a+g+h', dummy, suppress=True, timeout=0.01)
 
         for key in ['a', 'b', 'c']:
-            assert not keyboard._os_keyboard.allowed_keys.is_allowed(key)
+            assert not self.click(key)
 
-        assert keyboard._os_keyboard.allowed_keys.is_allowed('d')
+        assert self.click('d')
 
         for key in ['a', 'b', 'a']:
-            assert not keyboard._os_keyboard.allowed_keys.is_allowed(key)
+            assert not self.click(key)
 
-        assert keyboard._os_keyboard.allowed_keys.is_allowed('c')
+        assert self.click('c')
 
         for key in ['a', 'g']:
-            assert not keyboard._os_keyboard.allowed_keys.is_allowed(key)
+            assert not self.click(key)
 
         time.sleep(0.03)
-        assert keyboard._os_keyboard.allowed_keys.is_allowed('h')
+        assert self.click('h')
 
 if __name__ == '__main__':
     unittest.main()
