@@ -561,7 +561,7 @@ class TestKeyboard(unittest.TestCase):
         def dummy():
             pass
 
-        keyboard.add_hotkey('a+b+c', dummy, suppress=True)
+        keyboard.add_hotkey('a+b+c', dummy, suppress=True, timeout=1000)
         keyboard.add_hotkey('a+g+h', dummy, suppress=True, timeout=0.01)
 
         for key in ['a', 'b', 'c']:
@@ -579,6 +579,11 @@ class TestKeyboard(unittest.TestCase):
 
         time.sleep(0.03)
         assert self.click('h')
+
+        keyboard.remove_hotkey('a+g+h')
+        keyboard.remove_hotkey('a+b+c')
+
+        assert self.click('a')
 
 if __name__ == '__main__':
     unittest.main()

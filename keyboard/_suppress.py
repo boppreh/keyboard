@@ -43,14 +43,15 @@ class KeyTable(object):
         suppress = in_sequence or key in self._keys
         if advance:
             self._read.acquire()
-            if in_sequence and self._table[key][1]:
-                self._table = self._table[key][1]
-                self._time = time
-                self._elapsed = elapsed
-            else:
-                self._table = self._keys
-                self._time = 0
-                self._elapsed = -1
+            if not is_up or key == self.SEQUENCE_END:
+                if in_sequence and self._table[key][1]:
+                    self._table = self._table[key][1]
+                    self._time = time
+                    self._elapsed = elapsed
+                else:
+                    self._table = self._keys
+                    self._time = 0
+                    self._elapsed = -1
             self._depressed = depressed
             self._read.release()
 

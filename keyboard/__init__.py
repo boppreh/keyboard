@@ -207,6 +207,7 @@ def _suppress_hotkey(steps, timeout):
 
 
 _hotkeys = {}
+_hotkeys_suppressed = {}
 def clear_all_hotkeys():
     """
     Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
@@ -218,7 +219,8 @@ def clear_all_hotkeys():
     for handler in _hotkeys.values():
         unhook(handler)
     _hotkeys.clear()
-    _os_keyboard.allowed_keys.suppress_none()  # TODO: Allow specific keys to be unsuppressed
+    _os_keyboard.allowed_keys.suppress_none()
+    _hotkeys_suppressed.clear()
 
 # Alias.
 remove_all_hotkeys = clear_all_hotkeys
@@ -255,9 +257,6 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, suppress=False, timeout
     """
     steps = canonicalize(hotkey)
 
-    if suppress:
-        _suppress_hotkey(steps, timeout)
-
     state = _State()
     state.step = 0
     state.time = _time.time()
@@ -286,6 +285,10 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, suppress=False, timeout
                     return blocking
 
     _hotkeys[hotkey] = handler
+    if suppress:
+        _suppress_hotkey(steps, timeout)
+        _hotkeys_suppressed[hotkey] = timeout
+
     return hook(handler)
 
 # Alias.
@@ -377,13 +380,22 @@ def _remove_named_hook(name_or_handler, names):
         unhook(names[name])
         del names[name]
 
+    return name
+
 def remove_hotkey(hotkey_or_handler):
     """
     Removes a previously registered hotkey. Accepts either the hotkey used
     during registration (exact string) or the event handler returned by the
     `add_hotkey` or `hook_key` functions.
     """
-    _remove_named_hook(hotkey_or_handler, _hotkeys)
+    name = _remove_named_hook(hotkey_or_handler, _hotkeys)
+    if name in _hotkeys_suppressed:
+        del _hotkeys_suppressed[name]
+        # because the table structure is optimized for runtime, we must recompile
+        _os_keyboard.allowed_keys.suppress_none()
+        for current_name in _hotkeys_suppressed:
+            _suppress_hotkey(canonicalize(current_name), _hotkeys_suppressed[current_name])
+
 
 # Alias.
 unhook_key = remove_hotkey
