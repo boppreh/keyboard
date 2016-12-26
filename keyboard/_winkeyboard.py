@@ -7,7 +7,7 @@ from threading import Lock
 import re
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from ._suppress import SuppressionTable
+from ._suppress import KeyTable
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
@@ -298,7 +298,7 @@ reversed_extended_keys = [0x6f, 0xd]
 
 from_scan_code = {}
 to_scan_code = {}
-suppression_table = SuppressionTable()
+allowed_keys = KeyTable()
 tables_lock = Lock()
 
 # Alt gr is way outside the usual range of keys (0..127) and on my
@@ -394,7 +394,7 @@ def listen(queue):
         return name
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
-        global suppression_table
+        global allowed_keys
         # You may be tempted to use ToUnicode to extract the character from
         # this event with more precision. Do not. ToUnicode breaks dead keys.
         try:
@@ -404,7 +404,7 @@ def listen(queue):
                 event_type = keyboard_event_types[wParam]
                 is_extended = lParam.contents.flags & 1
                 scan_code = lParam.contents.scan_code
-                if suppression_table.is_allowed(process_key(event_type, vk, scan_code, is_extended)):
+                if allowed_keys.is_allowed(process_key(event_type, vk, scan_code, is_extended)):
                     # Call next hook as soon as possible to reduce delays.
                     ret = CallNextHookEx(NULL, nCode, wParam, lParam)
                 else:
