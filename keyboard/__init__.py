@@ -108,6 +108,9 @@ class _KeyboardListener(_GenericListener):
         else:
             _pressed_events[event.scan_code] = event
 
+        if not _pressed_events:
+            _os_keyboard.allowed_keys.complete_sequence()
+
         return True
 
     def listen(self):

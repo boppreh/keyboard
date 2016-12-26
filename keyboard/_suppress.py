@@ -9,7 +9,7 @@ class KeyTable(object):
     _time = 0
     _elapsed = 0  # Maximum time that has elapsed so far in the sequence
     _read = Lock()  # Required to edit table
-    _depressed = 0  # Number of keys that are currently depressed
+    _in_sequence = False
     SEQUENCE_END = 2  # Delimeter that signifies the end of the sequence
 
     def is_allowed(self, key, is_up, advance=True):
@@ -32,30 +32,38 @@ class KeyTable(object):
                 elapsed = self._elapsed
 
         if is_up:
-            depressed = self._depressed - 1
-        else:
-            depressed = self._depressed + 1
-
-        if not depressed:
-            key = self.SEQUENCE_END
+            if self._in_sequence:
+                return False
+            else:
+                advance = False
 
         in_sequence = key in self._table and elapsed < self._table[key][0]
         suppress = in_sequence or key in self._keys
         if advance:
             self._read.acquire()
-            if not is_up or key == self.SEQUENCE_END:
-                if in_sequence and self._table[key][1]:
-                    self._table = self._table[key][1]
-                    self._time = time
-                    self._elapsed = elapsed
-                else:
-                    self._table = self._keys
-                    self._time = 0
-                    self._elapsed = -1
-            self._depressed = depressed
+            if suppress and not in_sequence:  # Currently not the most optimized piece of code
+                self._table = self._keys
+                in_sequence = True
+            if in_sequence and self._table[key][1]:
+                self._table = self._table[key][1]
+                self._time = time
+                self._elapsed = elapsed
+            else:
+                self._table = self._keys
+                self._time = 0
+                self._elapsed = -1
+            self._in_sequence = in_sequence
             self._read.release()
 
         return not suppress
+
+    def complete_sequence(self):
+        if self.SEQUENCE_END in self._table:
+            self.is_allowed(self.SEQUENCE_END, False)
+        else:
+            self._read.acquire()
+            self._table = self._keys
+            self._read.release()
 
     def _refresh(self):
         self._read.acquire()

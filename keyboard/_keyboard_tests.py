@@ -77,16 +77,18 @@ class TestKeyboard(unittest.TestCase):
         self.wait_for_events_queue()
 
     def press(self, name, scan_code=None):
+        is_allowed = keyboard._os_keyboard.allowed_keys.is_allowed(name, False)
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name, scan_code))
         self.wait_for_events_queue()
 
-        return keyboard._os_keyboard.allowed_keys.is_allowed(name, False)
+        return is_allowed
 
     def release(self, name, scan_code=None):
+        is_allowed = keyboard._os_keyboard.allowed_keys.is_allowed(name, True)
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_UP, name, scan_code))
         self.wait_for_events_queue()
 
-        return keyboard._os_keyboard.allowed_keys.is_allowed(name, True)
+        return is_allowed
 
     def click(self, name, scan_code=None):
         return self.press(name, scan_code) and self.release(name, scan_code)
@@ -561,21 +563,27 @@ class TestKeyboard(unittest.TestCase):
         def dummy():
             pass
 
-        keyboard.add_hotkey('a+b+c', dummy, suppress=True, timeout=1000)
+        keyboard.add_hotkey('a+b+c', dummy, suppress=True)
         keyboard.add_hotkey('a+g+h', dummy, suppress=True, timeout=0.01)
 
         for key in ['a', 'b', 'c']:
-            assert not self.click(key)
+            assert not self.press(key)
+        for key in ['a', 'b', 'c']:
+            assert not self.release(key)
 
         assert self.click('d')
 
-        for key in ['a', 'b', 'a']:
-            assert not self.click(key)
+        for key in ['a', 'b']:
+            assert not self.press(key)
+        for key in ['a', 'b']:
+            assert not self.release(key)
 
         assert self.click('c')
 
         for key in ['a', 'g']:
-            assert not self.click(key)
+            assert not self.press(key)
+        for key in ['a', 'g']:
+            assert not self.release(key)
 
         time.sleep(0.03)
         assert self.click('h')
