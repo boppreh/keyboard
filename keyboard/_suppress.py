@@ -6,7 +6,7 @@ class KeyTable(object):
     _keys = {}
     _write = Lock()  # Required to edit keys
     _table = {}
-    _time = 0
+    _time = -1
     _elapsed = 0  # Maximum time that has elapsed so far in the sequence
     _read = Lock()  # Required to edit table
     _in_sequence = False
@@ -24,7 +24,7 @@ class KeyTable(object):
         time limits.
         """
         time = timer()
-        if self._elapsed == -1:
+        if -1 in (self._time, self._elapsed):
             elapsed = 0
         else:
             elapsed = time - self._time
@@ -46,11 +46,12 @@ class KeyTable(object):
                 in_sequence = True
             if in_sequence and self._table[key][1]:
                 self._table = self._table[key][1]
-                self._time = time
-                self._elapsed = elapsed
+                if self._time != -1:
+                    self._time = time
+                    self._elapsed = elapsed
             else:
                 self._table = self._keys
-                self._time = 0
+                self._time = -1
                 self._elapsed = -1
             self._in_sequence = in_sequence
             self._read.release()
@@ -59,9 +60,13 @@ class KeyTable(object):
 
     def complete_sequence(self):
         if self.SEQUENCE_END in self._table:
+            self._read.acquire()
+            self._time = timer()
+            self._read.release()
             self.is_allowed(self.SEQUENCE_END, False)
         else:
             self._read.acquire()
+            self._time = -1
             self._table = self._keys
             self._read.release()
 
