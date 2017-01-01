@@ -200,12 +200,9 @@ def call_later(fn, args=(), delay=0.001):
 
 def _suppress_hotkey(steps, timeout):
     """
-    Adds a hotkey to the list of keys to be suppressed. Multistep combinations are
-    currently unsupported.
-
+    Adds a hotkey to the list of keys to be suppressed.
     To unsuppress all hotkeys use `clear_all_hotkeys()`.
     """
-
     _os_keyboard.allowed_keys.suppress_sequence(steps, timeout)
 
 

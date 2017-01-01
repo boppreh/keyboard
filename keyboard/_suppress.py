@@ -1,6 +1,6 @@
 from threading import Lock
 from timeit import default_timer as timer
-
+from keyboard._keyboard_event import normalize_name
 
 class KeyTable(object):
     _keys = {}
@@ -23,6 +23,8 @@ class KeyTable(object):
         the logic required, but the function should still be well within required
         time limits.
         """
+        if key != self.SEQUENCE_END:
+            key = normalize_name(key.split(' ')[-1])
         time = timer()
         if -1 in (self._time, self._elapsed):
             elapsed = 0
@@ -108,6 +110,8 @@ class KeyTable(object):
         for subsequence in sequence:
             flat.extend(subsequence)
             flat.append(self.SEQUENCE_END)
+
+        print(flat)
 
         self._write.acquire()
         self._acquire_table(flat, self._keys, timeout)
