@@ -49,6 +49,8 @@ class KeyTable(object):
         if advance:
             self._read.acquire()
             if in_sequence and self._table[key][1]:
+                if self._table[key][2]:
+                    self._keys_suppressed.clear()
                 self._table = self._table[key][1]
                 if self._time != -1:
                     self._elapsed = elapsed
@@ -58,13 +60,13 @@ class KeyTable(object):
                 if self._time != -1:
                     self._elapsed = elapsed
                 self._time = -1
-                print(self._keys_suppressed)
+                self._replay_keys()
                 self._keys_suppressed.clear()
             else:
                 self._table = self._keys
                 self._time = -1
                 self._elapsed = -1
-                print(self._keys_suppressed)
+                self._replay_keys()
                 self._keys_suppressed.clear()
             self._in_sequence = in_sequence
             self._read.release()
@@ -85,11 +87,12 @@ class KeyTable(object):
             self._time = -1
             self._elapsed = 0
             self._table = self._keys
+            self._replay_keys()
             self._keys_suppressed.clear()
             self._read.release()
 
     def _replay_keys(self):
-        pass
+        print(self._keys_suppressed)
 
     def _refresh(self):
         self._read.acquire()
