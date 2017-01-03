@@ -10,6 +10,7 @@ class KeyTable(object):
     _elapsed = 0  # Maximum time that has elapsed so far in the sequence
     _read = Lock()  # Required to edit table
     _in_sequence = False
+    _keys_suppressed = []  # List of keys that have been suppressed so far in the sequence
     SEQUENCE_END = 2  # Delimeter that signifies the end of the sequence
 
     def is_allowed(self, key, is_up, advance=True):
@@ -25,6 +26,7 @@ class KeyTable(object):
         """
         if key != self.SEQUENCE_END:
             key = normalize_name(key.split(' ')[-1])
+
         time = timer()
         if self._time == -1:
             elapsed = 0
@@ -35,6 +37,8 @@ class KeyTable(object):
 
         if is_up:
             if self._in_sequence:
+                if key != self.SEQUENCE_END:
+                    self._keys_suppressed.append((key, is_up))
                 return False
             else:
                 advance = False
@@ -54,12 +58,19 @@ class KeyTable(object):
                 if self._time != -1:
                     self._elapsed = elapsed
                 self._time = -1
+                print(self._keys_suppressed)
+                self._keys_suppressed.clear()
             else:
                 self._table = self._keys
                 self._time = -1
                 self._elapsed = -1
+                print(self._keys_suppressed)
+                self._keys_suppressed.clear()
             self._in_sequence = in_sequence
             self._read.release()
+
+        if key != self.SEQUENCE_END and suppress:
+            self._keys_suppressed.append((key, is_up))
 
         return not suppress
 
@@ -74,7 +85,11 @@ class KeyTable(object):
             self._time = -1
             self._elapsed = 0
             self._table = self._keys
+            self._keys_suppressed.clear()
             self._read.release()
+
+    def _replay_keys(self):
+        pass
 
     def _refresh(self):
         self._read.acquire()
@@ -90,7 +105,7 @@ class KeyTable(object):
         """
         el = sequence.pop(0)
         if el not in table:
-            table[el] = (timeout, {})
+            table[el] = (timeout, {}, False)
         if table[el][0] < timeout:
             table[el][0] = timeout
 
@@ -116,11 +131,14 @@ class KeyTable(object):
             flat.append(self.SEQUENCE_END)
 
         print(flat)
-
+        last_index = flat[-1]
         self._write.acquire()
-        self._acquire_table(flat, self._keys, timeout)
+        table = self._acquire_table(flat, self._keys, timeout)
+        table[last_index] = (table[last_index][0], table[last_index][1], True)
         self._refresh()
         self._write.release()
+
+        print(self._keys)
 
     def suppress_none(self):
         """
