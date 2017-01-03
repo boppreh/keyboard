@@ -71,6 +71,7 @@ import time as _time
 from threading import Lock as _Lock
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
+from ._suppress import KeyTable
 
 try:
     _basestring = basestring
@@ -697,3 +698,5 @@ def get_typed_strings(events, allow_backspace=True):
                 yield string
                 string = ''
     yield string
+
+_os_keyboard.allowed_keys = KeyTable(press, release)

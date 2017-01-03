@@ -1,6 +1,7 @@
-from threading import Lock
+from threading import Lock, Thread
 from timeit import default_timer as timer
 from keyboard._keyboard_event import normalize_name
+
 
 class KeyTable(object):
     _keys = {}
@@ -11,7 +12,12 @@ class KeyTable(object):
     _read = Lock()  # Required to edit table
     _in_sequence = False
     _keys_suppressed = []  # List of keys that have been suppressed so far in the sequence
+    _disable = False  # Disables key suppression during replay to avoid infinite loop
     SEQUENCE_END = 2  # Delimeter that signifies the end of the sequence
+
+    def __init__(self, press_key, release_key):
+        self.press_key = press_key
+        self.release_key = release_key
 
     def is_allowed(self, key, is_up, advance=True):
         """
@@ -24,6 +30,9 @@ class KeyTable(object):
         the logic required, but the function should still be well within required
         time limits.
         """
+        if self._disable:
+            return True
+
         if key != self.SEQUENCE_END:
             key = normalize_name(key.split(' ')[-1])
 
@@ -48,9 +57,9 @@ class KeyTable(object):
         suppress = in_sequence or in_keys
         if advance:
             self._read.acquire()
+            if in_sequence and self._table[key][2]:
+                self._keys_suppressed.clear()
             if in_sequence and self._table[key][1]:
-                if self._table[key][2]:
-                    self._keys_suppressed.clear()
                 self._table = self._table[key][1]
                 if self._time != -1:
                     self._elapsed = elapsed
@@ -92,10 +101,17 @@ class KeyTable(object):
             self._read.release()
 
     def _replay_keys(self):
-        print(self._keys_suppressed)
+        self._disable = True
+        for key, is_up in self._keys_suppressed:
+            if is_up:
+                self.release_key(key)
+            else:
+                self.press_key(key)
+        self._disable = False
 
     def _refresh(self):
         self._read.acquire()
+        self._disable = False
         self._table = self._keys
         self._read.release()
 
@@ -153,3 +169,7 @@ class KeyTable(object):
         self._keys = {}
         self._refresh()
         self._write.release()
+
+        self._read.acquire()
+        self._disable = True
+        self._read.release()

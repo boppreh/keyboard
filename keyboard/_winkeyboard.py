@@ -298,7 +298,6 @@ reversed_extended_keys = [0x6f, 0xd]
 
 from_scan_code = {}
 to_scan_code = {}
-allowed_keys = KeyTable()
 tables_lock = Lock()
 
 # Alt gr is way outside the usual range of keys (0..127) and on my

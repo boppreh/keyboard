@@ -43,7 +43,6 @@ have a list of names and vice-versa.
 from subprocess import check_output
 import re
 
-allowed_keys = KeyTable()
 to_name = {}
 from_name = {}
 keypad_scan_codes = set()
