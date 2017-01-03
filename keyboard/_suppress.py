@@ -26,7 +26,7 @@ class KeyTable(object):
         if key != self.SEQUENCE_END:
             key = normalize_name(key.split(' ')[-1])
         time = timer()
-        if -1 in (self._time, self._elapsed):
+        if self._time == -1:
             elapsed = 0
         else:
             elapsed = time - self._time
@@ -40,17 +40,20 @@ class KeyTable(object):
                 advance = False
 
         in_sequence = key in self._table and elapsed < self._table[key][0]
-        suppress = in_sequence or key in self._keys
+        in_keys = key in self._keys
+        suppress = in_sequence or in_keys
         if advance:
             self._read.acquire()
-            if suppress and not in_sequence:  # Currently not the most optimized piece of code
-                self._table = self._keys
-                in_sequence = True
             if in_sequence and self._table[key][1]:
                 self._table = self._table[key][1]
                 if self._time != -1:
-                    self._time = time
                     self._elapsed = elapsed
+                self._time = -1
+            elif in_keys and self._keys[key][1]:
+                self._table = self._keys[key][1]
+                if self._time != -1:
+                    self._elapsed = elapsed
+                self._time = -1
             else:
                 self._table = self._keys
                 self._time = -1
@@ -62,13 +65,14 @@ class KeyTable(object):
 
     def complete_sequence(self):
         if self.SEQUENCE_END in self._table:
+            self.is_allowed(self.SEQUENCE_END, False)
             self._read.acquire()
             self._time = timer()
             self._read.release()
-            self.is_allowed(self.SEQUENCE_END, False)
         else:
             self._read.acquire()
             self._time = -1
+            self._elapsed = 0
             self._table = self._keys
             self._read.release()
 
