@@ -105,6 +105,10 @@ def build_device():
     ensure_root()
     device = aggregate_devices('kbd')
 
+def init():
+    build_device()
+    build_tables()
+
 pressed_modifiers = set()
 
 def listen(queue):

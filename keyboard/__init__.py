@@ -94,6 +94,9 @@ all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
+    def init(self):
+        _os_keyboard.init()
+        
     def pre_process_event(self, event):
         if not event.scan_code and event.name == 'unknown':
             return False

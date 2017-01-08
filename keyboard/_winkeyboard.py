@@ -351,6 +351,8 @@ def setup_tables():
 shift_is_pressed = False
 alt_gr_is_pressed = False
 
+init = setup_tables
+
 def listen(queue):
     setup_tables()
 
