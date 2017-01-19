@@ -373,28 +373,29 @@ def listen(queue):
         global alt_gr_is_pressed
         global shift_is_pressed
 
+        name = 'unknown'
+        is_keypad = False
         if scan_code == alt_gr_scan_code:
             alt_gr_is_pressed = event_type == KEY_DOWN
             name = 'alt gr'
-            is_keypad = False
-        elif vk in from_virtual_key:
-            # Pressing AltGr also triggers "right menu" quickly after. We
-            # try to filter out this event. The `alt_gr_is_pressed` flag
-            # is to avoid messing with keyboards that don't even have an
-            # alt gr key.
-            if vk == 165:
-                return True
-
-            name, is_keypad = from_virtual_key[vk]
-            if vk in possible_extended_keys and not is_extended:
-                is_keypad = True
-            # What the hell Windows?
-            if vk in reversed_extended_keys and is_extended:
-                is_keypad = True                
         else:
-            name = from_scan_code[scan_code][shift_is_pressed]
-            # VirtualKey should include all keypad keys.
-            is_keypad = False
+            if vk in from_virtual_key:
+                # Pressing AltGr also triggers "right menu" quickly after. We
+                # try to filter out this event. The `alt_gr_is_pressed` flag
+                # is to avoid messing with keyboards that don't even have an
+                # alt gr key.
+                if vk == 165:
+                    return True
+
+                name, is_keypad = from_virtual_key[vk]
+                if vk in possible_extended_keys and not is_extended:
+                    is_keypad = True
+                # What the hell Windows?
+                if vk in reversed_extended_keys and is_extended:
+                    is_keypad = True                
+            
+            if scan_code in from_scan_code:
+                name = from_scan_code[scan_code][shift_is_pressed]
             
         if event_type == KEY_DOWN and name == 'shift':
             shift_is_pressed = True
