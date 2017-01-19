@@ -298,6 +298,8 @@ reversed_extended_keys = [0x6f, 0xd]
 
 from_scan_code = {}
 to_scan_code = {}
+vk_to_scan_code = {}
+scan_code_to_vk = {}
 tables_lock = Lock()
 
 # Alt gr is way outside the usual range of keys (0..127) and on my
@@ -313,11 +315,19 @@ def setup_tables():
     try:
         if from_scan_code and to_scan_code: return
 
+        for vk in range(0x01, 0x100):
+            scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
+            if not scan_code: continue
+
+            # Scan codes may map to multiple virtual key codes.
+            # In this case prefer the officially defined ones.
+            if scan_code not in scan_code_to_vk and vk in from_virtual_key:
+                scan_code_to_vk[scan_code] = vk
+            vk_to_scan_code[vk] = scan_code
+
         name_buffer = ctypes.create_unicode_buffer(32)
         keyboard_state = keyboard_state_type()
         for scan_code in range(2**(23-16)):
-            key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-
             from_scan_code[scan_code] = ['unknown', 'unknown']
 
             # Get pure key name, such as "shift". This depends on locale and
@@ -332,10 +342,12 @@ def setup_tables():
                 if name not in to_scan_code:
                     to_scan_code[name] = (scan_code, False)
 
+            if scan_code not in scan_code_to_vk: continue
             # Get associated character, such as "^", possibly overwriting the pure key name.
             for shift_state in [0, 1]:
                 keyboard_state[0x10] = shift_state * 0xFF
-                ret = ToUnicode(key_code, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
+                vk = scan_code_to_vk.get(scan_code, 0)
+                ret = ToUnicode(vk, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
                 if ret:
                     # Sometimes two characters are written before the char we want,
                     # usually an accented one such as Â. Couldn't figure out why.
@@ -449,17 +461,17 @@ def media_name_to_vk(name):
 def press(scan_code):
     if scan_code < 0:
         vk = -scan_code
-        scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
+        scan_code = vk_to_scan_code[vk]
     else:
-        vk = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+        vk = scan_code_to_vk[scan_code]
     user32.keybd_event(vk, scan_code, 0, 0)
 
 def release(scan_code):
     if scan_code < 0:
         vk = -scan_code
-        scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
+        scan_code = vk_to_scan_code[vk]
     else:
-        vk = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+        vk = scan_code_to_vk[scan_code]
     user32.keybd_event(vk, scan_code, 2, 0)
 
 def type_unicode(character):
