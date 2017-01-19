@@ -443,11 +443,14 @@ def listen(queue):
 
 def map_char(name):
     setup_tables()
-    try:
+    vk = media_name_to_vk(name)
+    if vk:
+        return -vk, []
+    elif name in to_scan_code:
         scan_code, shift = to_scan_code[name]
         return scan_code, ['shift'] if shift else []
-    except KeyError:
-        return -media_name_to_vk(name), []
+    else:
+        raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
 def media_name_to_vk(name):
     wants_keypad = name.startswith('keypad ')
@@ -457,7 +460,6 @@ def media_name_to_vk(name):
         candidate_name, is_keypad = from_virtual_key[vk]
         if candidate_name in (name, 'left ' + name, 'right ' + name) and is_keypad == wants_keypad:
             return vk
-    raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
 def press(scan_code):
     if scan_code < 0:
