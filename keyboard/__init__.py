@@ -71,7 +71,7 @@ import time as _time
 from threading import Lock as _Lock
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
-from ._suppress import KeyTable
+from ._suppress import KeyTable as _KeyTable
 
 try:
     _basestring = basestring
@@ -113,12 +113,12 @@ class _KeyboardListener(_GenericListener):
             _pressed_events[event.scan_code] = event
 
         if not _pressed_events:
-            _os_keyboard.allowed_keys.complete_sequence()
+            _key_table.complete_sequence()
 
         return True
 
     def listen(self):
-        _os_keyboard.listen(self.queue)
+        _os_keyboard.listen(self.queue, _key_table.is_allowed)
 _listener = _KeyboardListener()
 
 def matches(event, name):
@@ -207,7 +207,7 @@ def _suppress_hotkey(steps, timeout):
     Adds a hotkey to the list of keys to be suppressed.
     To unsuppress all hotkeys use `clear_all_hotkeys()`.
     """
-    _os_keyboard.allowed_keys.suppress_sequence(steps, timeout)
+    _key_table.suppress_sequence(steps, timeout)
 
 
 _hotkeys = {}
@@ -223,7 +223,7 @@ def clear_all_hotkeys():
     for handler in _hotkeys.values():
         unhook(handler)
     _hotkeys.clear()
-    _os_keyboard.allowed_keys.suppress_none()
+    _key_table.suppress_none()
     _hotkeys_suppressed.clear()
 
 # Alias.
@@ -396,7 +396,7 @@ def remove_hotkey(hotkey_or_handler):
     if name in _hotkeys_suppressed:
         del _hotkeys_suppressed[name]
         # because the table structure is optimized for runtime, we must recompile
-        _os_keyboard.allowed_keys.suppress_none()
+        _key_table.suppress_none()
         for current_name in _hotkeys_suppressed:
             _suppress_hotkey(canonicalize(current_name), _hotkeys_suppressed[current_name])
 
@@ -702,4 +702,4 @@ def get_typed_strings(events, allow_backspace=True):
                 string = ''
     yield string
 
-_os_keyboard.allowed_keys = KeyTable(press, release)
+_key_table = _KeyTable(press, release)

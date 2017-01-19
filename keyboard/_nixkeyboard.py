@@ -112,7 +112,7 @@ def init():
 
 pressed_modifiers = set()
 
-def listen(queue):
+def listen(queue, is_allowed=lambda *args: True):
     build_device()
     build_tables()
 

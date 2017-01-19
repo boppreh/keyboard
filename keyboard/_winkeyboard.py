@@ -366,7 +366,7 @@ alt_gr_is_pressed = False
 
 init = setup_tables
 
-def listen(queue):
+def listen(queue, is_allowed=lambda *args: True):
     setup_tables()
 
     def process_key(event_type, vk, scan_code, is_extended):
@@ -405,8 +405,7 @@ def listen(queue):
         # Not sure how long this takes, but may need to move it?
         queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
 
-        global allowed_keys
-        return allowed_keys.is_allowed(name, event_type == KEY_UP)
+        return is_allowed(name, event_type == KEY_UP)
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
         try:
