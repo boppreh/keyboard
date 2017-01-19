@@ -321,7 +321,7 @@ def setup_tables():
 
             # Scan codes may map to multiple virtual key codes.
             # In this case prefer the officially defined ones.
-            if scan_code not in scan_code_to_vk and vk in from_virtual_key:
+            if scan_code_to_vk.get(scan_code, 0) not in from_virtual_key:
                 scan_code_to_vk[scan_code] = vk
             vk_to_scan_code[vk] = scan_code
 
@@ -464,7 +464,7 @@ def press(scan_code):
         vk = -scan_code
         scan_code = vk_to_scan_code[vk]
     else:
-        vk = scan_code_to_vk[scan_code]
+        vk = scan_code_to_vk.get(scan_code, 0)
     user32.keybd_event(vk, scan_code, 0, 0)
 
 def release(scan_code):
@@ -472,7 +472,7 @@ def release(scan_code):
         vk = -scan_code
         scan_code = vk_to_scan_code[vk]
     else:
-        vk = scan_code_to_vk[scan_code]
+        vk = scan_code_to_vk.get(scan_code, 0)
     user32.keybd_event(vk, scan_code, 2, 0)
 
 def type_unicode(character):
