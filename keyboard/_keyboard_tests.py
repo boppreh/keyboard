@@ -26,6 +26,7 @@ class FakeOsKeyboard(object):
         self.append = None
         self.queue = None
         self.allowed_keys = KeyTable(keyboard.press, keyboard.release)
+        self.init = lambda: None
 
     def listen(self, queue):
         self.listening = True

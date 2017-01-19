@@ -70,6 +70,7 @@ def build_device():
     if device: return
     ensure_root()
     device = aggregate_devices('mouse')
+init = build_device
 
 def listen(queue):
     build_device()
