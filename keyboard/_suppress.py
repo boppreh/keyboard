@@ -1,6 +1,7 @@
 from threading import Lock, Thread
 from timeit import default_timer as timer
 from keyboard._keyboard_event import normalize_name
+import re
 
 
 class KeyTable(object):
@@ -34,7 +35,7 @@ class KeyTable(object):
             return True
 
         if key != self.SEQUENCE_END:
-            key = normalize_name(key.split(' ')[-1])
+            key = re.sub('(left|right) ', '', key)
 
         time = timer()
         if self._time == -1:
