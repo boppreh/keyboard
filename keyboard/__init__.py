@@ -229,7 +229,7 @@ def clear_all_hotkeys():
 # Alias.
 remove_all_hotkeys = clear_all_hotkeys
 
-def add_hotkey(hotkey, callback, args=(), blocking=True, suppress=False, timeout=1):
+def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
     """
     Invokes a callback every time a key combination is pressed. The hotkey must
     be in the format "ctrl+shift+a, s". This would trigger when the user holds
@@ -239,8 +239,8 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, suppress=False, timeout
 
     - `args` is an optional list of arguments to passed to the callback during
     each invocation.
-    - `blocking` defines if the it should block processing other hotkeys after
-    a match is found.
+    - `suppress` defines if the it should block processing other hotkeys after
+    a match is found. Currently Windows-only.
     - `timeout` is the amount of seconds allowed to pass between key presses
 
     The event handler function is returned. To remove a hotkey call
@@ -286,7 +286,7 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, suppress=False, timeout
                 if state.step == len(steps):
                     state.step = 0
                     callback(*args)
-                    return blocking
+                    return suppress
 
     _hotkeys[hotkey] = handler
     if suppress:
