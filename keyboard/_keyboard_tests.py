@@ -27,10 +27,12 @@ class FakeOsKeyboard(object):
         self.queue = None
         self.allowed_keys = KeyTable(keyboard.press, keyboard.release)
         self.init = lambda: None
+        self.is_allowed = lambda *args: True
 
-    def listen(self, queue):
+    def listen(self, queue, is_allowed):
         self.listening = True
         self.queue = queue
+        self.is_allowed = is_allowed
 
     def get_key_name(self, scan_code):
         return next(name for name, i in sorted(scan_codes_by_name.items()) if i == scan_code and name not in canonical_names)
@@ -78,14 +80,14 @@ class TestKeyboard(unittest.TestCase):
         self.wait_for_events_queue()
 
     def press(self, name, scan_code=None):
-        is_allowed = keyboard._os_keyboard.allowed_keys.is_allowed(name, False)
+        is_allowed = keyboard._os_keyboard.is_allowed(name, False)
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name, scan_code))
         self.wait_for_events_queue()
 
         return is_allowed
 
     def release(self, name, scan_code=None):
-        is_allowed = keyboard._os_keyboard.allowed_keys.is_allowed(name, True)
+        is_allowed = keyboard._os_keyboard.is_allowed(name, True)
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_UP, name, scan_code))
         self.wait_for_events_queue()
 
