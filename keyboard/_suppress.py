@@ -149,15 +149,12 @@ class KeyTable(object):
             flat.extend(subsequence)
             flat.append(self.SEQUENCE_END)
 
-        print(flat)
         last_index = flat[-1]
         self._write.acquire()
         table = self._acquire_table(flat, self._keys, timeout)
         table[last_index] = (table[last_index][0], table[last_index][1], True)
         self._refresh()
         self._write.release()
-
-        print(self._keys)
 
     def suppress_none(self):
         """
