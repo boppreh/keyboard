@@ -42,10 +42,12 @@ Then check the [API docs](https://github.com/boppreh/keyboard#api) to see what f
 ```
 import keyboard
 
+keyboard.press_and_release('shift+s, space')
+
+keyboard.write('The quick brown fox jumps over the lazy dog.')
+
 # Press PAGE UP then PAGE DOWN to type "foobar".
 keyboard.add_hotkey('page up, page down', lambda: keyboard.write('foobar'))
-
-keyboard.press_and_release('shift+s, space')
 
 # Blocks until you press esc.
 keyboard.wait('esc')
@@ -54,6 +56,11 @@ keyboard.wait('esc')
 recorded = keyboard.record(until='esc')
 # Then replay back at three times the speed.
 keyboard.play(recorded, speed_factor=3)
+
+# Type @@ then press space to replace with abbreviation.
+keyboard.add_abbreviation('@@', 'my.long.email@example.com')
+# Block forever.
+keyboard.wait()
 ```
 
 ## Known limitations:
@@ -604,13 +611,15 @@ def press_and_release(combination):
     """ Presses and releases the key combination (see `send`). """
     send(combination, True, True)
 
-def wait(combination):
+def wait(combination=None):
     """
-    Blocks the program execution until the given key combination is pressed.
+    Blocks the program execution until the given key combination is pressed or,
+    if given no parameters, blocks forever.
     """
     lock = _Lock()
     lock.acquire()
-    hotkey_handler = add_hotkey(combination, lock.release)
+    if combination is not None:
+        hotkey_handler = add_hotkey(combination, lock.release)
     lock.acquire()
     remove_hotkey(hotkey_handler)
 
