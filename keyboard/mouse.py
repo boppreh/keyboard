@@ -53,6 +53,10 @@ def right_click():
     """ Sends a right click with the given button. """
     click(RIGHT)
 
+def wheel(delta=1):
+    """ Scrolls the wheel `delta` clicks. Sign indicates direction. """
+    _os_mouse.wheel(delta)
+
 def move(x, y, absolute=True, duration=0):
     """
     Moves the mouse. If `absolute`, to position (x, y), otherwise move relative
