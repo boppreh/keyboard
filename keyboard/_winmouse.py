@@ -7,7 +7,7 @@ LPMSG = POINTER(MSG)
 
 import atexit
 
-from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
+from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE, WHEEL, HORIZONTAL, VERTICAL
 
 user32 = ctypes.windll.user32
 
@@ -105,7 +105,8 @@ MOUSEEVENTF_XDOWN = 0x0080
 MOUSEEVENTF_XUP = 0x0100
 
 simulated_mouse_codes = {
-    #(WHEEL, HORIZONTAL): MOUSEEVENTF_HWHEEL,
+    (WHEEL, HORIZONTAL): MOUSEEVENTF_HWHEEL,
+    (WHEEL, VERTICAL): MOUSEEVENTF_WHEEL,
 
     (DOWN, LEFT): MOUSEEVENTF_LEFTDOWN,
     (UP, LEFT): MOUSEEVENTF_LEFTUP,
@@ -175,7 +176,7 @@ def release(button=LEFT):
     user32.mouse_event(code, 0, 0, data, 0)
 
 def wheel(delta=1):
-    code = simulated_mouse_codes[(WHEEL, 0)]
+    code = simulated_mouse_codes[(WHEEL, VERTICAL)]
     user32.mouse_event(code, 0, 0, delta * WHEEL_DELTA, 0)
 
 def move_to(x, y):
