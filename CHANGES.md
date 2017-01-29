@@ -1,3 +1,12 @@
+# 0.9.10
+
+- [Windows] Add `suppress` parameter to hotkeys to block the combination from being sent to other programs.
+- [Windows] Better key mapping for common keys (now using Virtual Key Codes when possible).
+- [Windows] Normalize numpad and key code names.
+- [Linux] Errors about requiring sudo are now thrown in the main thread, making them catchable.
+- [All] `wheel` method in mouse module.
+
+
 # 0.9.9
 
 - [Windows] Include scan codes in generated events, instead of only Virtual Key Codes. This allows software like Citrix to receive the events correctly.
