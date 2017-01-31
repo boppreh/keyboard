@@ -29,6 +29,9 @@ from subprocess import run, check_output
 import atexit
 import requests
 
+run(['bash', '-c', 'find . \( -name "*.py" -o -name "*.sh" -o -name "* .md" \) -exec dos2unix {} \;'], check=True)
+
+
 if os.path.exists('make_readme.sh'):
     run(['bash', 'make_readme.sh'], check=True)
 
