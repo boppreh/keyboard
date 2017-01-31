@@ -14,7 +14,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 - **Python 2 and 3**.
 - Complex hotkey support (e.g. `Ctrl+Shift+M, Ctrl+Space`) with controllable timeout.
 - Includes **high level API** (e.g. [record](#keyboard.record) and [play](#keyboard.play), [add_abbreviation](#keyboard.add_abbreviation)).
-- Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+Ã§`).
+- Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+ç`).
 - Events automatically captured in separate thread, doesn't block main program.
 - Tested and documented.
 - Doesn't break accented dead keys (I'm looking at you, pyHook).
@@ -41,10 +41,12 @@ Then check the [API docs](https://github.com/boppreh/keyboard#api) to see what f
 ```
 import keyboard
 
+keyboard.press_and_release('shift+s, space')
+
+keyboard.write('The quick brown fox jumps over the lazy dog.')
+
 # Press PAGE UP then PAGE DOWN to type "foobar".
 keyboard.add_hotkey('page up, page down', lambda: keyboard.write('foobar'))
-
-keyboard.press_and_release('shift+s, space')
 
 # Blocks until you press esc.
 keyboard.wait('esc')
@@ -53,6 +55,11 @@ keyboard.wait('esc')
 recorded = keyboard.record(until='esc')
 # Then replay back at three times the speed.
 keyboard.play(recorded, speed_factor=3)
+
+# Type @@ then press space to replace with abbreviation.
+keyboard.add_abbreviation('@@', 'my.long.email@example.com')
+# Block forever.
+keyboard.wait()
 ```
 
 ## Known limitations:
@@ -153,7 +160,7 @@ key events. In this case `keyboard` will be unable to report events.
 <a name="keyboard.matches"/>
 ## keyboard.**matches**(event, name)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L117)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L131)
 
 
 Returns True if the given event represents the same key as the one given in
@@ -164,7 +171,7 @@ Returns True if the given event represents the same key as the one given in
 <a name="keyboard.is_pressed"/>
 ## keyboard.**is\_pressed**(key)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L134)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L148)
 
 
 Returns True if the key is pressed.
@@ -178,7 +185,7 @@ Returns True if the key is pressed.
 <a name="keyboard.canonicalize"/>
 ## keyboard.**canonicalize**(hotkey)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L156)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L170)
 
 
 Splits a user provided hotkey into a list of steps, each one made of a list
@@ -199,7 +206,7 @@ more than one physical key (e.g. two 'ctrl' keys).
 <a name="keyboard.call_later"/>
 ## keyboard.**call\_later**(fn, args=(), delay=0.001)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L190)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L204)
 
 
 Calls the provided function in a new thread after waiting some time.
@@ -211,7 +218,7 @@ the current execution flow.
 <a name="keyboard.clear_all_hotkeys"/>
 ## keyboard.**clear\_all\_hotkeys**()
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L199)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L222)
 
 
 Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
@@ -229,9 +236,9 @@ Alias for [`clear_all_hotkeys`](#keyboard.clear_all_hotkeys).
 
 
 <a name="keyboard.add_hotkey"/>
-## keyboard.**add\_hotkey**(hotkey, callback, args=(), blocking=True, timeout=1)
+## keyboard.**add\_hotkey**(hotkey, callback, args=(), suppress=False, timeout=1)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L214)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L239)
 
 
 Invokes a callback every time a key combination is pressed. The hotkey must
@@ -242,8 +249,8 @@ literal commas, pluses and spaces use their names ('comma', 'plus',
 
 - `args` is an optional list of arguments to passed to the callback during
 each invocation.
-- `blocking` defines if the it should block processing other hotkeys after
-a match is found.
+- `suppress` defines if the it should block processing other hotkeys after
+a match is found. Currently Windows-only.
 - `timeout` is the amount of seconds allowed to pass between key presses
 
 The event handler function is returned. To remove a hotkey call
@@ -273,7 +280,7 @@ Alias for [`add_hotkey`](#keyboard.add_hotkey).
 <a name="keyboard.hook"/>
 ## keyboard.**hook**(callback)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L279)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L308)
 
 
 Installs a global listener on all available keyboards, invoking `callback`
@@ -295,7 +302,7 @@ Returns the given callback for easier development.
 <a name="keyboard.unhook"/>
 ## keyboard.**unhook**(callback)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L298)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L327)
 
 Removes a previously hooked callback. 
 
@@ -303,7 +310,7 @@ Removes a previously hooked callback.
 <a name="keyboard.unhook_all"/>
 ## keyboard.**unhook\_all**()
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L302)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L331)
 
 
 Removes all keyboard hooks in use, including hotkeys, abbreviations, word
@@ -312,9 +319,9 @@ listeners, [`record`](#keyboard.record)ers and [`wait`](#keyboard.wait)s.
 
 
 <a name="keyboard.hook_key"/>
-## keyboard.**hook\_key**(key, keydown\_callback=&lt;lambda&gt;, keyup\_callback=&lt;lambda&gt;)
+## keyboard.**hook\_key**(key, keydown\_callback=&lt;function &lt;lambda&gt; at 0x000002026850ED90&gt;, keyup\_callback=&lt;function &lt;lambda&gt; at 0x000002026850EE18&gt;)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L311)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L340)
 
 
 Hooks key up and key down events for a single key. Returns the event handler
@@ -329,7 +336,7 @@ affects it aswell.
 <a name="keyboard.on_press"/>
 ## keyboard.**on\_press**(callback)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L332)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L361)
 
 
 Invokes `callback` for every KEY_DOWN event. For details see [`hook`](#keyboard.hook).
@@ -339,7 +346,7 @@ Invokes `callback` for every KEY_DOWN event. For details see [`hook`](#keyboard.
 <a name="keyboard.on_release"/>
 ## keyboard.**on\_release**(callback)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L338)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L367)
 
 
 Invokes `callback` for every KEY_UP event. For details see [`hook`](#keyboard.hook).
@@ -349,7 +356,7 @@ Invokes `callback` for every KEY_UP event. For details see [`hook`](#keyboard.ho
 <a name="keyboard.remove_hotkey"/>
 ## keyboard.**remove\_hotkey**(hotkey\_or\_handler)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L365)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L396)
 
 
 Removes a previously registered hotkey. Accepts either the hotkey used
@@ -367,7 +374,7 @@ Alias for [`remove_hotkey`](#keyboard.remove_hotkey).
 <a name="keyboard.add_word_listener"/>
 ## keyboard.**add\_word\_listener**(word, callback, triggers=[&#x27;space&#x27;], match\_suffix=False, timeout=2)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L377)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L415)
 
 
 Invokes a callback every time a sequence of characters is typed (e.g. 'pet')
@@ -404,7 +411,7 @@ Alias for [`add_word_listener`](#keyboard.add_word_listener).
 <a name="keyboard.remove_word_listener"/>
 ## keyboard.**remove\_word\_listener**(word\_or\_handler)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L428)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L466)
 
 
 Removes a previously registered word listener. Accepts either the word used
@@ -422,14 +429,14 @@ Alias for [`remove_word_listener`](#keyboard.remove_word_listener).
 <a name="keyboard.add_abbreviation"/>
 ## keyboard.**add\_abbreviation**(source\_text, replacement\_text, match\_suffix=True, timeout=2)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L436)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L474)
 
 
 Registers a hotkey that replaces one typed text with another. For example
 
-    add_abbreviation('tm', u'â„¢')
+    add_abbreviation('tm', u'™')
 
-Replaces every "tm" followed by a space with a â„¢ symbol (and no space). The
+Replaces every "tm" followed by a space with a ™ symbol (and no space). The
 replacement is done by sending backspace events.
 
 - `match_suffix` defines if endings of words should also be checked instead
@@ -451,7 +458,7 @@ Alias for [`add_abbreviation`](#keyboard.add_abbreviation).
 <a name="keyboard.stash_state"/>
 ## keyboard.**stash\_state**()
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L462)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L500)
 
 
 Builds a list of all currently pressed scan codes, releases them and returns
@@ -462,7 +469,7 @@ the list. Pairs well with [`restore_state`](#keyboard.restore_state).
 <a name="keyboard.restore_state"/>
 ## keyboard.**restore\_state**(scan\_codes)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L472)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L510)
 
 
 Given a list of scan_codes ensures these keys, and only these keys, are
@@ -473,7 +480,7 @@ pressed. Pairs well with [`stash_state`](#keyboard.stash_state).
 <a name="keyboard.write"/>
 ## keyboard.**write**(text, delay=0, restore\_state\_after=True)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L484)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L522)
 
 
 Sends artificial keyboard events to the OS, simulating the typing of a given
@@ -494,7 +501,7 @@ beginning. Defaults to True.
 <a name="keyboard.to_scan_code"/>
 ## keyboard.**to\_scan\_code**(key)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L527)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L565)
 
 
 Returns the scan code for a given key name (or scan code, i.e. do nothing).
@@ -506,7 +513,7 @@ one of the scan codes will be chosen.
 <a name="keyboard.send"/>
 ## keyboard.**send**(combination, do\_press=True, do\_release=True)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L539)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L577)
 
 
 Sends OS events that perform the given hotkey combination.
@@ -528,7 +535,7 @@ Note: keys are released in the opposite order they were pressed.
 <a name="keyboard.press"/>
 ## keyboard.**press**(combination)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L564)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L602)
 
 Presses and holds down a key combination (see [`send`](#keyboard.send)). 
 
@@ -536,7 +543,7 @@ Presses and holds down a key combination (see [`send`](#keyboard.send)).
 <a name="keyboard.release"/>
 ## keyboard.**release**(combination)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L568)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L606)
 
 Releases a key combination (see [`send`](#keyboard.send)). 
 
@@ -544,25 +551,26 @@ Releases a key combination (see [`send`](#keyboard.send)).
 <a name="keyboard.press_and_release"/>
 ## keyboard.**press\_and\_release**(combination)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L572)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L610)
 
 Presses and releases the key combination (see [`send`](#keyboard.send)). 
 
 
 <a name="keyboard.wait"/>
-## keyboard.**wait**(combination)
+## keyboard.**wait**(combination=None)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L576)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L614)
 
 
-Blocks the program execution until the given key combination is pressed.
+Blocks the program execution until the given key combination is pressed or,
+if given no parameters, blocks forever.
 
 
 
 <a name="keyboard.record"/>
 ## keyboard.**record**(until=&#x27;escape&#x27;)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L586)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L626)
 
 
 Records all keyboard events from all keyboards until the user presses the
@@ -578,7 +586,7 @@ Note: for more details on the keyboard hook and events see [`hook`](#keyboard.ho
 <a name="keyboard.play"/>
 ## keyboard.**play**(events, speed\_factor=1.0)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L602)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L642)
 
 
 Plays a sequence of recorded events, maintaining the relative time
@@ -599,7 +607,7 @@ Alias for [`play`](#keyboard.play).
 <a name="keyboard.get_typed_strings"/>
 ## keyboard.**get\_typed\_strings**(events, allow\_backspace=True)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L630)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L670)
 
 
 Given a sequence of events, tries to deduce what strings were typed.

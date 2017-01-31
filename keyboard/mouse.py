@@ -12,6 +12,8 @@ from ._generic import GenericListener as _GenericListener
 
 _pressed_events = set()
 class _MouseListener(_GenericListener):
+    def init(self):
+        _os_mouse.init()
     def pre_process_event(self, event):
         if isinstance(event, ButtonEvent):
             if event.event_type in (UP, DOUBLE):

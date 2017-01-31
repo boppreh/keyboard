@@ -125,6 +125,8 @@ NULL = c_int(0)
 
 WHEEL_DELTA = 120
 
+init = lambda: None
+
 def listen(queue):
     def low_level_mouse_handler(nCode, wParam, lParam):
         struct = lParam.contents

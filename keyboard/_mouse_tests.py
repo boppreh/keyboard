@@ -10,6 +10,7 @@ class FakeOsMouse(object):
         self.append = None
         self.position = (0, 0)
         self.queue = None
+        self.init = lambda: None
 
     def listen(self, queue):
         self.listening = True

@@ -183,6 +183,29 @@ canonical_names = {
     'nine': '9',
 
     'play/pause': 'play/pause media',
+
+    'num multiply': '*',
+    'num divide': '/',
+    'num add': '+',
+    'num plus': '+',
+    'num minus': '+',
+    'num sub': '-',
+    'num enter': 'enter',
+    'num 0': '0',
+    'num 1': '1',
+    'num 2': '2',
+    'num 3': '3',
+    'num 4': '4',
+    'num 5': '5',
+    'num 6': '6',
+    'num 7': '7',
+    'num 8': '8',
+    'num 9': '9',
+
+    'left win': 'left windows',
+    'right win': 'right windows',
+    'left control': 'left ctrl',
+    'right control': 'right ctrl',
 }
 
 def normalize_name(name):

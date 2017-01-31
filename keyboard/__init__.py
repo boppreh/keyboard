@@ -42,10 +42,12 @@ Then check the [API docs](https://github.com/boppreh/keyboard#api) to see what f
 ```
 import keyboard
 
+keyboard.press_and_release('shift+s, space')
+
+keyboard.write('The quick brown fox jumps over the lazy dog.')
+
 # Press PAGE UP then PAGE DOWN to type "foobar".
 keyboard.add_hotkey('page up, page down', lambda: keyboard.write('foobar'))
-
-keyboard.press_and_release('shift+s, space')
 
 # Blocks until you press esc.
 keyboard.wait('esc')
@@ -54,6 +56,11 @@ keyboard.wait('esc')
 recorded = keyboard.record(until='esc')
 # Then replay back at three times the speed.
 keyboard.play(recorded, speed_factor=3)
+
+# Type @@ then press space to replace with abbreviation.
+keyboard.add_abbreviation('@@', 'my.long.email@example.com')
+# Block forever.
+keyboard.wait()
 ```
 
 ## Known limitations:
@@ -71,6 +78,7 @@ import time as _time
 from threading import Lock as _Lock
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
+from ._suppress import KeyTable as _KeyTable
 
 try:
     _basestring = basestring
@@ -94,6 +102,9 @@ all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
+    def init(self):
+        _os_keyboard.init()
+        
     def pre_process_event(self, event):
         if not event.scan_code and event.name == 'unknown':
             return False
@@ -108,10 +119,13 @@ class _KeyboardListener(_GenericListener):
         else:
             _pressed_events[event.scan_code] = event
 
+        if not _pressed_events:
+            _key_table.complete_sequence()
+
         return True
 
     def listen(self):
-        _os_keyboard.listen(self.queue)
+        _os_keyboard.listen(self.queue, _key_table.is_allowed)
 _listener = _KeyboardListener()
 
 def matches(event, name):
@@ -129,7 +143,7 @@ def matches(event, name):
         or 'right ' + normalized == event.name
     )
 
-    return matched_name or _os_keyboard.map_char(name)[0] == event.scan_code
+    return matched_name or _os_keyboard.map_char(normalized)[0] == event.scan_code
 
 def is_pressed(key):
     """
@@ -195,7 +209,16 @@ def call_later(fn, args=(), delay=0.001):
     """
     _Thread(target=lambda: _time.sleep(delay) or fn(*args)).start()
 
+def _suppress_hotkey(steps, timeout):
+    """
+    Adds a hotkey to the list of keys to be suppressed.
+    To unsuppress all hotkeys use `clear_all_hotkeys()`.
+    """
+    _key_table.suppress_sequence(steps, timeout)
+
+
 _hotkeys = {}
+_hotkeys_suppressed = {}
 def clear_all_hotkeys():
     """
     Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
@@ -207,11 +230,13 @@ def clear_all_hotkeys():
     for handler in _hotkeys.values():
         unhook(handler)
     _hotkeys.clear()
+    _key_table.suppress_none()
+    _hotkeys_suppressed.clear()
 
 # Alias.
 remove_all_hotkeys = clear_all_hotkeys
 
-def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
+def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
     """
     Invokes a callback every time a key combination is pressed. The hotkey must
     be in the format "ctrl+shift+a, s". This would trigger when the user holds
@@ -221,8 +246,8 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
 
     - `args` is an optional list of arguments to passed to the callback during
     each invocation.
-    - `blocking` defines if the it should block processing other hotkeys after
-    a match is found.
+    - `suppress` defines if the it should block processing other hotkeys after
+    a match is found. Currently Windows-only.
     - `timeout` is the amount of seconds allowed to pass between key presses
 
     The event handler function is returned. To remove a hotkey call
@@ -268,9 +293,13 @@ def add_hotkey(hotkey, callback, args=(), blocking=True, timeout=1):
                 if state.step == len(steps):
                     state.step = 0
                     callback(*args)
-                    return blocking
+                    return suppress
 
     _hotkeys[hotkey] = handler
+    if suppress:
+        _suppress_hotkey(steps, timeout)
+        _hotkeys_suppressed[hotkey] = timeout
+
     return hook(handler)
 
 # Alias.
@@ -362,13 +391,22 @@ def _remove_named_hook(name_or_handler, names):
         unhook(names[name])
         del names[name]
 
+    return name
+
 def remove_hotkey(hotkey_or_handler):
     """
     Removes a previously registered hotkey. Accepts either the hotkey used
     during registration (exact string) or the event handler returned by the
     `add_hotkey` or `hook_key` functions.
     """
-    _remove_named_hook(hotkey_or_handler, _hotkeys)
+    name = _remove_named_hook(hotkey_or_handler, _hotkeys)
+    if name in _hotkeys_suppressed:
+        del _hotkeys_suppressed[name]
+        # because the table structure is optimized for runtime, we must recompile
+        _key_table.suppress_none()
+        for current_name in _hotkeys_suppressed:
+            _suppress_hotkey(canonicalize(current_name), _hotkeys_suppressed[current_name])
+
 
 # Alias.
 unhook_key = remove_hotkey
@@ -573,13 +611,15 @@ def press_and_release(combination):
     """ Presses and releases the key combination (see `send`). """
     send(combination, True, True)
 
-def wait(combination):
+def wait(combination=None):
     """
-    Blocks the program execution until the given key combination is pressed.
+    Blocks the program execution until the given key combination is pressed or,
+    if given no parameters, blocks forever.
     """
     lock = _Lock()
     lock.acquire()
-    hotkey_handler = add_hotkey(combination, lock.release)
+    if combination is not None:
+        hotkey_handler = add_hotkey(combination, lock.release)
     lock.acquire()
     remove_hotkey(hotkey_handler)
 
@@ -670,3 +710,5 @@ def get_typed_strings(events, allow_backspace=True):
                 yield string
                 string = ''
     yield string
+
+_key_table = _KeyTable(press, release)

@@ -33,6 +33,8 @@ class GenericListener(object):
         self.lock.acquire()
         try:
             if not self.listening:
+                self.init()
+
                 self.listening = True
                 self.listening_thread = Thread(target=self.listen)
                 self.listening_thread.daemon = True

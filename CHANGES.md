@@ -1,3 +1,9 @@
+# 0.9.9
+
+- [Windows] Include scan codes in generated events, instead of only Virtual Key Codes. This allows software like Citrix to receive the events correctly.
+- [Windows] Fix bugs that prevented keys without associated Virtual Key Codes from beign processed.
+
+
 # 0.9.8
 
 - Allow sending of keypad events on both Windows and Linux.

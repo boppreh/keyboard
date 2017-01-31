@@ -7,6 +7,7 @@ from threading import Lock
 import re
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from ._suppress import KeyTable
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
@@ -166,8 +167,8 @@ from_virtual_key = {
     0x2a: ('print', False),
     0x2b: ('execute', False),
     0x2c: ('print screen', False),
-    0x2d: ('ins', False),
-    0x2e: ('del', False),
+    0x2d: ('insert', False),
+    0x2e: ('delete', False),
     0x2f: ('help', False),
     0x30: ('0', False),
     0x31: ('1', False),
@@ -219,12 +220,12 @@ from_virtual_key = {
     0x67: ('7', True),
     0x68: ('8', True),
     0x69: ('9', True),
-    0x6a: ('multiply', False),
-    0x6b: ('add', False),
+    0x6a: ('*', False),
+    0x6b: ('+', False),
     0x6c: ('separator', False),
-    0x6d: ('subtract', False),
+    0x6d: ('-', False),
     0x6e: ('decimal', False),
-    0x6f: ('divide', False),
+    0x6f: ('/', False),
     0x70: ('f1', False),
     0x71: ('f2', False),
     0x72: ('f3', False),
@@ -253,8 +254,8 @@ from_virtual_key = {
     0x91: ('scroll lock', False),
     0xa0: ('left shift', False),
     0xa1: ('right shift', False),
-    0xa2: ('left control', False),
-    0xa3: ('right control', False),
+    0xa2: ('left ctrl', False),
+    0xa3: ('right ctrl', False),
     0xa4: ('left menu', False),
     0xa5: ('right menu', False),
     0xa6: ('browser back', False),
@@ -297,6 +298,8 @@ reversed_extended_keys = [0x6f, 0xd]
 
 from_scan_code = {}
 to_scan_code = {}
+vk_to_scan_code = {}
+scan_code_to_vk = {}
 tables_lock = Lock()
 
 # Alt gr is way outside the usual range of keys (0..127) and on my
@@ -312,11 +315,19 @@ def setup_tables():
     try:
         if from_scan_code and to_scan_code: return
 
+        for vk in range(0x01, 0x100):
+            scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
+            if not scan_code: continue
+
+            # Scan codes may map to multiple virtual key codes.
+            # In this case prefer the officially defined ones.
+            if scan_code_to_vk.get(scan_code, 0) not in from_virtual_key:
+                scan_code_to_vk[scan_code] = vk
+            vk_to_scan_code[vk] = scan_code
+
         name_buffer = ctypes.create_unicode_buffer(32)
         keyboard_state = keyboard_state_type()
         for scan_code in range(2**(23-16)):
-            key_code = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
-
             from_scan_code[scan_code] = ['unknown', 'unknown']
 
             # Get pure key name, such as "shift". This depends on locale and
@@ -331,15 +342,17 @@ def setup_tables():
                 if name not in to_scan_code:
                     to_scan_code[name] = (scan_code, False)
 
+            if scan_code not in scan_code_to_vk: continue
             # Get associated character, such as "^", possibly overwriting the pure key name.
             for shift_state in [0, 1]:
                 keyboard_state[0x10] = shift_state * 0xFF
-                ret = ToUnicode(key_code, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
+                vk = scan_code_to_vk.get(scan_code, 0)
+                ret = ToUnicode(vk, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
                 if ret:
                     # Sometimes two characters are written before the char we want,
                     # usually an accented one such as Â. Couldn't figure out why.
                     char = name_buffer.value[-1]
-                    if name not in to_scan_code:
+                    if char not in to_scan_code:
                         to_scan_code[char] = (scan_code, bool(shift_state))
                     from_scan_code[scan_code][shift_state] = char
 
@@ -351,49 +364,50 @@ def setup_tables():
 shift_is_pressed = False
 alt_gr_is_pressed = False
 
-def listen(queue):
+init = setup_tables
+
+def listen(queue, is_allowed=lambda *args: True):
     setup_tables()
 
     def process_key(event_type, vk, scan_code, is_extended):
         global alt_gr_is_pressed
         global shift_is_pressed
-        
+
+        name = 'unknown'
+        is_keypad = False
         if scan_code == alt_gr_scan_code:
             alt_gr_is_pressed = event_type == KEY_DOWN
             name = 'alt gr'
-            is_keypad = False
-        elif vk in from_virtual_key:
-            # Pressing AltGr also triggers "right menu" quickly after. We
-            # try to filter out this event. The `alt_gr_is_pressed` flag
-            # is to avoid messing with keyboards that don't even have an
-            # alt gr key.
-            if vk == 165: return
-
-            name, is_keypad = from_virtual_key[vk]
-            if vk in possible_extended_keys and not is_extended:
-                is_keypad = True
-            # What the hell Windows?
-            if vk in reversed_extended_keys and is_extended:
-                is_keypad = True                
         else:
-            names = from_scan_code[scan_code][shift_is_pressed]
-            # VirtualKey should include all keypad keys.
-            is_keypad = False
+            if vk in from_virtual_key:
+                # Pressing AltGr also triggers "right menu" quickly after. We
+                # try to filter out this event. The `alt_gr_is_pressed` flag
+                # is to avoid messing with keyboards that don't even have an
+                # alt gr key.
+                if vk == 165:
+                    return True
+
+                name, is_keypad = from_virtual_key[vk]
+                if vk in possible_extended_keys and not is_extended:
+                    is_keypad = True
+                # What the hell Windows?
+                if vk in reversed_extended_keys and is_extended:
+                    is_keypad = True                
+            
+            if scan_code in from_scan_code:
+                name = from_scan_code[scan_code][shift_is_pressed]
             
         if event_type == KEY_DOWN and name == 'shift':
             shift_is_pressed = True
         elif event_type == KEY_UP and name == 'shift':
             shift_is_pressed = False
 
+        # Not sure how long this takes, but may need to move it?
         queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
 
-    def low_level_keyboard_handler(nCode, wParam, lParam):
-        # Call next hook as soon as possible to reduce delays.
-        ret = CallNextHookEx(NULL, nCode, wParam, lParam)
+        return is_allowed(name, event_type == KEY_UP)
 
-        # You may be tempted to use ToUnicode to extract the character from
-        # this event with more precision. Do not. ToUnicode breaks dead keys.
-        
+    def low_level_keyboard_handler(nCode, wParam, lParam):
         try:
             vk = lParam.contents.vk_code
             # Ignore events generated by SendInput with Unicode.
@@ -401,10 +415,13 @@ def listen(queue):
                 event_type = keyboard_event_types[wParam]
                 is_extended = lParam.contents.flags & 1
                 scan_code = lParam.contents.scan_code
-                process_key(event_type, vk, scan_code, is_extended)
-        finally:
-            return ret
+                should_continue = process_key(event_type, vk, scan_code, is_extended)
+                if not should_continue:
+                    return -1
+        except Exception as e:
+            print('Error in keyboard hook: ', e)
 
+        return CallNextHookEx(NULL, nCode, wParam, lParam)
 
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
@@ -425,11 +442,14 @@ def listen(queue):
 
 def map_char(name):
     setup_tables()
-    try:
+    vk = media_name_to_vk(name)
+    if vk:
+        return -vk, []
+    elif name in to_scan_code:
         scan_code, shift = to_scan_code[name]
         return scan_code, ['shift'] if shift else []
-    except KeyError:
-        return -media_name_to_vk(name), []
+    else:
+        raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
 def media_name_to_vk(name):
     wants_keypad = name.startswith('keypad ')
@@ -439,22 +459,21 @@ def media_name_to_vk(name):
         candidate_name, is_keypad = from_virtual_key[vk]
         if candidate_name in (name, 'left ' + name, 'right ' + name) and is_keypad == wants_keypad:
             return vk
-    raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
 def press(scan_code):
     if scan_code < 0:
         vk = -scan_code
-        scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
+        scan_code = vk_to_scan_code[vk]
     else:
-        vk = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+        vk = scan_code_to_vk.get(scan_code, 0)
     user32.keybd_event(vk, scan_code, 0, 0)
 
 def release(scan_code):
     if scan_code < 0:
         vk = -scan_code
-        scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
+        scan_code = vk_to_scan_code[vk]
     else:
-        vk = MapVirtualKey(scan_code, MAPVK_VSC_TO_VK)
+        vk = scan_code_to_vk.get(scan_code, 0)
     user32.keybd_event(vk, scan_code, 2, 0)
 
 def type_unicode(character):

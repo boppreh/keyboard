@@ -6,6 +6,7 @@ import string
 import keyboard
 
 from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
+from ._suppress import KeyTable
 
 # Fake events with fake scan codes for a totally deterministic test.
 all_names = set(canonical_names.values()) | set(string.ascii_lowercase) | set(string.ascii_uppercase) | {'shift'}
@@ -24,10 +25,14 @@ class FakeOsKeyboard(object):
         self.listening = False
         self.append = None
         self.queue = None
+        self.allowed_keys = KeyTable(keyboard.press, keyboard.release)
+        self.init = lambda: None
+        self.is_allowed = lambda *args: True
 
-    def listen(self, queue):
+    def listen(self, queue, is_allowed):
         self.listening = True
         self.queue = queue
+        self.is_allowed = is_allowed
 
     def get_key_name(self, scan_code):
         return next(name for name, i in sorted(scan_codes_by_name.items()) if i == scan_code and name not in canonical_names)
@@ -75,16 +80,21 @@ class TestKeyboard(unittest.TestCase):
         self.wait_for_events_queue()
 
     def press(self, name, scan_code=None):
+        is_allowed = keyboard._os_keyboard.is_allowed(name, False)
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name, scan_code))
         self.wait_for_events_queue()
 
+        return is_allowed
+
     def release(self, name, scan_code=None):
+        is_allowed = keyboard._os_keyboard.is_allowed(name, True)
         keyboard._os_keyboard.queue.put(FakeEvent(KEY_UP, name, scan_code))
         self.wait_for_events_queue()
 
+        return is_allowed
+
     def click(self, name, scan_code=None):
-        self.press(name, scan_code)
-        self.release(name, scan_code)
+        return self.press(name, scan_code) and self.release(name, scan_code)
 
     def flush_events(self):
         self.wait_for_events_queue()
@@ -552,6 +562,39 @@ class TestKeyboard(unittest.TestCase):
         time.sleep(0.2)
         self.assertTrue(self.triggered)
 
+    def test_suppression(self):
+        def dummy():
+            pass
+
+        keyboard.add_hotkey('a+b+c', dummy, suppress=True)
+        keyboard.add_hotkey('a+g+h', dummy, suppress=True, timeout=0.01)
+
+        for key in ['a', 'b', 'c']:
+            assert not self.press(key)
+        for key in ['a', 'b', 'c']:
+            assert not self.release(key)
+
+        assert self.click('d')
+
+        for key in ['a', 'b']:
+            assert not self.press(key)
+        for key in ['a', 'b']:
+            assert not self.release(key)
+
+        assert self.click('c')
+
+        for key in ['a', 'g']:
+            assert not self.press(key)
+        for key in ['a', 'g']:
+            assert not self.release(key)
+
+        time.sleep(0.03)
+        assert self.click('h')
+
+        keyboard.remove_hotkey('a+g+h')
+        keyboard.remove_hotkey('a+b+c')
+
+        assert self.click('a')
 
 if __name__ == '__main__':
     unittest.main()
