@@ -30,11 +30,7 @@ import atexit
 import requests
 
 run(['bash', '-c', 'find . \( -name "*.py" -o -name "*.sh" -o -name "* .md" \) -exec dos2unix {} \;'], check=True)
-
-
-if os.path.exists('make_readme.sh'):
-    run(['bash', 'make_readme.sh'], check=True)
-
+run(['bash', '-c', 'make clean readme tests'], check=True)
 run(['python', 'setup.py', 'check', '-rms'], check=True)
 
 version_pattern = '(\d+(?:\.\d+)+)'
