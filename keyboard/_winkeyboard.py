@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Code heavily adapted from http://pastebin.com/wzYZGZrs
-"""
 import atexit
 from threading import Lock
 import re
