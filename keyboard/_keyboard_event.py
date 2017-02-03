@@ -46,6 +46,7 @@ canonical_names = {
     '\x08': 'backspace',
     '\n': 'enter',
     '\t': 'tab',
+    '\r': 'enter',
 
     'scrlk': 'scroll lock',
     'prtscn': 'print screen',
