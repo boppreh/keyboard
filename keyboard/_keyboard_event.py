@@ -207,6 +207,7 @@ canonical_names = {
     'right win': 'right windows',
     'left control': 'left ctrl',
     'right control': 'right ctrl',
+    'left menu': 'left alt', # Windows...
 }
 
 def normalize_name(name):
