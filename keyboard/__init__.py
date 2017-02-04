@@ -81,9 +81,12 @@ from ._keyboard_event import KeyboardEvent
 from ._suppress import KeyTable as _KeyTable
 
 try:
-    _basestring = basestring
+    long, basestring
+    is_str = lambda x: isinstance(x, basestring)
+    is_number = lambda x: isinstance(x, (int, long))
 except NameError:
-    _basestring = str
+    is_str = lambda x: isinstance(x, str)
+    is_number = lambda x: isinstance(x, int)
 
 # Just a dynamic object to store attributes for the closures.
 class _State(object): pass
@@ -133,7 +136,7 @@ def matches(event, name):
     Returns True if the given event represents the same key as the one given in
     `name`.
     """
-    if not isinstance(name, basestring):
+    if is_number(name):
         return event.scan_code == name
 
     normalized = _normalize_name(name)
@@ -154,7 +157,7 @@ def is_pressed(key):
         is_pressed('ctrl+space') -> True
     """
     _listener.start_if_necessary()
-    if isinstance(key, int):
+    if is_number(key):
         return key in _pressed_events
     elif len(key) > 1 and ('+' in key or ',' in key):
         parts = canonicalize(key)
@@ -185,10 +188,10 @@ def canonicalize(hotkey):
     if isinstance(hotkey, list) and all(isinstance(step, list) for step in hotkey):
         # Already canonicalized, nothing to do.
         return hotkey
-    elif isinstance(hotkey, int):
+    elif is_number(hotkey):
         return [[hotkey]]
 
-    if not isinstance(hotkey, _basestring):
+    if not is_str(hotkey):
         raise ValueError('Unexpected hotkey: {}. Expected int scan code, str key combination or normalized hotkey.'.format(hotkey))
 
     if len(hotkey) == 1 or ('+' not in hotkey and ',' not in hotkey):
@@ -568,7 +571,7 @@ def to_scan_code(key):
     Note that a name may belong to more than one physical key, in which case
     one of the scan codes will be chosen.
     """
-    if isinstance(key, int):
+    if is_number(key):
         return key
     else:
         scan_code, modifiers = _os_keyboard.map_char(_normalize_name(key))
