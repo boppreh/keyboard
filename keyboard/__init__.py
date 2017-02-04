@@ -623,6 +623,21 @@ def wait(combination=None):
     lock.acquire()
     remove_hotkey(hotkey_handler)
 
+def read_key(filter=lambda e: True):
+    """
+    Blocks until a keyboard event happens, then returns that event.
+    """
+    lock = _Lock()
+    lock.acquire()
+    last_event = [None]
+    def test(event):
+        last_event[0] = event
+        if filter(event):
+            lock.release()
+    hook(test)
+    lock.acquire()
+    return last_event[0]
+
 def record(until='escape'):
     """
     Records all keyboard events from all keyboards until the user presses the
