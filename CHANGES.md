@@ -1,3 +1,11 @@
+# 0.9.12
+
+- [Windows] Fixed some incorrect key names (e.g. enter as '\r', and left keys reported as 'right ...')
+- [Python2] `long` scan codes no longer crash the `matches` function.
+- [All] add `read_key` function, which blocks and returns the next event.
+- [All] Added makefile.
+
+
 # 0.9.11
 
 - [All] Fixed Python2 compatbility.
