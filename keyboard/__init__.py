@@ -133,7 +133,7 @@ def matches(event, name):
     Returns True if the given event represents the same key as the one given in
     `name`.
     """
-    if isinstance(name, int):
+    if not isinstance(name, basestring):
         return event.scan_code == name
 
     normalized = _normalize_name(name)
