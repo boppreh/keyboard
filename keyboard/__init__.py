@@ -239,7 +239,7 @@ def clear_all_hotkeys():
 # Alias.
 remove_all_hotkeys = clear_all_hotkeys
 
-def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
+def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
     """
     Invokes a callback every time a key combination is pressed. The hotkey must
     be in the format "ctrl+shift+a, s". This would trigger when the user holds
@@ -251,7 +251,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
     each invocation.
     - `suppress` defines if the it should block processing other hotkeys after
     a match is found. Currently Windows-only.
-    - `timeout` is the amount of seconds allowed to pass between key presses
+    - `timeout` is the amount of seconds allowed to pass between key presses.
+    - `trigger_on_release` if true, the callback is invoked on key release instead
+    of key press.
 
     The event handler function is returned. To remove a hotkey call
     `remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
@@ -277,6 +279,14 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
 
     def handler(event):
         if event.event_type == KEY_UP:
+            if trigger_on_release and state.step == len(steps):
+                state.step = 0
+                callback(*args)
+                return suppress
+            return
+
+        # Just waiting for the user to release a key.
+        if trigger_on_release and state.step >= len(steps):
             return
 
         timed_out = state.step > 0 and timeout and event.time - state.time > timeout
@@ -291,9 +301,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
                 state.step = 0
         else:
             state.time = event.time
-            if all(is_pressed(part) for part in steps[state.step]):
+            if all(is_pressed(part) or matches(event, part) for part in steps[state.step]):
                 state.step += 1
-                if state.step == len(steps):
+                if not trigger_on_release and state.step == len(steps):
                     state.step = 0
                     callback(*args)
                     return suppress
