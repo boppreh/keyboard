@@ -13,4 +13,7 @@ readme:
 clean:
 	rm -rfv dist build coverage_html_report keyboard.egg-info
 
+install:
+	pip install .
+
 all: clean tests readme release
