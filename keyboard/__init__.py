@@ -636,6 +636,7 @@ def read_key(filter=lambda e: True):
     def test(event):
         last_event[0] = event
         if filter(event):
+            unhook(test)
             lock.release()
     hook(test)
     lock.acquire()
