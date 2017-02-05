@@ -1,5 +1,6 @@
 coverage_html_report/
 docs/_build/
+test.py
 
 #################
 ## Eclipse
