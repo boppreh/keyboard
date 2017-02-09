@@ -75,18 +75,21 @@ key events. In this case `keyboard` will be unable to report events.
 """
 
 import time as _time
-from threading import Lock as _Lock
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
 from ._suppress import KeyTable as _KeyTable
 
 try:
+    # Python2
     long, basestring
     is_str = lambda x: isinstance(x, basestring)
     is_number = lambda x: isinstance(x, (int, long))
+    import Queue as queue
 except NameError:
+    # Python3
     is_str = lambda x: isinstance(x, str)
     is_number = lambda x: isinstance(x, int)
+    import queue
 
 # Just a dynamic object to store attributes for the closures.
 class _State(object): pass
@@ -624,33 +627,42 @@ def press_and_release(combination):
     """ Presses and releases the key combination (see `send`). """
     send(combination, True, True)
 
+def _make_wait_and_unlock():
+    """
+    Method to work around CPython's inability to interrupt Lock.join with
+    signals. Without this Ctrl+C doesn't close the program.
+    """
+    q = queue.Queue(maxsize=1)
+    def wait():
+        while True:
+            try:
+                return q.get(timeout=1)
+            except queue.Empty:
+                pass
+    return (wait, lambda v=None: q.put(v))
+
 def wait(combination=None):
     """
     Blocks the program execution until the given key combination is pressed or,
     if given no parameters, blocks forever.
     """
-    lock = _Lock()
-    lock.acquire()
+    wait, unlock = _make_wait_and_unlock()
     if combination is not None:
-        hotkey_handler = add_hotkey(combination, lock.release)
-    lock.acquire()
+        hotkey_handler = add_hotkey(combination, unlock)
+    wait()
     remove_hotkey(hotkey_handler)
 
 def read_key(filter=lambda e: True):
     """
     Blocks until a keyboard event happens, then returns that event.
     """
-    lock = _Lock()
-    lock.acquire()
-    last_event = [None]
+    wait, unlock = _make_wait_and_unlock()
     def test(event):
-        last_event[0] = event
         if filter(event):
             unhook(test)
-            lock.release()
+            unlock(event)
     hook(test)
-    lock.acquire()
-    return last_event[0]
+    return wait()
 
 def record(until='escape'):
     """
