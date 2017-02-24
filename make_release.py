@@ -29,9 +29,8 @@ from subprocess import run, check_output
 import atexit
 import requests
 
-if os.path.exists('make_readme.sh'):
-    run(['bash', 'make_readme.sh'], check=True)
-
+run(['bash', '-c', 'find . \( -name "*.py" -o -name "*.sh" -o -name "* .md" \) -exec dos2unix {} \;'], check=True)
+run(['bash', '-c', 'make clean readme tests'], check=True)
 run(['python', 'setup.py', 'check', '-rms'], check=True)
 
 version_pattern = '(\d+(?:\.\d+)+)'
@@ -103,4 +102,4 @@ if token:
     response = requests.post(releases_url, json=release, headers={'Authorization': 'token ' + token})
     print(response.status_code, response.text)
 
-run(['python', 'setup.py', 'sdist', '--format=zip', 'bdist', '--format=zip', 'bdist_wheel', '--universal', 'bdist_wininst', 'register', 'upload'], check=True)
+run(['python', 'setup.py', 'sdist', '--format=zip', 'bdist', '--format=zip', 'bdist_wheel', '--universal', 'bdist_wininst', 'upload'], check=True)

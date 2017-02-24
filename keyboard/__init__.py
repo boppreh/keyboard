@@ -75,15 +75,21 @@ key events. In this case `keyboard` will be unable to report events.
 """
 
 import time as _time
-from threading import Lock as _Lock
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
 from ._suppress import KeyTable as _KeyTable
 
 try:
-    _basestring = basestring
+    # Python2
+    long, basestring
+    is_str = lambda x: isinstance(x, basestring)
+    is_number = lambda x: isinstance(x, (int, long))
+    import Queue as queue
 except NameError:
-    _basestring = str
+    # Python3
+    is_str = lambda x: isinstance(x, str)
+    is_number = lambda x: isinstance(x, int)
+    import queue
 
 # Just a dynamic object to store attributes for the closures.
 class _State(object): pass
@@ -133,7 +139,7 @@ def matches(event, name):
     Returns True if the given event represents the same key as the one given in
     `name`.
     """
-    if isinstance(name, int):
+    if is_number(name):
         return event.scan_code == name
 
     normalized = _normalize_name(name)
@@ -154,7 +160,7 @@ def is_pressed(key):
         is_pressed('ctrl+space') -> True
     """
     _listener.start_if_necessary()
-    if isinstance(key, int):
+    if is_number(key):
         return key in _pressed_events
     elif len(key) > 1 and ('+' in key or ',' in key):
         parts = canonicalize(key)
@@ -185,10 +191,10 @@ def canonicalize(hotkey):
     if isinstance(hotkey, list) and all(isinstance(step, list) for step in hotkey):
         # Already canonicalized, nothing to do.
         return hotkey
-    elif isinstance(hotkey, int):
+    elif is_number(hotkey):
         return [[hotkey]]
 
-    if not isinstance(hotkey, _basestring):
+    if not is_str(hotkey):
         raise ValueError('Unexpected hotkey: {}. Expected int scan code, str key combination or normalized hotkey.'.format(hotkey))
 
     if len(hotkey) == 1 or ('+' not in hotkey and ',' not in hotkey):
@@ -236,7 +242,7 @@ def clear_all_hotkeys():
 # Alias.
 remove_all_hotkeys = clear_all_hotkeys
 
-def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
+def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
     """
     Invokes a callback every time a key combination is pressed. The hotkey must
     be in the format "ctrl+shift+a, s". This would trigger when the user holds
@@ -248,7 +254,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
     each invocation.
     - `suppress` defines if the it should block processing other hotkeys after
     a match is found. Currently Windows-only.
-    - `timeout` is the amount of seconds allowed to pass between key presses
+    - `timeout` is the amount of seconds allowed to pass between key presses.
+    - `trigger_on_release` if true, the callback is invoked on key release instead
+    of key press.
 
     The event handler function is returned. To remove a hotkey call
     `remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
@@ -274,6 +282,14 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
 
     def handler(event):
         if event.event_type == KEY_UP:
+            if trigger_on_release and state.step == len(steps):
+                state.step = 0
+                callback(*args)
+                return suppress
+            return
+
+        # Just waiting for the user to release a key.
+        if trigger_on_release and state.step >= len(steps):
             return
 
         timed_out = state.step > 0 and timeout and event.time - state.time > timeout
@@ -288,9 +304,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1):
                 state.step = 0
         else:
             state.time = event.time
-            if all(is_pressed(part) for part in steps[state.step]):
+            if all(is_pressed(part) or matches(event, part) for part in steps[state.step]):
                 state.step += 1
-                if state.step == len(steps):
+                if not trigger_on_release and state.step == len(steps):
                     state.step = 0
                     callback(*args)
                     return suppress
@@ -568,7 +584,7 @@ def to_scan_code(key):
     Note that a name may belong to more than one physical key, in which case
     one of the scan codes will be chosen.
     """
-    if isinstance(key, int):
+    if is_number(key):
         return key
     else:
         scan_code, modifiers = _os_keyboard.map_char(_normalize_name(key))
@@ -611,17 +627,42 @@ def press_and_release(combination):
     """ Presses and releases the key combination (see `send`). """
     send(combination, True, True)
 
+def _make_wait_and_unlock():
+    """
+    Method to work around CPython's inability to interrupt Lock.join with
+    signals. Without this Ctrl+C doesn't close the program.
+    """
+    q = queue.Queue(maxsize=1)
+    def wait():
+        while True:
+            try:
+                return q.get(timeout=1)
+            except queue.Empty:
+                pass
+    return (wait, lambda v=None: q.put(v))
+
 def wait(combination=None):
     """
     Blocks the program execution until the given key combination is pressed or,
     if given no parameters, blocks forever.
     """
-    lock = _Lock()
-    lock.acquire()
+    wait, unlock = _make_wait_and_unlock()
     if combination is not None:
-        hotkey_handler = add_hotkey(combination, lock.release)
-    lock.acquire()
+        hotkey_handler = add_hotkey(combination, unlock)
+    wait()
     remove_hotkey(hotkey_handler)
+
+def read_key(filter=lambda e: True):
+    """
+    Blocks until a keyboard event happens, then returns that event.
+    """
+    wait, unlock = _make_wait_and_unlock()
+    def test(event):
+        if filter(event):
+            unhook(test)
+            unlock(event)
+    hook(test)
+    return wait()
 
 def record(until='escape'):
     """

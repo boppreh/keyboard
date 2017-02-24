@@ -46,6 +46,7 @@ canonical_names = {
     '\x08': 'backspace',
     '\n': 'enter',
     '\t': 'tab',
+    '\r': 'enter',
 
     'scrlk': 'scroll lock',
     'prtscn': 'print screen',
@@ -206,6 +207,7 @@ canonical_names = {
     'right win': 'right windows',
     'left control': 'left ctrl',
     'right control': 'right ctrl',
+    'left menu': 'left alt', # Windows...
 }
 
 def normalize_name(name):

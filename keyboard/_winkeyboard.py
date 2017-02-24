@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Code heavily adapted from http://pastebin.com/wzYZGZrs
-"""
 import atexit
 from threading import Lock
 import re
@@ -332,15 +329,13 @@ def setup_tables():
 
             # Get pure key name, such as "shift". This depends on locale and
             # may return a translated name.
-            for enhanced in [0, 1]:
+            for enhanced in [1, 0]:
                 ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
                 if not ret:
                     continue
                 name = normalize_name(name_buffer.value)
                 from_scan_code[scan_code] = [name, name]
-
-                if name not in to_scan_code:
-                    to_scan_code[name] = (scan_code, False)
+                to_scan_code[name] = (scan_code, False)
 
             if scan_code not in scan_code_to_vk: continue
             # Get associated character, such as "^", possibly overwriting the pure key name.
@@ -394,7 +389,7 @@ def listen(queue, is_allowed=lambda *args: True):
                 if vk in reversed_extended_keys and is_extended:
                     is_keypad = True                
             
-            if scan_code in from_scan_code:
+            elif scan_code in from_scan_code:
                 name = from_scan_code[scan_code][shift_is_pressed]
             
         if event_type == KEY_DOWN and name == 'shift':
