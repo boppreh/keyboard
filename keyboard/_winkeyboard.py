@@ -352,7 +352,7 @@ def setup_tables():
                     from_scan_code[scan_code][shift_state] = char
 
         from_scan_code[alt_gr_scan_code] = ['alt gr', 'alt gr']
-        to_scan_code['alt gr'] = alt_gr_scan_code
+        to_scan_code['alt gr'] = (alt_gr_scan_code, False)
     finally:
         tables_lock.release()
 

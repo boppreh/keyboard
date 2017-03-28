@@ -189,7 +189,7 @@ canonical_names = {
     'num divide': '/',
     'num add': '+',
     'num plus': '+',
-    'num minus': '+',
+    'num minus': '-',
     'num sub': '-',
     'num enter': 'enter',
     'num 0': '0',
