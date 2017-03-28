@@ -81,6 +81,7 @@ key events. In this case `keyboard` will be unable to report events.
 - [keyboard.**KEY\_UP**](#keyboard.KEY_UP)
 - [keyboard.**KeyboardEvent**](#keyboard.KeyboardEvent)
 - [keyboard.**all\_modifiers**](#keyboard.all_modifiers)
+- [keyboard.**queue**](#keyboard.queue)
 - [keyboard.**is\_str**](#keyboard.is_str)
 - [keyboard.**is\_number**](#keyboard.is_number)
 - [keyboard.**matches**](#keyboard.matches)
@@ -126,68 +127,72 @@ key events. In this case `keyboard` will be unable to report events.
 ## keyboard.**KEY\_DOWN**
     = 'down'
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/_keyboard_event.py#L10)
-
 
 <a name="keyboard.KEY_UP"/>
 
 ## keyboard.**KEY\_UP**
     = 'up'
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/_keyboard_event.py#L11)
-
 
 <a name="keyboard.KeyboardEvent"/>
 
 ## class keyboard.**KeyboardEvent**
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/_keyboard_event.py#L13)
+
+
 
 <a name="KeyboardEvent.event_type"/>
 
 ### KeyboardEvent.**event\_type**
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/_keyboard_event.py#L14)
 
 
 <a name="KeyboardEvent.name"/>
 
 ### KeyboardEvent.**name**
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/_keyboard_event.py#L16)
-
 
 <a name="KeyboardEvent.scan_code"/>
 
 ### KeyboardEvent.**scan\_code**
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/_keyboard_event.py#L15)
 
 
 <a name="KeyboardEvent.time"/>
 
 ### KeyboardEvent.**time**
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/_keyboard_event.py#L17)
+
+
 
 <a name="keyboard.all_modifiers"/>
 
 ## keyboard.**all\_modifiers**
     = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L107)
+
+<a name="keyboard.queue"/>
+
+## keyboard.**queue**
+
+A multi-producer, multi-consumer queue.
+
 
 <a name="keyboard.is_str"/>
 
 ## keyboard.**is\_str**(x)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L85)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L90)
+
+
+
 
 <a name="keyboard.is_number"/>
 
 ## keyboard.**is\_number**(x)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L86)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L91)
+
+
+
 
 <a name="keyboard.matches"/>
 
@@ -198,6 +203,7 @@ key events. In this case `keyboard` will be unable to report events.
 
 Returns True if the given event represents the same key as the one given in
 `name`.
+
 
 
 <a name="keyboard.is_pressed"/>
@@ -212,6 +218,7 @@ Returns True if the key is pressed.
     is_pressed(57) -> True
     is_pressed('space') -> True
     is_pressed('ctrl+space') -> True
+
 
 
 <a name="keyboard.canonicalize"/>
@@ -235,6 +242,7 @@ Note we must not convert names into scan codes because a name may represent
 more than one physical key (e.g. two 'ctrl' keys).
 
 
+
 <a name="keyboard.call_later"/>
 
 ## keyboard.**call\_later**(fn, args=(), delay=0.001)
@@ -245,6 +253,7 @@ more than one physical key (e.g. two 'ctrl' keys).
 Calls the provided function in a new thread after waiting some time.
 Useful for giving the system some time to process an event, without blocking
 the current execution flow.
+
 
 
 <a name="keyboard.clear_all_hotkeys"/>
@@ -261,6 +270,7 @@ Abbreviations and word listeners are not hotkeys and therefore not affected.
 To remove all hooks use [`unhook_all()`](#keyboard.unhook_all).
 
 
+
 <a name="keyboard.remove_all_hotkeys"/>
 
 ## keyboard.**remove\_all\_hotkeys**
@@ -270,7 +280,7 @@ Alias for [`clear_all_hotkeys`](#keyboard.clear_all_hotkeys).
 
 <a name="keyboard.add_hotkey"/>
 
-## keyboard.**add\_hotkey**(hotkey, callback, args=(), suppress=False, timeout=1)
+## keyboard.**add\_hotkey**(hotkey, callback, args=(), suppress=False, timeout=1, trigger\_on\_release=False)
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L245)
 
@@ -285,7 +295,9 @@ literal commas, pluses and spaces use their names ('comma', 'plus',
 each invocation.
 - `suppress` defines if the it should block processing other hotkeys after
 a match is found. Currently Windows-only.
-- `timeout` is the amount of seconds allowed to pass between key presses
+- `timeout` is the amount of seconds allowed to pass between key presses.
+- `trigger_on_release` if true, the callback is invoked on key release instead
+of key press.
 
 The event handler function is returned. To remove a hotkey call
 [`remove_hotkey(hotkey)`](#keyboard.remove_hotkey) or [`remove_hotkey(handler)`](#keyboard.remove_hotkey).
