@@ -1,3 +1,13 @@
+# 0.9.13
+
+- [Windows] Fix bug when listening to alt-gr.
+- [All] Add `trigger_on_release` parameter to `add_hotkey`.
+- [All] Make `wait` and `read_key` interruptible by ctrl+c.
+- [All] Small fixes on code/name mapping.
+
+Thanks glitchassassin and BladeMight for the pull requests.
+
+
 # 0.9.12
 
 - [Windows] Fixed some incorrect key names (e.g. enter as '\r', and left keys reported as 'right ...')
