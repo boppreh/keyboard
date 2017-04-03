@@ -325,6 +325,10 @@ alt_gr_scan_code = 541
 # These tables are used as backup when a key name can not be found by virtual
 # key code.
 def _setup_tables():
+    """
+    Ensures the scan code/virtual key code/name translation tables are
+    filled.
+    """
     tables_lock.acquire()
 
     try:
@@ -379,10 +383,18 @@ alt_gr_is_pressed = False
 
 init = _setup_tables
 
-# TODO: extract hook core from thread and queueing code.
-def listen(queue, is_allowed=lambda *args: True):
-    _setup_tables()
+def prepare_intercept(callback):
+    """
+    Registers a Windows low level keyboard hook. The provided callback will
+    be invoked for each high-level keyboard event, and is expected to return
+    True if the key event should be passed to the next program, or False if
+    the event is to be blocked.
 
+    No event is processed until the Windows messages are pumped (see
+    start_intercept).
+    """
+    _setup_tables()
+    
     def process_key(event_type, vk, scan_code, is_extended):
         global alt_gr_is_pressed
         global shift_is_pressed
@@ -416,10 +428,7 @@ def listen(queue, is_allowed=lambda *args: True):
         elif event_type == KEY_UP and name == 'shift':
             shift_is_pressed = False
 
-        # Not sure how long this takes, but may need to move it?
-        queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
-
-        return is_allowed(name, event_type == KEY_UP)
+        return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
         try:
@@ -445,12 +454,21 @@ def listen(queue, is_allowed=lambda *args: True):
     # try/finally block doesn't seem to work here.
     atexit.register(UnhookWindowsHookEx, keyboard_callback)
 
+def _start_intercept():
+    """
+    Starts pumping Windows messages, which invokes the registered low
+    level keyboard hook.
+    """
     # TODO: why does this work, without the whole Translate/Dispatch dance?
     GetMessage(LPMSG(), NULL, NULL, NULL)
     #msg = LPMSG()
     #while not GetMessage(msg, NULL, NULL, NULL):
     #    TranslateMessage(msg)
     #    DispatchMessage(msg)
+
+def listen(queue, is_allowed=lambda *args: True):
+    prepare_intercept(lambda e: queue.put(e) or is_allowed(e.name, e.event_type == KEY_UP))
+    _start_intercept()
 
 def map_char(name):
     _setup_tables()
