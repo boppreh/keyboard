@@ -5,7 +5,6 @@ import time
 import os
 import threading
 from AppKit import NSEvent
-from AppKit import NSThread
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
 try: # Python 2/3 compatibility
@@ -305,14 +304,9 @@ class KeyEventListener(object):
         self.listening = True
         self.tap = None
 
-        t = NSThread
-
-
     def run(self):
         """ Creates a listener and loops while waiting for an event. Intended to run as
         a background thread. """
-        if self.tap:
-            return # Cannot create more than one listener
         self.tap = Quartz.CGEventTapCreate(
             Quartz.kCGSessionEventTap,
             Quartz.kCGHeadInsertEventTap,
@@ -341,7 +335,7 @@ class KeyEventListener(object):
             event_type = "up"
 
         if self.blocking:
-            Quartz.CGEventSetType(event, Quartz.kCGEventNull)
+            return None
 
         self.callback(KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad))
         return event
@@ -378,7 +372,7 @@ def listen(queue, is_allowed=lambda *args: True):
     as root (administrator). Otherwise, it throws an OSError. """
     if not os.geteuid() == 0:
         raise OSError("Error 13 - Must be run as administrator")
-    listener = KeyEventListener(lambda e: queue.put(e)) # or is_allowed(e.name, e.event_type == KEY_UP))
+    listener = KeyEventListener(lambda e: queue.put(e) or is_allowed(e.name, e.event_type == KEY_UP))
     t = threading.Thread(target=listener.run, args=())
     t.daemon = True
     t.start()
