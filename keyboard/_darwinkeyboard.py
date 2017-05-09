@@ -2,7 +2,11 @@ import ctypes
 import ctypes.util
 import Quartz
 import time
+import os
+import threading
 from AppKit import NSEvent
+from AppKit import NSThread
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
 try: # Python 2/3 compatibility
     unichr
@@ -17,16 +21,15 @@ class KeyMap(object):
         0x30: 'tab',
         0x31: 'space',
         0x33: 'delete',
-        0x35: 'escape',
+        0x35: 'esc',
         0x37: 'command',
         0x38: 'shift',
-        0x39: 'capslock',
-        0x3A: 'option',
-        0x3A: 'alternate',
-        0x3B: 'control',
-        0x3C: 'rightshift',
-        0x3D: 'rightoption',
-        0x3E: 'rightcontrol',
+        0x39: 'caps lock',
+        0x3A: 'alt',
+        0x3B: 'ctrl',
+        0x3C: 'right shift',
+        0x3D: 'right option',
+        0x3E: 'right control',
         0x3F: 'function',
     }
     layout_specific_keys = {}
@@ -141,21 +144,21 @@ class KeyMap(object):
                 return (vk, [])
             elif self.layout_specific_keys[vk][1] == character:
                 return (vk, ['shift'])
-        return None
+        raise ValueError("Unrecognized character: {}".format(character))
 
     def vk_to_character(self, vk, modifiers=[]):
         """ Returns a character corresponding to the specified scan code (with given
         modifiers applied) """
-        if vk in self.layout_specific_keys:
+        if vk in self.non_layout_keys:
+            # Not a character
+            return self.non_layout_keys[vk]
+        elif vk in self.layout_specific_keys:
             if 'shift' in modifiers:
                 return self.layout_specific_keys[vk][1]
             return self.layout_specific_keys[vk][0]
-        elif vk in self.non_layout_keys:
-            # Not a character
-            return None
         else:
             # Invalid vk
-            return None
+            raise ValueError("Invalid scan code: {}".format(vk))
 
 
 class KeyController(object):
@@ -234,9 +237,9 @@ class KeyController(object):
             elif key_code == 0x3B: # ctrl
                 self.current_modifiers["ctrl"] = True
             event = Quartz.CGEventCreateKeyboardEvent(None, key_code, True)
-            if event_flags != 0:
-                Quartz.CGEventSetFlags(event, event_flags)
+            Quartz.CGEventSetFlags(event, event_flags)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+            time.sleep(0.01)
 
     def release(self, key_code):
         """ Sends an 'up' event for the specified scan code """
@@ -277,28 +280,88 @@ class KeyController(object):
             elif key_code == 0x3B: # ctrl
                 self.current_modifiers["ctrl"] = False
             event = Quartz.CGEventCreateKeyboardEvent(None, key_code, False)
-            if event_flags != 0:
-                Quartz.CGEventSetFlags(event, event_flags)
+            Quartz.CGEventSetFlags(event, event_flags)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+            time.sleep(0.01)
 
     def map_char(self, character):
         if character in self.media_keys:
             return (128+self.media_keys[character],[])
         else:
             return self.key_map.character_to_vk(character)
+    def map_scan_code(self, scan_code):
+        if scan_code >= 128:
+            character = [k for k, v in enumerate(self.media_keys) if v == scan_code-128]
+            if len(character):
+                return character[0]
+            return None
+        else:
+            return self.key_map.vk_to_character(scan_code)
+
+class KeyEventListener(object):
+    def __init__(self, callback, blocking=False):
+        self.blocking = blocking
+        self.callback = callback
+        self.listening = True
+        self.tap = None
+
+        t = NSThread
 
 
+    def run(self):
+        """ Creates a listener and loops while waiting for an event. Intended to run as
+        a background thread. """
+        if self.tap:
+            return # Cannot create more than one listener
+        self.tap = Quartz.CGEventTapCreate(
+            Quartz.kCGSessionEventTap,
+            Quartz.kCGHeadInsertEventTap,
+            Quartz.kCGEventTapOptionDefault,
+            Quartz.CGEventMaskBit(Quartz.kCGEventKeyDown) |
+            Quartz.CGEventMaskBit(Quartz.kCGEventKeyUp),
+            self.handler,
+            None)
+        loopsource = Quartz.CFMachPortCreateRunLoopSource(None, self.tap, 0)
+        loop = Quartz.CFRunLoopGetCurrent()
+        Quartz.CFRunLoopAddSource(loop, loopsource, Quartz.kCFRunLoopDefaultMode)
+        Quartz.CGEventTapEnable(self.tap, True)
 
-""" Exported functions below """
+        while self.listening:
+            Quartz.CFRunLoopRunInMode(Quartz.kCFRunLoopDefaultMode, 5, False)
+
+    def handler(self, proxy, e_type, event, refcon):
+        scan_code = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
+        key_name = name_from_scancode(scan_code)
+        flags = Quartz.CGEventGetFlags(event)
+        event_type = ""
+        is_keypad = (flags & Quartz.kCGEventFlagMaskNumericPad)
+        if e_type == Quartz.kCGEventKeyDown:
+            event_type = "down"
+        elif e_type == Quartz.kCGEventKeyUp:
+            event_type = "up"
+
+        if self.blocking:
+            Quartz.CGEventSetType(event, Quartz.kCGEventNull)
+
+        self.callback(KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad))
+        return event
 
 key_controller = KeyController()
 
+""" Exported functions below """
+
+def init():
+    key_controller = KeyController()
+
 def press(scan_code):
     """ Sends a 'down' event for the specified scan code """
+    #print("Down:({}) '{}'".format(scan_code, key_controller.key_map.vk_to_character(scan_code)))
+    #print(key_controller.current_modifiers)
     key_controller.press(scan_code)
 
 def release(scan_code):
     """ Sends an 'up' event for the specified scan code """
+    #print("Up:({}) '{}'".format(scan_code, key_controller.key_map.vk_to_character(scan_code)))
     key_controller.release(scan_code)
 
 def map_char(character):
@@ -306,8 +369,19 @@ def map_char(character):
     and ``modifiers`` is an array of string modifier names (like 'shift') """
     return key_controller.map_char(character)
 
-def listen(queue):
-    pass # TODO
+def name_from_scancode(scan_code):
+    """ Returns the name or character associated with the specified key code """
+    return key_controller.map_scan_code(scan_code)
+
+def listen(queue, is_allowed=lambda *args: True):
+    """ Adds all monitored keyboard events to queue. To use the listener, the script must be run
+    as root (administrator). Otherwise, it throws an OSError. """
+    if not os.geteuid() == 0:
+        raise OSError("Error 13 - Must be run as administrator")
+    listener = KeyEventListener(lambda e: queue.put(e)) # or is_allowed(e.name, e.event_type == KEY_UP))
+    t = threading.Thread(target=listener.run, args=())
+    t.daemon = True
+    t.start()
 
 if __name__ == "__main__":
     # Debugging
@@ -320,7 +394,9 @@ if __name__ == "__main__":
     #print(key_controller.key_map.vk_to_character(*vk))
 
     # keystroke emulation
-    press(key_controller.map_char('KEYTYPE_PLAY')[0])
-    release(key_controller.map_char('KEYTYPE_PLAY')[0])
+    press(key_controller.map_char('shift')[0])
     press(key_controller.map_char('a')[0])
     release(key_controller.map_char('a')[0])
+    release(key_controller.map_char('shift')[0])
+    press(key_controller.map_char('b')[0])
+    release(key_controller.map_char('b')[0])
