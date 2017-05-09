@@ -1,5 +1,8 @@
 import ctypes
 import ctypes.util
+import Quartz
+import time
+from AppKit import NSEvent
 
 try: # Python 2/3 compatibility
     unichr
@@ -158,6 +161,12 @@ class KeyMap(object):
 class KeyController(object):
     def __init__(self):
         self.key_map = KeyMap()
+        self.current_modifiers = {
+            "shift": False,
+            "caps": False,
+            "alt": False,
+            "ctrl": False,
+        }
         self.media_keys = {
             'KEYTYPE_SOUND_UP': 0,
             'KEYTYPE_SOUND_DOWN': 1,
@@ -187,11 +196,96 @@ class KeyController(object):
     
     def press(self, key_code):
         """ Sends a 'down' event for the specified scan code """
-        pass
+        if key_code >= 128:
+            # Media key
+            ev = NSEvent.otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2_(
+                14, # type
+                (0, 0), # location
+                0xa00, # flags
+                0, # timestamp
+                0, # window
+                0, # ctx
+                8, # subtype
+                ((key_code-128) << 16) | (0xa << 8), # data1
+                -1 # data2
+            )
+            #print(dir(ev))
+            Quartz.CGEventPost(0, ev.CGEvent())
+        else:
+            # Regular key
+            # Apply modifiers if necessary
+            event_flags = 0
+            if self.current_modifiers["shift"]:
+                event_flags += Quartz.kCGEventFlagMaskShift
+            if self.current_modifiers["caps"]:
+                event_flags += Quartz.kCGEventFlagMaskAlphaShift
+            if self.current_modifiers["alt"]:
+                event_flags += Quartz.kCGEventFlagMaskAlternate
+            if self.current_modifiers["ctrl"]:
+                event_flags += Quartz.kCGEventFlagMaskControl
+            
+            # Update modifiers if necessary
+            if key_code == 0x38: # shift
+                self.current_modifiers["shift"] = True
+            elif key_code == 0x39: # caps lock
+                self.current_modifiers["caps"] = True
+            elif key_code == 0x3A: # alt
+                self.current_modifiers["alt"] = True
+            elif key_code == 0x3B: # ctrl
+                self.current_modifiers["ctrl"] = True
+            event = Quartz.CGEventCreateKeyboardEvent(None, key_code, True)
+            if event_flags != 0:
+                Quartz.CGEventSetFlags(event, event_flags)
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
 
     def release(self, key_code):
         """ Sends an 'up' event for the specified scan code """
-        pass
+        if key_code >= 128:
+            # Media key
+            ev = NSEvent.otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2_(
+                14, # type
+                (0, 0), # location
+                0xb00, # flags
+                0, # timestamp
+                0, # window
+                0, # ctx
+                8, # subtype
+                ((key_code-128) << 16) | (0xb << 8), # data1
+                -1 # data2
+            )
+            Quartz.CGEventPost(0, ev.CGEvent())
+        else:
+            # Regular key
+            # Apply modifiers if necessary
+            event_flags = 0
+            if self.current_modifiers["shift"]:
+                event_flags += Quartz.kCGEventFlagMaskShift
+            if self.current_modifiers["caps"]:
+                event_flags += Quartz.kCGEventFlagMaskAlphaShift
+            if self.current_modifiers["alt"]:
+                event_flags += Quartz.kCGEventFlagMaskAlternate
+            if self.current_modifiers["ctrl"]:
+                event_flags += Quartz.kCGEventFlagMaskControl
+            
+            # Update modifiers if necessary
+            if key_code == 0x38: # shift
+                self.current_modifiers["shift"] = False
+            elif key_code == 0x39: # caps lock
+                self.current_modifiers["caps"] = False
+            elif key_code == 0x3A: # alt
+                self.current_modifiers["alt"] = False
+            elif key_code == 0x3B: # ctrl
+                self.current_modifiers["ctrl"] = False
+            event = Quartz.CGEventCreateKeyboardEvent(None, key_code, False)
+            if event_flags != 0:
+                Quartz.CGEventSetFlags(event, event_flags)
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+
+    def map_char(self, character):
+        if character in self.media_keys:
+            return (128+self.media_keys[character],[])
+        else:
+            return self.key_map.character_to_vk(character)
 
 
 
@@ -210,15 +304,23 @@ def release(scan_code):
 def map_char(character):
     """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code 
     and ``modifiers`` is an array of string modifier names (like 'shift') """
-    return key_controller.key_map.character_to_vk(character)
+    return key_controller.map_char(character)
 
 def listen(queue):
     pass # TODO
 
 if __name__ == "__main__":
     # Debugging
-    for letter in ["A", "z", "shift"]:
-        print(letter)
-        vk = key_controller.key_map.character_to_vk(letter)
-        print(vk)
-        print(key_controller.key_map.vk_to_character(*vk))
+
+    # vk lookup
+    #letter = "A"
+    #print(letter)
+    #vk = key_controller.map_char(letter)
+    #print(vk)
+    #print(key_controller.key_map.vk_to_character(*vk))
+
+    # keystroke emulation
+    press(key_controller.map_char('KEYTYPE_PLAY')[0])
+    release(key_controller.map_char('KEYTYPE_PLAY')[0])
+    press(key_controller.map_char('a')[0])
+    release(key_controller.map_char('a')[0])
