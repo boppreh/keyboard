@@ -487,7 +487,7 @@ Alias for [`remove_word_listener`](#keyboard.remove_word_listener).
 
 <a name="keyboard.add_abbreviation"/>
 
-## keyboard.**add\_abbreviation**(source\_text, replacement\_text, match\_suffix=True, timeout=2)
+## keyboard.**add\_abbreviation**(source\_text, replacement\_text, match\_suffix=False, timeout=2)
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L490)
 
