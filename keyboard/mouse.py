@@ -24,7 +24,6 @@ class _MouseListener(_GenericListener):
                 _pressed_events.discard(event.button)
             else:
                 _pressed_events.add(event.button)
-
         return True
 
     def listen(self):

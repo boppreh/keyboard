@@ -41,6 +41,7 @@ class MouseEventListener(object):
             Quartz.CFRunLoopRunInMode(Quartz.kCFRunLoopDefaultMode, 5, False)
 
     def handler(self, proxy, e_type, event, refcon):
+        # TODO Separate event types by button/wheel/move
         scan_code = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
         key_name = name_from_scancode(scan_code)
         flags = Quartz.CGEventGetFlags(event)
@@ -106,7 +107,7 @@ def wheel(delta=1):
     e2 = Quartz.CGEventCreateScrollWheelEvent(
         None,
         Quartz.kCGScrollEventUnitLine,
-        0,
+        1,
         delta)
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e2)
