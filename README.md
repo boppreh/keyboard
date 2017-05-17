@@ -342,7 +342,7 @@ description (e.g.  "space"). The name is always lower-case.
 - `scan_code`: number representing the physical key, e.g. 55.
 - `time`: timestamp of the time the event occurred, with as much precision
 as given by the OS.
-- `event_type`: either 'up' (the key is released) or 'down' (the key is pressed)
+- `event_type`: either KEY_UP (='up', the key is released) or KEY_DOWN (='down', the key is pressed)
 
 Returns the given callback for easier development.
 
