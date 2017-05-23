@@ -491,7 +491,7 @@ def remove_word_listener(word_or_handler):
     """
     _remove_named_hook(word_or_handler, _word_listeners)
 
-def add_abbreviation(source_text, replacement_text, match_suffix=True, timeout=2):
+def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=2):
     """
     Registers a hotkey that replaces one typed text with another. For example
 
