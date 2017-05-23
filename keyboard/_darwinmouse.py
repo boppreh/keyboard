@@ -4,9 +4,14 @@ import Quartz
 from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN
 
 _button_mapping = {
-    LEFT: (Quartz.kCGMouseButtonLeft, Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp),
-    RIGHT: (Quartz.kCGMouseButtonRight, Quartz.kCGEventRightMouseDown, Quartz.kCGEventRightMouseUp),
-    MIDDLE: (Quartz.kCGMouseButtonCenter, Quartz.kCGEventOtherMouseDown, Quartz.kCGEventOtherMouseUp)
+    LEFT: (Quartz.kCGMouseButtonLeft, Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp, Quartz.kCGEventLeftMouseDragged),
+    RIGHT: (Quartz.kCGMouseButtonRight, Quartz.kCGEventRightMouseDown, Quartz.kCGEventRightMouseUp, Quartz.kCGEventRightMouseDragged),
+    MIDDLE: (Quartz.kCGMouseButtonCenter, Quartz.kCGEventOtherMouseDown, Quartz.kCGEventOtherMouseUp, Quartz.kCGEventOtherMouseDragged)
+}
+_button_state = {
+    LEFT: False,
+    RIGHT: False,
+    MIDDLE: False
 }
 
 class MouseEventListener(object):
@@ -76,24 +81,26 @@ def listen(queue):
 def press(button=LEFT):
     """ Sends a down event for the specified button, using the provided constants """
     location = get_position()
-    button_code, button_down, _ = _button_mapping[button]
+    button_code, button_down, _, _ = _button_mapping[button]
     e = Quartz.CGEventCreateMouseEvent(
         None,
         button_down,
         location,
         button_code)
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
+    _button_state[button] = True
 
 def release(button=LEFT):
     """ Sends an up event for the specified button, using the provided constants """
     location = get_position()
-    button_code, _, button_up = _button_mapping[button]
+    button_code, _, button_up, _ = _button_mapping[button]
     e = Quartz.CGEventCreateMouseEvent(
         None,
         button_up,
         location,
         button_code)
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
+    _button_state[button] = False
 
 def wheel(delta=1):
     """ Sends a wheel event for the provided number of clicks. May be negative to reverse
@@ -114,11 +121,20 @@ def wheel(delta=1):
 
 def move_to(x, y):
     """ Sets the mouse's location to the specified coordinates. """
-    e = Quartz.CGEventCreateMouseEvent(
-        None,
-        Quartz.kCGEventMouseMoved,
-        (x,y),
-        Quartz.kCGMouseButtonLeft)
+    for b in _button_state:
+        if _button_state[b]:
+            e = Quartz.CGEventCreateMouseEvent(
+                None,
+                _button_mapping[b][3], # Drag Event
+                (x, y),
+                Quartz.kCGMouseButtonLeft)
+            break
+    else:
+        e = Quartz.CGEventCreateMouseEvent(
+            None,
+            Quartz.kCGEventMouseMoved,
+            (x, y),
+            Quartz.kCGMouseButtonLeft)
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
 
 def get_position():

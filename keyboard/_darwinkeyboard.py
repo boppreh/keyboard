@@ -168,6 +168,7 @@ class KeyController(object):
             "caps": False,
             "alt": False,
             "ctrl": False,
+            "cmd": False,
         }
         self.media_keys = {
             'KEYTYPE_SOUND_UP': 0,
@@ -225,9 +226,13 @@ class KeyController(object):
                 event_flags += Quartz.kCGEventFlagMaskAlternate
             if self.current_modifiers["ctrl"]:
                 event_flags += Quartz.kCGEventFlagMaskControl
+            if self.current_modifiers["cmd"]:
+                event_flags += Quartz.kCGEventFlagMaskCommand
             
             # Update modifiers if necessary
-            if key_code == 0x38: # shift
+            if key_code == 0x37: # cmd
+                self.current_modifiers["cmd"] = True
+            elif key_code == 0x38: # shift
                 self.current_modifiers["shift"] = True
             elif key_code == 0x39: # caps lock
                 self.current_modifiers["caps"] = True
@@ -268,9 +273,13 @@ class KeyController(object):
                 event_flags += Quartz.kCGEventFlagMaskAlternate
             if self.current_modifiers["ctrl"]:
                 event_flags += Quartz.kCGEventFlagMaskControl
+            if self.current_modifiers["cmd"]:
+                event_flags += Quartz.kCGEventFlagMaskCommand
             
             # Update modifiers if necessary
-            if key_code == 0x38: # shift
+            if key_code == 0x37: # cmd
+                self.current_modifiers["cmd"] = False
+            elif key_code == 0x38: # shift
                 self.current_modifiers["shift"] = False
             elif key_code == 0x39: # caps lock
                 self.current_modifiers["caps"] = False
