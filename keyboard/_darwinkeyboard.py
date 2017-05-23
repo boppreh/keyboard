@@ -126,15 +126,12 @@ class KeyMap(object):
 
             shifted_key = u''.join(unichr(shifted_char[i]) for i in range(char_count.value))
             self.layout_specific_keys[key_code] = (non_shifted_key, shifted_key)
-        
         # Cleanup
         Carbon.CFRelease(klis)
 
     def character_to_vk(self, character):
         """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code
         and ``modifiers`` is an array of string modifier names (like 'shift') """
-        #print(self.non_layout_keys)
-        #print(self.layout_specific_keys)
         for vk in self.non_layout_keys:
             if self.non_layout_keys[vk] == character:
                 return (vk, [])
@@ -212,7 +209,6 @@ class KeyController(object):
                 ((key_code-128) << 16) | (0xa << 8), # data1
                 -1 # data2
             )
-            #print(dir(ev))
             Quartz.CGEventPost(0, ev.CGEvent())
         else:
             # Regular key
@@ -263,6 +259,18 @@ class KeyController(object):
             Quartz.CGEventPost(0, ev.CGEvent())
         else:
             # Regular key
+            # Update modifiers if necessary
+            if key_code == 0x37: # cmd
+                self.current_modifiers["cmd"] = False
+            elif key_code == 0x38: # shift
+                self.current_modifiers["shift"] = False
+            elif key_code == 0x39: # caps lock
+                self.current_modifiers["caps"] = False
+            elif key_code == 0x3A: # alt
+                self.current_modifiers["alt"] = False
+            elif key_code == 0x3B: # ctrl
+                self.current_modifiers["ctrl"] = False
+
             # Apply modifiers if necessary
             event_flags = 0
             if self.current_modifiers["shift"]:
@@ -275,18 +283,6 @@ class KeyController(object):
                 event_flags += Quartz.kCGEventFlagMaskControl
             if self.current_modifiers["cmd"]:
                 event_flags += Quartz.kCGEventFlagMaskCommand
-            
-            # Update modifiers if necessary
-            if key_code == 0x37: # cmd
-                self.current_modifiers["cmd"] = False
-            elif key_code == 0x38: # shift
-                self.current_modifiers["shift"] = False
-            elif key_code == 0x39: # caps lock
-                self.current_modifiers["caps"] = False
-            elif key_code == 0x3A: # alt
-                self.current_modifiers["alt"] = False
-            elif key_code == 0x3B: # ctrl
-                self.current_modifiers["ctrl"] = False
             event = Quartz.CGEventCreateKeyboardEvent(None, key_code, False)
             Quartz.CGEventSetFlags(event, event_flags)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
@@ -358,13 +354,10 @@ def init():
 
 def press(scan_code):
     """ Sends a 'down' event for the specified scan code """
-    #print("Down:({}) '{}'".format(scan_code, key_controller.key_map.vk_to_character(scan_code)))
-    #print(key_controller.current_modifiers)
     key_controller.press(scan_code)
 
 def release(scan_code):
     """ Sends an 'up' event for the specified scan code """
-    #print("Up:({}) '{}'".format(scan_code, key_controller.key_map.vk_to_character(scan_code)))
     key_controller.release(scan_code)
 
 def map_char(character):
@@ -385,21 +378,3 @@ def listen(queue, is_allowed=lambda *args: True):
     t = threading.Thread(target=listener.run, args=())
     t.daemon = True
     t.start()
-
-if __name__ == "__main__":
-    # Debugging
-
-    # vk lookup
-    #letter = "A"
-    #print(letter)
-    #vk = key_controller.map_char(letter)
-    #print(vk)
-    #print(key_controller.key_map.vk_to_character(*vk))
-
-    # keystroke emulation
-    press(key_controller.map_char('shift')[0])
-    press(key_controller.map_char('a')[0])
-    release(key_controller.map_char('a')[0])
-    release(key_controller.map_char('shift')[0])
-    press(key_controller.map_char('b')[0])
-    release(key_controller.map_char('b')[0])
