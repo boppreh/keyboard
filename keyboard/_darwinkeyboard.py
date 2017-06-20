@@ -33,6 +33,18 @@ class KeyMap(object):
         0x3E: 'right control',
         0x3F: 'function',
     }
+    special_key_characters = {
+        0x1e: "up",
+        0x1f: "down",
+        0x1c: "left",
+        0x1d: "right",
+        0x01: "home",
+        0x04: "end",
+        0x05: "help",
+        0x0b: "page up",
+        0x0c: "page down",
+        0x7f: "forward delete",
+    }
     layout_specific_keys = {}
     def __init__(self):
         # Virtual key codes are usually the same for any given key, unless you have a different
@@ -113,7 +125,10 @@ class KeyMap(object):
                                            ctypes.byref(char_count),
                                            non_shifted_char)
 
-            non_shifted_key = u''.join(unichr(non_shifted_char[i]) for i in range(char_count.value))
+            if non_shifted_char[0] in self.special_key_characters:
+                non_shifted_key = self.special_key_characters[non_shifted_char[0]]
+            else:
+                non_shifted_key = u''.join(unichr(non_shifted_char[i]) for i in range(char_count.value))
 
             retval = Carbon.UCKeyTranslate(k_layout_buffer,
                                            key_code,
@@ -126,7 +141,12 @@ class KeyMap(object):
                                            ctypes.byref(char_count),
                                            shifted_char)
 
-            shifted_key = u''.join(unichr(shifted_char[i]) for i in range(char_count.value))
+            if shifted_char[0] in self.special_key_characters:
+                shifted_key = self.special_key_characters[shifted_char[0]]
+            else:
+                shifted_key = u''.join(unichr(shifted_char[i]) for i in range(char_count.value))
+
+                    
             self.layout_specific_keys[key_code] = (non_shifted_key, shifted_key)
         # Cleanup
         Carbon.CFRelease(klis)
