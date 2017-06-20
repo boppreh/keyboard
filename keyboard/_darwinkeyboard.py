@@ -20,7 +20,9 @@ class KeyMap(object):
         0x30: 'tab',
         0x31: 'space',
         0x33: 'delete',
+        0x33: 'backspace',
         0x35: 'esc',
+        0x36: 'right command',
         0x37: 'command',
         0x38: 'shift',
         0x39: 'caps lock',
@@ -110,7 +112,7 @@ class KeyMap(object):
                                            4,
                                            ctypes.byref(char_count),
                                            non_shifted_char)
-            
+
             non_shifted_key = u''.join(unichr(non_shifted_char[i]) for i in range(char_count.value))
 
             retval = Carbon.UCKeyTranslate(k_layout_buffer,
@@ -317,7 +319,8 @@ class KeyEventListener(object):
             Quartz.kCGHeadInsertEventTap,
             Quartz.kCGEventTapOptionDefault,
             Quartz.CGEventMaskBit(Quartz.kCGEventKeyDown) |
-            Quartz.CGEventMaskBit(Quartz.kCGEventKeyUp),
+            Quartz.CGEventMaskBit(Quartz.kCGEventKeyUp) |
+            Quartz.CGEventMaskBit(Quartz.kCGEventFlagsChanged),
             self.handler,
             None)
         loopsource = Quartz.CFMachPortCreateRunLoopSource(None, self.tap, 0)
@@ -338,6 +341,19 @@ class KeyEventListener(object):
             event_type = "down"
         elif e_type == Quartz.kCGEventKeyUp:
             event_type = "up"
+        elif e_type == Quartz.kCGEventFlagsChanged:
+            if key_name.endswith("shift") and (flags & Quartz.kCGEventFlagMaskShift):
+                event_type = "down"
+            elif key_name == "caps lock" and (flags & Quartz.kCGEventFlagMaskAlphaShift):
+                event_type = "down"
+            elif (key_name.endswith("option") or key_name.endswith("alt")) and (flags & Quartz.kCGEventFlagMaskAlternate):
+                event_type = "down"
+            elif key_name == "ctrl" and (flags & Quartz.kCGEventFlagMaskControl):
+                event_type = "down"
+            elif key_name == "command" and (flags & Quartz.kCGEventFlagMaskCommand):
+                event_type = "down"
+            else:
+                event_type = "up"
 
         if self.blocking:
             return None
