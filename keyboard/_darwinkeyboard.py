@@ -20,7 +20,6 @@ class KeyMap(object):
         0x30: 'tab',
         0x31: 'space',
         0x33: 'delete',
-        0x33: 'backspace',
         0x35: 'esc',
         0x36: 'right command',
         0x37: 'command',
@@ -144,7 +143,7 @@ class KeyMap(object):
         """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code
         and ``modifiers`` is an array of string modifier names (like 'shift') """
         for vk in self.non_layout_keys:
-            if self.non_layout_keys[vk] == character:
+            if self.non_layout_keys[vk] == character.lower():
                 return (vk, [])
         for vk in self.layout_specific_keys:
             if self.layout_specific_keys[vk][0] == character:
