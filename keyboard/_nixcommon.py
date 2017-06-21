@@ -146,13 +146,15 @@ def aggregate_devices(type_name):
     # We don't aggregate devices from different sources to avoid
     # duplicates.
 
-    devices_from_by_id = list(list_devices_from_by_id(type_name))
-    if devices_from_by_id:
-        return AggregatedEventDevice(devices_from_by_id, output=fake_device)
-
     devices_from_proc = list(list_devices_from_proc(type_name))
     if devices_from_proc:
         return AggregatedEventDevice(devices_from_proc, output=fake_device)
+
+    # breaks on mouse for virtualbox
+    # was getting /dev/input/by-id/usb-VirtualBox_USB_Tablet-event-mouse
+    devices_from_by_id = list(list_devices_from_by_id(type_name))
+    if devices_from_by_id:
+        return AggregatedEventDevice(devices_from_by_id, output=fake_device)
 
     # If no keyboards were found we can only use the fake device to send keys.
     return fake_device
