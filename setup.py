@@ -4,6 +4,7 @@ Usage instructions:
 - If you are installing: `python setup.py install`
 - If you are developing: `python setup.py sdist bdist --format=zip bdist_wheel --universal`
 """
+import sys
 import keyboard
 try:
     import pypandoc
@@ -26,12 +27,13 @@ setup(
     description='Hook and simulate keyboard events on Windows and Linux',
     keywords = 'keyboard hook simulate hotkey',
     long_description=long_description,
-
+    install_requires=[] + (["pyobjc"] if sys.platform == "darwin" else []), # OSX-specific dependency
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: Unix',
+        'Operating System :: MacOS :: MacOS X',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Libraries :: Python Modules',

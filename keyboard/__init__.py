@@ -97,8 +97,12 @@ class _State(object): pass
 import platform as _platform
 if _platform.system() == 'Windows':
     from. import _winkeyboard as _os_keyboard
-else:
+elif _platform.system() == 'Linux':
     from. import _nixkeyboard as _os_keyboard
+elif _platform.system() == 'Darwin':
+    from. import _darwinkeyboard as _os_keyboard
+else:
+    raise OSError("Unsupported platform '{}'".format(_platform.system()))
 
 from ._keyboard_event import KEY_DOWN, KEY_UP
 from ._keyboard_event import normalize_name as _normalize_name
