@@ -96,6 +96,19 @@ def move(x, y, absolute=True, duration=0):
     else:
         _os_mouse.move_to(x, y)
 
+def drag(start_x, start_y, end_x, end_y, absolute=True, duration=0):
+    """
+    Holds the left mouse button, moving from start to end position, then
+    releases. `absolute` and `duration` are parameters regarding the mouse
+    movement.
+    """
+    if is_pressed():
+        release()
+    move(start_x, start_y, absolute, 0)
+    press()
+    move(end_x, end_y, absolute, duration)
+    release()
+
 def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP, DOWN, DOUBLE)):
     """ Invokes `callback` with `args` when the specified event happens. """
     if not isinstance(buttons, (tuple, list)):
