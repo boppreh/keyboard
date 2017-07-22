@@ -221,6 +221,7 @@ def play(events, speed_factor=1.0, include_clicks=True, include_moves=True, incl
             _os_mouse.wheel(event.delta)
 
 replay = play
+hold = press
 
 if __name__ == '__main__':
     print('Recording... Double click to stop and replay.')
