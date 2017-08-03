@@ -1,3 +1,17 @@
+# 0.10.0
+
+- [OS X] Added experimental OS X support (thanks @glitchassassin!).
+- [Windows] Fixed error on fractional `mouse.wheel()` (thanks @bobonthenet!).
+- [Windows] Fixed name for arrow keys` virtual key codes.
+- [Windows] Make backend easier to use in other projects (e.g. `_winkeyboard.prepare_intercept`).
+- [Linux] Fixed mouse support in Mint VirtualBox guest (thanks @foodforarabbit!).
+- [All] Added mouse alias `hold = press` (thanks @DanMossa!).
+- [All] Added `mouse.drag`.
+- [All] Added examples on how to use the library.
+- [All] Update docs to mention how to differentiate key presses and releases (thanks @TrakJohnson!).
+- [All] Change the default value of `add_abbreviation(..., match_suffix)`.
+
+
 # 0.9.13
 
 - [Windows] Fix bug when listening to alt-gr.
