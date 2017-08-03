@@ -77,7 +77,7 @@ buttons_by_wm_code = {
     WM_LBUTTONDOWN: (DOWN, LEFT),
     WM_LBUTTONUP: (UP, LEFT),
     WM_LBUTTONDBLCLK: (DOUBLE, LEFT),
-    
+
     WM_RBUTTONDOWN: (DOWN, RIGHT),
     WM_RBUTTONUP: (UP, RIGHT),
     WM_RBUTTONDBLCLK: (DOUBLE, RIGHT),
@@ -93,14 +93,14 @@ buttons_by_wm_code = {
 
 MOUSEEVENTF_ABSOLUTE = 0x8000
 MOUSEEVENTF_MOVE = 0x1
-MOUSEEVENTF_WHEEL = 0x800 
+MOUSEEVENTF_WHEEL = 0x800
 MOUSEEVENTF_HWHEEL = 0x1000
-MOUSEEVENTF_LEFTDOWN = 0x2 
-MOUSEEVENTF_LEFTUP = 0x4 
-MOUSEEVENTF_RIGHTDOWN = 0x8 
-MOUSEEVENTF_RIGHTUP = 0x10 
-MOUSEEVENTF_MIDDLEDOWN = 0x20 
-MOUSEEVENTF_MIDDLEUP = 0x40 
+MOUSEEVENTF_LEFTDOWN = 0x2
+MOUSEEVENTF_LEFTUP = 0x4
+MOUSEEVENTF_RIGHTDOWN = 0x8
+MOUSEEVENTF_RIGHTUP = 0x10
+MOUSEEVENTF_MIDDLEDOWN = 0x20
+MOUSEEVENTF_MIDDLEUP = 0x40
 MOUSEEVENTF_XDOWN = 0x0080
 MOUSEEVENTF_XUP = 0x0100
 
@@ -110,7 +110,7 @@ simulated_mouse_codes = {
 
     (DOWN, LEFT): MOUSEEVENTF_LEFTDOWN,
     (UP, LEFT): MOUSEEVENTF_LEFTUP,
-    
+
     (DOWN, RIGHT): MOUSEEVENTF_RIGHTDOWN,
     (UP, RIGHT): MOUSEEVENTF_RIGHTUP,
 
@@ -142,7 +142,7 @@ def listen(queue):
             if wParam >= WM_XBUTTONDOWN:
                 button = {0x10000: X, 0x20000: X2}[struct.data]
             event = ButtonEvent(type, button, t)
-        
+
         queue.put(event)
         return CallNextHookEx(NULL, nCode, wParam, lParam)
 
@@ -177,7 +177,7 @@ def release(button=LEFT):
 
 def wheel(delta=1):
     code = simulated_mouse_codes[(WHEEL, VERTICAL)]
-    user32.mouse_event(code, 0, 0, delta * WHEEL_DELTA, 0)
+    user32.mouse_event(code, 0, 0, int(delta * WHEEL_DELTA), 0)
 
 def move_to(x, y):
     user32.SetCursorPos(int(x), int(y))
