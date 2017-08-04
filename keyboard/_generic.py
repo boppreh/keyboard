@@ -2,7 +2,6 @@
 from threading import Thread, Lock
 import traceback
 import functools
-from ._keyboard_event import normalize_name
 
 try:
     from queue import Queue
