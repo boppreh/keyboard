@@ -41,11 +41,12 @@ if new_version.startswith('v'):
     new_version = new_version[1:]
 
 if not new_version:
-    if input('Commit README.md files? ').lower().startswith('y'):
+    if input('Commit README.md files? [y/N] ').lower().startswith('y'):
         run(['git', 'add', 'README.md'])
         run(['git', 'commit', '-m', 'Update README'])
         run(['git', 'push'])
-    run(['python', 'setup.py', 'register'], check=True)
+    else:
+        print('Nothing to do. Exiting...')
     exit()
 
 assert re.fullmatch(version_pattern, new_version)
@@ -88,7 +89,7 @@ run(['git', 'push', 'origin', tag_name], check=True)
 token = input('To make a release enter your GitHub repo authorization token: ').strip()
 if token:
     git_remotes = check_output(['git', 'remote', '-v']).decode('utf-8')
-    repo_path = re.search(r'([^/]+/[^/. ]+)(?:\.git)? \(push\)', git_remotes).group(1)
+    repo_path = re.search(r'github.com[:/](.+?)(?:\.git)? \(push\)', git_remotes).group(1)
     releases_url = 'https://api.github.com/repos/{}/releases'.format(repo_path)
     print(releases_url)
     release = {
@@ -102,4 +103,5 @@ if token:
     response = requests.post(releases_url, json=release, headers={'Authorization': 'token ' + token})
     print(response.status_code, response.text)
 
-run(['python', 'setup.py', 'sdist', '--format=zip', 'bdist', '--format=zip', 'bdist_wheel', '--universal', 'bdist_wininst', 'upload'], check=True)
+run(['python', 'setup.py', 'sdist', '--format=zip', 'bdist', '--format=zip', 'bdist_wheel', '--universal', 'bdist_wininst'], check=True)
+run(['twine', 'upload', 'dist/*'], check=True, shell=True)
