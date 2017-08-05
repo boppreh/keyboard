@@ -1,0 +1,143 @@
+branches:
+  only:
+    - master
+    - develop
+
+# As config example taken this file: https://github.com/ogrisel/python-appveyor-demo/blob/master/appveyor.yml
+environment:
+  global:
+    # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
+    # /E:ON and /V:ON options are not enabled in the batch script intepreter
+    # See: http://stackoverflow.com/a/13751649/163740
+    CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\tests\\scripts\\appveyor\\run_with_env.cmd"
+    TEST_CMD: "py.test -n3 --cov=./ --maxfail 5 --junitxml=junit-results.xml --durations=10 tests"
+    DISTUTILS_DEBUG: 1
+    PYPI_USERNAME:
+      secure: rl2zkdPpMWKuqh3paOKNhA==
+    PYPI_PASSWORD:
+      secure: rToy5D17/4zLIaIBq9S4UQ==
+  
+  matrix:
+    - PYTHON: "C:\\Python35-x64"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "64"
+      VCVARSALL: "x64"
+      # Break the tests into two runs, since together they exceed the 1 hour limit.
+      # See https://github.com/pyinstaller/pyinstaller/issues/2024#issuecomment-224129520
+      # for more discussion.
+
+    - PYTHON: "C:\\Python35"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "32"
+      VCVARSALL: "x86"
+      # Break the tests into two runs, since together they exceed the 1 hour limit.
+      # See https://github.com/pyinstaller/pyinstaller/issues/2024#issuecomment-224129520
+      # for more discussion.
+
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4"
+      PYTHON_ARCH: "32"
+      VCVARSALL: "x86"
+
+    - PYTHON: "C:\\Python33"
+      PYTHON_VERSION: "3.3"
+      PYTHON_ARCH: "32"
+      VCVARSALL: "x86"
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6"
+      PYTHON_ARCH: "64"
+      VCVARSALL: "x64"
+      # Break the tests into two runs, since together they exceed the 1 hour limit.
+      # See https://github.com/pyinstaller/pyinstaller/issues/2024#issuecomment-224129520
+      # for more discussion.
+
+matrix:
+  allow_failures:
+    - PYTHON_VERSION: "3.6"
+
+cache:
+  # Cache downloaded pip packages.
+  - "%LOCALAPPDATA%\\pip"
+
+init:
+  - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
+  - "ECHO \"%APPVEYOR_SCHEDULED_BUILD%\""
+  # If there is a newer build queued for the same PR, cancel this one.
+  # The AppVeyor 'rollout builds' option is supposed to serve the same
+  # purpose but it is problematic because it tends to cancel builds pushed
+  # directly to master instead of just PR builds (or the converse).
+  # credits: JuliaLang developers.
+  - ps: if ($env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_NUMBER -ne ((Invoke-RestMethod `
+        https://ci.appveyor.com/api/projects/$env:APPVEYOR_ACCOUNT_NAME/$env:APPVEYOR_PROJECT_SLUG/history?recordsNumber=50).builds | `
+        Where-Object pullRequestId -eq $env:APPVEYOR_PULL_REQUEST_NUMBER)[0].buildNumber) { `
+          throw "There are newer queued builds for this pull request, failing early." }
+
+install:
+  # Prepend newly installed Python to the PATH of this build (this cannot be
+  # done from inside the powershell script as it would require to restart
+  # the parent CMD process).
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+
+  # Check that we have the expected version and architecture for Python
+  - "python --version"
+  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+
+  ### Install the PyInsaller dependencies.
+  # Upgrade to the latest pip.
+  - "%CMD_IN_ENV% python -m pip install -U pip setuptools wheel"
+
+  # Install the test dependencies.
+  - "%CMD_IN_ENV% pip install -U --disable-pip-version-check --timeout 5 --retries 2 -r tests/requirements.txt"
+
+  # Install PyInstaller into virtualenv.
+  - "%CMD_IN_ENV% pip install -e ."
+  
+  # Uninstall futures due to a bug in py-spin
+  - "%CMD_IN_ENV% pip uninstall -y futures"
+
+build: none
+
+before_test:
+  - ps: cp C:\ProgramData\chocolatey\logs\chocolatey.log .
+
+test_script:
+  # Run the tests appropriate for this entry in the test matrix. Skip tests
+  # if we're just updating the cache.
+  - ps: |
+      If ($env:APPVEYOR_REPO_TAG -ne "true" -and $env:APPVEYOR_SCHEDULED_BUILD -ne "true") {
+          $env:RUN_TEST = "true"
+      }
+  - IF "%RUN_TEST%"=="true" (%CMD_IN_ENV% %TEST_CMD%)
+
+artifacts:
+  - path: chocolatey.log
+
+on_success:
+  - ps: |
+      If ($env:APPVEYOR_REPO_TAG -eq "true") {        
+        choco install pandoc
+        python setup.py sdist bdist_wheel
+        Invoke-Expression "twine upload -u $env:PYPI_USERNAME -p $env:PYPI_PASSWORD --repository-url https://upload.pypi.org/legacy/ --skip-existing dist/*" 2>&1 | Out-Null
+      }
+  # Remove old or huge cache files to hopefully not exceed the 1GB cache limit.
+  #
+  # If the cache limit is reached, the cache will not be updated (of not even
+  # created in the first run). So this is a trade of between keeping the cache
+  # current and having a cache at all.
+  # NB: This is done only `on_success` since the cache in uploaded only on
+  # success anyway.
+  - C:\cygwin\bin\find "%LOCALAPPDATA%\pip" -type f -mtime +360 -delete
+  - C:\cygwin\bin\find "%LOCALAPPDATA%\pip" -type f -size +10M -delete
+  - C:\cygwin\bin\find "%LOCALAPPDATA%\pip" -empty -delete
+  # Show size of cache
+  - C:\cygwin\bin\du -hs "%LOCALAPPDATA%\pip\Cache"
+
+on_finish:
+  - codecov
+  - ps: |
+      (new-object net.webclient).UploadFile(
+        "https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)",
+        (Resolve-Path .\junit-results.xml)
+      )
+      $LastExitCode = 0
