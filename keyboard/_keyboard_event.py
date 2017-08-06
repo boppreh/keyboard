@@ -26,7 +26,7 @@ class KeyboardEvent(object):
             self.name = normalize_name(name)
 
     def __repr__(self):
-        return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
+        return 'KeyboardEvent({} {} from {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type, self.device)
 
 # TODO: add values from https://svn.apache.org/repos/asf/xmlgraphics/commons/tags/commons-1_0/src/java/org/apache/xmlgraphics/fonts/Glyphs.java
 canonical_names = {

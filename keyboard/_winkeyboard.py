@@ -13,12 +13,17 @@ import re
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 from ._suppress import KeyTable
 
+try:
+    from queue import Queue
+except ImportError:
+    from Queue import Queue
+
 # This part is just declaring Win32 API structures using ctypes. In C
 # this would be simply #include "windows.h".
 
 import ctypes
-from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
-from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG
+from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER, WINFUNCTYPE, byref, pointer, sizeof, Union, c_ushort, create_string_buffer, cast
+from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG, USHORT, HWND, UINT, HANDLE, LPCWSTR, ULONG, BYTE, HACCEL
 LPMSG = POINTER(MSG)
 ULONG_PTR = POINTER(DWORD)
 
@@ -42,7 +47,7 @@ class KBDLLHOOKSTRUCT(Structure):
                 ("dwExtraInfo", ULONG_PTR)]
 
 # Included for completeness.
-class MOUSEINPUT(ctypes.Structure):
+class MOUSEINPUT(Structure):
     _fields_ = (('dx', LONG),
                 ('dy', LONG),
                 ('mouseData', DWORD),
@@ -50,26 +55,128 @@ class MOUSEINPUT(ctypes.Structure):
                 ('time', DWORD),
                 ('dwExtraInfo', ULONG_PTR))
 
-class KEYBDINPUT(ctypes.Structure):
+class KEYBDINPUT(Structure):
     _fields_ = (('wVk', WORD),
                 ('wScan', WORD),
                 ('dwFlags', DWORD),
                 ('time', DWORD),
                 ('dwExtraInfo', ULONG_PTR))
 
-class HARDWAREINPUT(ctypes.Structure):
+class HARDWAREINPUT(Structure):
     _fields_ = (('uMsg', DWORD),
                 ('wParamL', WORD),
                 ('wParamH', WORD))
 
-class _INPUTunion(ctypes.Union):
+class _INPUTunion(Union):
     _fields_ = (('mi', MOUSEINPUT),
                 ('ki', KEYBDINPUT),
                 ('hi', HARDWAREINPUT))
 
-class INPUT(ctypes.Structure):
+class INPUT(Structure):
     _fields_ = (('type', DWORD),
                 ('union', _INPUTunion))
+
+class RAWINPUTDEVICE(Structure):
+    _fields_ = [("us_usage_page", USHORT),
+                ("us_usage", USHORT),
+                ("dw_flags", DWORD),
+                ("hwnd_target", HWND)]
+
+WNDPROCTYPE = WINFUNCTYPE(c_int, HWND, c_uint, WPARAM, LPARAM)
+CS_HREDRAW = 2
+CS_VREDRAW = 1
+CW_USEDEFAULT = 0x80000000
+WHITE_BRUSH = 0
+
+RI_KEY_BREAK = 0x01
+RI_KEY_MAKE = 0x00
+
+RIM_TYPEMOUSE = 0x00000000
+RIM_TYPEKEYBOARD = 0x00000001
+RIM_TYPEHID = 0x00000002
+
+RID_INPUT = 0x10000003
+
+RIDEV_INPUTSINK = 0x00000100
+
+class WNDCLASSEX(Structure):
+    _fields_ = [("cbSize", c_uint),
+                ("style", c_uint),
+                ("lpfnWndProc", WNDPROCTYPE),
+                ("cbClsExtra", c_int),
+                ("cbWndExtra", c_int),
+                ("hInstance", HANDLE),
+                ("hIcon", HANDLE),
+                ("hCursor", HANDLE),
+                ("hBrush", HANDLE),
+                ("lpszMenuName", LPCWSTR),
+                ("lpszClassName", LPCWSTR),
+                ("hIconSm", HANDLE)]
+
+class RAWINPUTHEADER(Structure):
+    _fields_ = [
+        ("dwType", DWORD),
+        ("dwSize", DWORD),
+        ("hDevice", HANDLE),
+        ("wParam", WPARAM),
+    ] 
+
+class RAWMOUSE(Structure):
+    class _U1(Union):
+        class _S2(Structure):
+            _fields_ = [
+                ("usButtonFlags", c_ushort),
+                ("usButtonData", c_ushort),
+            ]
+        _fields_ = [
+            ("ulButtons", ULONG),
+            ("_s2", _S2),
+        ]
+
+    _fields_ = [
+        ("usFlags", c_ushort),
+        ("_u1", _U1),
+        ("ulRawButtons", ULONG),
+        ("lLastX", LONG),
+        ("lLastY", LONG),
+        ("ulExtraInformation", ULONG),
+    ]
+    _anonymous_ = ("_u1", )   
+
+class RAWKEYBOARD(Structure):
+    _fields_ = [
+        ("MakeCode", c_ushort),
+        ("Flags", c_ushort),
+        ("Reserved", c_ushort),
+        ("VKey", c_ushort),
+        ("Message", UINT),
+        ("ExtraInformation", ULONG),
+    ]
+
+
+class RAWHID(Structure):
+    _fields_ = [
+        ("dwSizeHid", DWORD),
+        ("dwCount", DWORD),
+        ("bRawData", BYTE),
+    ]
+
+class _RAWINPUTUnion(Union):
+    _fields_ = [
+        ("mouse", RAWMOUSE),
+        ("keyboard", RAWKEYBOARD),
+        ("hid", RAWHID),
+    ]
+
+class RAWINPUT(Structure):
+    _fields_ = [
+        ("header", RAWINPUTHEADER),
+        ("data", _RAWINPUTUnion),
+    ]
+
+RegisterRawInputDevices = user32.RegisterRawInputDevices
+RegisterRawInputDevices.argtypes = [POINTER(RAWINPUTDEVICE), UINT, UINT]
+RegisterRawInputDevices.restype = UINT
 
 LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
 
@@ -127,6 +234,8 @@ VkKeyScan.argtypes = [WCHAR]
 VkKeyScan.restype = c_short
 
 NULL = c_int(0)
+
+WM_INPUT = 0x00FF
 
 WM_KEYDOWN = 0x0100
 WM_KEYUP = 0x0101
@@ -457,17 +566,39 @@ def prepare_intercept(callback):
 def _start_intercept():
     """
     Starts pumping Windows messages, which invokes the registered low
-    level keyboard hook.
+    level keyboard hook and raw input device capture.
     """
-    # TODO: why does this work, without the whole Translate/Dispatch dance?
-    GetMessage(LPMSG(), NULL, NULL, NULL)
-    #msg = LPMSG()
-    #while not GetMessage(msg, NULL, NULL, NULL):
-    #    TranslateMessage(msg)
-    #    DispatchMessage(msg)
+    msg = MSG()
+    while GetMessage(byref(msg), NULL, 0, 0):
+        user32.TranslateMessage(byref(msg));
+        user32.DispatchMessageA(byref(msg));
 
 def listen(queue, is_allowed=lambda *args: True):
-    prepare_intercept(lambda e: queue.put(e) or is_allowed(e.name, e.event_type == KEY_UP))
+    # Low Level Keyboard hooks don't include device information. Raw Input Device
+    # listeners do, but they don't allow for blocking events. To combine both, we
+    # run a listener of each. Low level hook events are processed first (unknown
+    # why), so we put those events into a "deviceless_events" queue. When the
+    # corresponding raw input device events comes (identified by order), we fill
+    # the missing device id and pass it along to the generic keyboard library.
+    # Raw input devices are sometimes buffered, but as long as events are served
+    # in order, this should be ok.
+
+    # Unforutnately the device id is fetched after the window of opportunity
+    # for blocking events, so we can never block events based on it.
+    # On the other hand, we don't need to wait for the device id before deciding
+    # to block or allow, so events are processed more quickly and with less key
+    # delay.
+    deviceless_events = Queue()
+    def process_event_device(event):
+        final_event = deviceless_events.get()
+        final_event.device = event.header.hDevice
+        queue.put(final_event)
+    RawInputDeviceListener(process_event_device)
+
+    def put_keyboard_event(event):
+        deviceless_events.put(event)
+        return is_allowed(event.name, event.event_type == KEY_UP)
+    prepare_intercept(put_keyboard_event)
     _start_intercept()
 
 def map_char(name):
@@ -520,8 +651,68 @@ def type_unicode(character):
     nInputs = len(inputs)
     LPINPUT = INPUT * nInputs
     pInputs = LPINPUT(*inputs)
-    cbSize = c_int(ctypes.sizeof(INPUT))
+    cbSize = c_int(sizeof(INPUT))
     SendInput(nInputs, pInputs, cbSize)
+
+raw_input_device_listeners = []
+class RawInputDeviceListener(object):
+    """
+    This class is required so the garbage collector doesn't delete important
+    structures, like the wndClass.
+    """
+    def __init__(self, callback):
+        self.callback = callback
+        
+        self.hInst = ctypes.windll.kernel32.GetModuleHandleW(0)
+
+        self.wndClass = WNDCLASSEX()
+        self.wndClass.cbSize = sizeof(WNDCLASSEX)
+        self.wndClass.style = CS_HREDRAW | CS_VREDRAW
+        self.wndClass.lpfnWndProc = WNDPROCTYPE(self.process_message)
+        self.wndClass.cbClsExtra = 0
+        self.wndClass.cbWndExtra = 0
+        self.wndClass.hInstance = self.hInst
+        self.wndClass.hIcon = 0
+        self.wndClass.hCursor = 0
+        self.wndClass.hBrush = ctypes.windll.gdi32.GetStockObject(WHITE_BRUSH)
+        self.wndClass.lpszMenuName = 0
+        self.wndClass.lpszClassName = 'Python Win32 Class'
+        self.wndClass.hIconSm = 0
+
+        self.regRes = user32.RegisterClassExW(byref(self.wndClass))
+        
+        self.hWnd = user32.CreateWindowExW(
+            0,
+            self.wndClass.lpszClassName,
+            'Invisible Window for Python Win32',
+            0,
+            0, 0,
+            0,0,0,0,
+            self.hInst,
+            0
+        )
+        
+        if not self.hWnd:
+            raise WinError()
+
+        raw_input_device = RAWINPUTDEVICE()
+        raw_input_device.us_usage_page = 1;
+        raw_input_device.us_usage = 6;
+        raw_input_device.dw_flags = RIDEV_INPUTSINK;
+        raw_input_device.hwnd_target = self.hWnd;
+        RegisterRawInputDevices(raw_input_device, 1, sizeof((RAWINPUTDEVICE)));
+
+        raw_input_device_listeners.append(self)
+
+    def process_message(self, hwnd, msg, wParam, lParam):
+        if msg == WM_INPUT:
+            dwSize = c_uint()
+            assert user32.GetRawInputData(lParam, RID_INPUT, NULL, byref(dwSize), sizeof(RAWINPUTHEADER)) == 0
+            if dwSize.value == 40: # Why 40? RAWINPUT is 48 and RAWKEYBOARD is 16
+                raw = RAWINPUT()
+                assert user32.GetRawInputData(lParam, RID_INPUT, byref(raw), byref(dwSize), sizeof(RAWINPUTHEADER)) == dwSize.value
+                self.callback(raw)
+        return user32.DefWindowProcA(c_int(hwnd), c_int(msg), c_int(wParam), c_int(lParam))
 
 if __name__ == '__main__':
     import keyboard
