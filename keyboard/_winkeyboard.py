@@ -7,7 +7,7 @@ low level memory leaks. But it is also dependency-free, very performant
 well documented on Microsoft's webstie and scattered examples.
 """
 import atexit
-from threading import Lock
+from threading import Lock, Thread
 import re
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
@@ -56,9 +56,9 @@ class MOUSEINPUT(Structure):
                 ('dwExtraInfo', ULONG_PTR))
 
 class KEYBDINPUT(Structure):
-    _fields_ = (('wVk', WORD),
-                ('wScan', WORD),
-                ('dwFlags', DWORD),
+    _fields_ = (('vk_code', WORD),
+                ('scan_code', WORD),
+                ('flags', DWORD),
                 ('time', DWORD),
                 ('dwExtraInfo', ULONG_PTR))
 
@@ -145,12 +145,12 @@ class RAWMOUSE(Structure):
 
 class RAWKEYBOARD(Structure):
     _fields_ = [
-        ("MakeCode", c_ushort),
-        ("Flags", c_ushort),
-        ("Reserved", c_ushort),
-        ("VKey", c_ushort),
-        ("Message", UINT),
-        ("ExtraInformation", ULONG),
+        ("scan_code", c_ushort),
+        ("flags", c_ushort),
+        ("reserved", c_ushort),
+        ("vk_code", c_ushort),
+        ("message", UINT),
+        ("dwExtraInfo", ULONG),
     ]
 
 
@@ -583,20 +583,33 @@ def listen(queue, is_allowed=lambda *args: True):
     # Raw input devices are sometimes buffered, but as long as events are served
     # in order, this should be ok.
 
-    # Unforutnately the device id is fetched after the window of opportunity
+    # Unfortunately the device id is fetched after the window of opportunity
     # for blocking events, so we can never block events based on it.
     # On the other hand, we don't need to wait for the device id before deciding
     # to block or allow, so events are processed more quickly and with less key
     # delay.
-    deviceless_events = Queue()
-    def process_event_device(event):
-        final_event = deviceless_events.get()
-        final_event.device = event.header.hDevice
-        queue.put(final_event)
-    RawInputDeviceListener(process_event_device)
+    low_level_events = Queue()
+    raw_device_events = Queue()
+
+    def pair_events():
+        while True:
+            print('{} {}'.format(low_level_events.get().scan_code, raw_device_events.get().data.keyboard.scan_code))
+            continue
+            low_level_event = low_level_events.get()
+            while True:
+                raw_device_event = raw_device_events.get()
+                if low_level_event.scan_code == raw_device_event.data.keyboard.scan_code:
+                    break
+            low_level_event.device = raw_device_event.header.hDevice
+            queue.put(low_level_event)
+    pairer = Thread(target=pair_events)
+    pairer.daemon = True
+    pairer.start()
+
+    RawInputDeviceListener(raw_device_events.put)
 
     def put_keyboard_event(event):
-        deviceless_events.put(event)
+        low_level_events.put(event)
         return is_allowed(event.name, event.event_type == KEY_UP)
     prepare_intercept(put_keyboard_event)
     _start_intercept()
