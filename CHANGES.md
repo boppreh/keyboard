@@ -1,3 +1,9 @@
+# 0.10.3
+
+- [All] Fix PyPI readme (https://github.com/pypa/setuptools/issues/1126).
+- [All] Remove bdist from release (PEP 527).
+
+
 # 0.10.2
 
 - [All] Removed ctypes type-hints to avoid runtime errors in unusual systems.
