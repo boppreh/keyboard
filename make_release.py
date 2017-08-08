@@ -103,5 +103,6 @@ if token:
     response = requests.post(releases_url, json=release, headers={'Authorization': 'token ' + token})
     print(response.status_code, response.text)
 
-run(['python', 'setup.py', 'sdist', '--format=zip', 'bdist', '--format=zip', 'bdist_wheel', '--universal', 'bdist_wininst'], check=True)
+run(['python', 'setup.py', 'clean'], check=True)
+run(['python', 'setup.py', 'sdist', '--format=zip', 'bdist_wheel', '--universal', 'bdist_wininst'], check=True)
 run(['twine', 'upload', 'dist/*'], check=True, shell=True)
