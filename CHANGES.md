@@ -1,3 +1,11 @@
+# 0.10.2
+
+- [All] Removed ctypes type-hints to avoid runtime errors in unusual systems.
+- [All] Add mention of new `mouse` project.
+- [All] Add mention of experimental OS X support.
+- [All] Fixes to release process.
+
+
 # 0.10.0
 
 - [OS X] Added experimental OS X support (thanks @glitchassassin!).
