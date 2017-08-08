@@ -23,11 +23,11 @@ class MSLLHOOKSTRUCT(Structure):
 LowLevelMouseProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(MSLLHOOKSTRUCT))
 
 SetWindowsHookEx = user32.SetWindowsHookExA
-SetWindowsHookEx.argtypes = [c_int, LowLevelMouseProc, c_int, c_int]
+#SetWindowsHookEx.argtypes = [c_int, LowLevelMouseProc, c_int, c_int]
 SetWindowsHookEx.restype = HHOOK
 
 CallNextHookEx = user32.CallNextHookEx
-CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(MSLLHOOKSTRUCT)]
+#CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(MSLLHOOKSTRUCT)]
 CallNextHookEx.restype = c_int
 
 UnhookWindowsHookEx = user32.UnhookWindowsHookEx
