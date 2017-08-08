@@ -18,7 +18,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 - Events automatically captured in separate thread, doesn't block main program.
 - Tested and documented.
 - Doesn't break accented dead keys (I'm looking at you, pyHook).
-- Mouse support coming soon.
+- Mouse support available at project [mouse](https://github.com/boppreh/mouse) (`pip install mouse`).
 
 This program makes no attempt to hide itself, so don't use it for keyloggers.
 

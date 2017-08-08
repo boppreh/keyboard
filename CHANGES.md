@@ -1,3 +1,10 @@
+# 0.10.1
+
+- [All] Applied @bobonthenet 's to the mouse submodule.
+- [All] Add mention of new `mouse` project.
+- [All] Add mention of experimental OS X support.
+
+
 # 0.10.0
 
 - [OS X] Added experimental OS X support (thanks @glitchassassin!).
