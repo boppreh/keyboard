@@ -239,6 +239,21 @@ def call_later(fn, args=(), delay=0.001):
     """
     _Thread(target=lambda: _time.sleep(delay) or fn(*args)).start()
 
+def block_key(key):
+    """
+    Suppresses all key events related to the given key, so that other programs
+    won't receive them. Blocks add up. Only available in Windows at the moment.
+    """
+    _listener.start_if_necessary()
+    _listener.block(key)
+
+def unblock_key(key):
+    """
+    Removes a block related to the given key. See `block_key(key)` for mroe
+    details.
+    """
+    _listener.unblock(key)
+
 def _suppress_hotkey(steps, timeout):
     """
     Adds a hotkey to the list of keys to be suppressed.
