@@ -112,7 +112,7 @@ def init():
 
 pressed_modifiers = set()
 
-def listen(queue, is_allowed=lambda *args: True):
+def listen(callback):
     build_device()
     build_tables()
 
@@ -136,7 +136,7 @@ def listen(queue, is_allowed=lambda *args: True):
                 pressed_modifiers.discard(name)
 
         is_keypad = scan_code in keypad_scan_codes
-        queue.put(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, time=time, device=device_id, is_keypad=is_keypad))
+        callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, time=time, device=device_id, is_keypad=is_keypad))
 
 def write_event(scan_code, is_down):
     build_device()

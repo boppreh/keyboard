@@ -135,7 +135,10 @@ class _KeyboardListener(_GenericListener):
         return True
 
     def listen(self):
-        _os_keyboard.listen(self.queue, _key_table.is_allowed)
+        def callback(event):
+            self.queue.put(event)
+            return _key_table.is_allowed(event.name, event.event_type == KEY_UP)
+        _os_keyboard.listen(callback)
 _listener = _KeyboardListener()
 
 def matches(event, name):

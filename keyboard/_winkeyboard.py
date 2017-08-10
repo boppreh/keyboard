@@ -466,8 +466,8 @@ def _start_intercept():
     #    TranslateMessage(msg)
     #    DispatchMessage(msg)
 
-def listen(queue, is_allowed=lambda *args: True):
-    prepare_intercept(lambda e: queue.put(e) or is_allowed(e.name, e.event_type == KEY_UP))
+def listen(callback):
+    prepare_intercept(callback)
     _start_intercept()
 
 def map_char(name):
