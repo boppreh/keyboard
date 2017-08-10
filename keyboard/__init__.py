@@ -75,6 +75,7 @@ key events. In this case `keyboard` will be unable to report events.
 """
 
 import time as _time
+from collections import Counter
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
 from ._suppress import KeyTable as _KeyTable
@@ -117,12 +118,14 @@ _pressed_events = {}
 class _KeyboardListener(_GenericListener):
     def init(self):
         _os_keyboard.init()
+        self.blocked_keys = Counter()
         
     def pre_process_event(self, event):
         if not event.scan_code and event.name == 'unknown':
             return False
 
-        # Useful for media keys, which are reported with scan_code = 0.
+        # Useful for media keys, which are reported with scan_code = 0, or
+        # artificial events.
         if not event.scan_code:
             event.scan_code = to_scan_code(event.name)
 
@@ -137,11 +140,22 @@ class _KeyboardListener(_GenericListener):
 
         return True
 
+    def block(self, key):
+        normalized = _normalize_name(key)
+        for prefix in ['', 'left ', 'right ']:
+            self.blocked_keys[normalized] += 1
+
+    def unblock(self, key):
+        normalized = _normalize_name(key)
+        for prefix in ['', 'left ', 'right ']:
+            self.blocked_keys[normalized] -= 1
+
+    def direct_callback(self, event):
+        self.queue.put(event)
+        return not self.blocked_keys[event.name]
+
     def listen(self):
-        def callback(event):
-            self.queue.put(event)
-            return _key_table.is_allowed(event.name, event.event_type == KEY_UP)
-        _os_keyboard.listen(callback)
+        _os_keyboard.listen(self.direct_callback)
 _listener = _KeyboardListener()
 
 def matches(event, name):
