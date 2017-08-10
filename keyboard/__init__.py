@@ -108,7 +108,10 @@ from ._keyboard_event import KEY_DOWN, KEY_UP
 from ._keyboard_event import normalize_name as _normalize_name
 from ._generic import GenericListener as _GenericListener
 
-all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
+all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'}
+for key in list(all_modifiers):
+    all_modifiers.add('left ' + key)
+    all_modifiers.add('right ' + key)
 
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
