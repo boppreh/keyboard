@@ -21,8 +21,6 @@ Take full control of your keyboard with this small Python library. Hook global e
 - Doesn't break accented dead keys (I'm looking at you, pyHook).
 - Mouse support available via project [mouse](https://github.com/boppreh/mouse) (`pip install mouse`).
 
-This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming cheats.
-
 ## Usage
 
 Install the [PyPI package](https://pypi.python.org/pypi/keyboard/):
@@ -66,12 +64,13 @@ keyboard.wait()
 ## Known limitations:
 
 - Events generated under Windows don't report device id (`event.device == None`). [#21](https://github.com/boppreh/keyboard/issues/21)
-- Linux doesn't seem to report media keys. [#20](https://github.com/boppreh/keyboard/issues/20)
-- Currently no way to suppress keys ('catch' events and block them). [#22](https://github.com/boppreh/keyboard/issues/22)
-- To avoid depending on X the Linux parts reads raw device files (`/dev/input/input*`)
+- Media keys on Linux may appear nameless (scan-code only) or not at all. [#20](https://github.com/boppreh/keyboard/issues/20)
+- Key suppression/blocking only available in Windows. [#22](https://github.com/boppreh/keyboard/issues/22)
+- To avoid depending on X ,the Linux parts reads raw device files (`/dev/input/input*`)
 but this requries root.
 - Other applications, such as some games, may register hooks that swallow all 
 key events. In this case `keyboard` will be unable to report events.
+- This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming bots. Be responsible.
 """
 
 import itertools
@@ -166,7 +165,10 @@ class _KeyboardListener(_GenericListener):
         - All pending keys are being pressed, but not all pressed keys are
         pending, and releasing a key only means that that key is not pending
         anymore.
+        - Pending keys must be released in the same order they were pressed,
+        and before any other event is allowed.
         """
+        # TDOO: allow blocking by scan-code. Maybe only deal with scan-codes?
         # TODO: add note that simulated events and suppressed keys are still seen by hotkeys in the same program
 
         # Queue for handlers that won't block the event.
@@ -305,12 +307,23 @@ def block(combo, _d=1):
     programs won't receive them. Blocks add up. Only available in Windows at
     the moment.
     """
-    # TODO: block by scan code
     _listener.start_if_necessary()
     canonical = canonicalize(combo)
     if len(canonical) > 1:
         raise ValueError('Only single-step combos can be blocked (e.g. `shift+a`, not `shift+a, b`).')
     combo = tuple(canonical[0])
+    # Blocked keys are checked in the `_listener.direct_callback` method.
+    # Because this method has to be as fast as possible, we generate every
+    # possible combination of key names that could result in the blocked combo,
+    # including adding "left" and  "right" to keys that are present in both
+    # sides, and in all possible orders.
+    #
+    # Subsets of the combo are added to teh "intermediary_combos" dictionary,
+    # so that keys can be temporarily delayed while checking if they should be
+    # blocked or not.
+    #
+    # This naturally generates an incredible amount of combinations, but
+    # because combos are usually very short (<= 4 keys), it's still manageable.
     options = [(key, 'left '+key, 'right '+key) if key in sided_keys else (key,) for key in combo]
     for combination in itertools.product(*options):
         for length in range(1, len(combination)+1):
@@ -322,8 +335,8 @@ def block(combo, _d=1):
 
 def unblock(combo):
     """
-    Removes a block related to the given combo. See `block(combo)` for mroe
-    details.
+    Removes a block related to the given combo. Because blocks add up, calling
+    `unblock(key)` may not complete allow it.
     """
     block(key, _d=-1)
 
@@ -332,6 +345,9 @@ def clear_all_blocks():
     Remove all key blocks, including from hotkeys.
     """
     _listener.blocked_keys.clear()
+
+# Alias.
+unblock_all = clear_all_blocks
 
 
 _hotkeys = {}
