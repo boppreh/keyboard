@@ -173,11 +173,12 @@ class _KeyboardListener(_GenericListener):
                 # Remove released key from pending keys, but keep order.
                 self.pending_keys = tuple(k for k in self.pending_keys if k != name)
             # Always allow KEY_UP events.
+            # TODO: allow blocking of KEY_UP events.
             return True
 
         if self.target_combos[current_combo]:
             # Completely blocked and discarded. Don't clear the pending keys
-            # yet, let the natural KEY_UP events do it and block them.
+            # yet, let the natural KEY_UP events do it.
             return False
         elif self.intermediary_combos[current_combo]:
             # Key is part of a blocked combo. Store it and decide later.
