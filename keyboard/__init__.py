@@ -109,7 +109,7 @@ from ._keyboard_event import KEY_DOWN, KEY_UP
 from ._keyboard_event import normalize_name as _normalize_name
 from ._generic import GenericListener as _GenericListener
 
-all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift'}
+all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'}
 sided_keys = all_modifiers | {'windows'}
 for key in list(all_modifiers):
     all_modifiers.add('left ' + key)
