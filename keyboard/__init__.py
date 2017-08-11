@@ -144,10 +144,28 @@ class _KeyboardListener(_GenericListener):
     def direct_callback(self, event):
         """
         This function is called for every OS keyboard event and decides if the
-        event should be blocked or not. Because of this, it has to return as
-        quickly as possible.
+        event should be blocked or not.
 
+        The complexity is due to several reasons:
 
+        - This callback is synchronous, so slowness translates into key delay
+        (hence `target_combos` and `pending_combos` being flat dictionaries
+        that require no extra processing to check key status).
+        - The user may block "combos" (many keys pressed together) instead of
+        single keys. If a key is part of a blocked combo but pressed alone, we
+        must somehow wait and see if it's allowed (hence `self.pending_keys`).
+        - Keys that were pending, and then allowed, have to be replayed before
+        the current event (hence calls to `press`).
+        - Replaying pending keys create events that appear here (hence
+        `self.skip_blocking` before calling `press`).
+        - If a modifier key (e.g. `shift`) is pending and the user presses an
+        allowed key (e.g. `a`), they expect the modifier to apply (e.g.
+        uppercase `A`).
+        - A held down key generates repeated KEY_DOWN events until released or
+        another key is pressed.
+        - All pending keys are being pressed, but not all pressed keys are
+        pending, and releasing a key only means that that key is not pending
+        anymore.
         """
         # TODO: add note that simulated events and suppressed keys are still seen by hotkeys in the same program
 
