@@ -311,7 +311,13 @@ def block(combo, _d=1):
     canonical = canonicalize(combo)
     if len(canonical) > 1:
         raise ValueError('Only single-step combos can be blocked (e.g. `shift+a`, not `shift+a, b`).')
-    combo = tuple(canonical[0])
+    targets, intermediaries = _generate_targets_and_intermediaries(combo = tuple(canonical[0]))
+    for target in targets:
+        _listener.target_combos[target] += _d
+    for intermediary in intermediaries:
+        _listener.intermediary_combos[intermediary] += _d
+
+def _generate_targets_and_intermediaries(combo):
     # Blocked keys are checked in the `_listener.direct_callback` method.
     # Because this method has to be as fast as possible, we generate every
     # possible combination of key names that could result in the blocked combo,
@@ -325,13 +331,14 @@ def block(combo, _d=1):
     # This naturally generates an incredible amount of combinations, but
     # because combos are usually very short (<= 4 keys), it's still manageable.
     options = [(key, 'left '+key, 'right '+key) if key in sided_keys else (key,) for key in combo]
+    targets, intermediaries = [], []
     for combination in itertools.product(*options):
-        for length in range(1, len(combination)+1):
-            for ordering in itertools.permutations(combination, length):
-                if length == len(combination):
-                    _listener.target_combos[ordering] += _d
-                else:
-                    _listener.intermediary_combos[ordering] += _d
+        targets.extend(itertools.permutations(combination))
+        for length in range(1, len(combination)):
+            intermediaries.extend(itertools.permutations(combination, length))
+    return targets, intermediaries
+                    
+
 
 def unblock(combo):
     """
@@ -369,13 +376,6 @@ def clear_all_hotkeys():
 
 # Alias.
 remove_all_hotkeys = clear_all_hotkeys
-
-def _ordered_powerset(items):
-    """
-    _ordered_powerset(items) = [('a',), ('b',), ('a', 'b'), ('b', 'a')]
-    """
-    for i in range(1, len(items)+1):
-        yield from itertools.permutations(items, i)
 
 def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
     """
