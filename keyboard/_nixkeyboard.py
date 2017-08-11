@@ -5,7 +5,6 @@ from time import time as now
 from collections import namedtuple
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 from ._nixcommon import EV_KEY, aggregate_devices, ensure_root
-from ._suppress import KeyTable
 
 # TODO: start by reading current keyboard state, as to not missing any already pressed keys.
 # See: http://stackoverflow.com/questions/3649874/how-to-get-keyboard-state-in-linux

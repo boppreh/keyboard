@@ -11,7 +11,6 @@ from threading import Lock
 import re
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from ._suppress import KeyTable
 
 # This part is just declaring Win32 API structures using ctypes. In C
 # this would be simply #include "windows.h".
