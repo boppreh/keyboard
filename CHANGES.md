@@ -1,3 +1,10 @@
+# 0.10.4
+
+- [Mac] Added aliases for modifiers (control->ctrl, option->alt, command->windows).
+- [All] Add reference to mouse project.
+- [All] Use WinDLL for mouse part instead of raw ctypes.windll.user32.
+
+
 # 0.10.3
 
 - [All] Fix PyPI readme (https://github.com/pypa/setuptools/issues/1126).

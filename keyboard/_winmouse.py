@@ -9,7 +9,9 @@ import atexit
 
 from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE, WHEEL, HORIZONTAL, VERTICAL
 
-user32 = ctypes.windll.user32
+#https://github.com/boppreh/mouse/issues/1
+#user32 = ctypes.windll.user32
+user32 = ctypes.WinDLL('user32', use_last_error = True)
 
 class MSLLHOOKSTRUCT(Structure):
     _fields_ = [("x", c_long),
