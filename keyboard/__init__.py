@@ -539,7 +539,7 @@ def restore_state(scan_codes):
     for scan_code in target - current:
         _os_keyboard.press(scan_code)
 
-def write(text, delay=0, restore_state_after=True):
+def write(text, delay=0, restore_state_after=True, exact=False):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Characters not available on the keyboard are typed as explicit unicode
@@ -553,31 +553,38 @@ def write(text, delay=0, restore_state_after=True):
     - `restore_state_after` can be used to restore the state of pressed keys
     after the text is typed, i.e. presses the keys that were released at the
     beginning. Defaults to True.
+    - `exact` forces typing all characters as explicit unicode (e.g. alt+codepoint)
     """
     state = stash_state()
-
-    for letter in text:
-        try:
-            if letter in '\n\b\t ':
-                letter = _normalize_name(letter)
-            scan_code, modifiers = _os_keyboard.map_char(letter)
-
-            if is_pressed(scan_code):
-                release(scan_code)
-
-            for modifier in modifiers:
-                press(modifier)
-
-            _os_keyboard.press(scan_code)
-            _os_keyboard.release(scan_code)
-
-            for modifier in modifiers:
-                release(modifier)
-        except ValueError:
+    
+    if exact:
+        for letter in text:
             _os_keyboard.type_unicode(letter)
+            if delay: _time.sleep(delay)
 
-        if delay:
-            _time.sleep(delay)
+    else:
+        for letter in text:
+            try:
+                if letter in '\n\b\t ':
+                    letter = _normalize_name(letter)
+                scan_code, modifiers = _os_keyboard.map_char(letter)
+
+                if is_pressed(scan_code):
+                    release(scan_code)
+
+                for modifier in modifiers:
+                    press(modifier)
+
+                _os_keyboard.press(scan_code)
+                _os_keyboard.release(scan_code)
+
+                for modifier in modifiers:
+                    release(modifier)
+            except ValueError:
+                _os_keyboard.type_unicode(letter)
+
+            if delay:
+                _time.sleep(delay)
 
     if restore_state_after:
         restore_state(state)
