@@ -205,10 +205,10 @@ def canonicalize(hotkey):
         return [[_normalize_name(hotkey)]]
     else:
         steps = []
-        for str_step in hotkey.replace(' ', '').split(','):
+        for str_step in hotkey.split(','):
             steps.append([])
             for part in str_step.split('+'):
-                steps[-1].append(_normalize_name(part))
+                steps[-1].append(_normalize_name(part.strip()))
         return steps
 
 def call_later(fn, args=(), delay=0.001):
