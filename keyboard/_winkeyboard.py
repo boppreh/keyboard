@@ -21,8 +21,9 @@ from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM
 LPMSG = POINTER(MSG)
 ULONG_PTR = POINTER(DWORD)
 
-# Shortcut.
-user32 = ctypes.windll.user32
+#https://github.com/boppreh/mouse/issues/1
+#user32 = ctypes.windll.user32
+user32 = ctypes.WinDLL('user32', use_last_error = True)
 
 VK_PACKET = 0xE7
 
@@ -362,15 +363,17 @@ def _setup_tables():
             # Get associated character, such as "^", possibly overwriting the pure key name.
             for shift_state in [0, 1]:
                 keyboard_state[0x10] = shift_state * 0xFF
-                vk = scan_code_to_vk.get(scan_code, 0)
-                ret = ToUnicode(vk, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
-                if ret:
-                    # Sometimes two characters are written before the char we want,
-                    # usually an accented one such as Â. Couldn't figure out why.
-                    char = name_buffer.value[-1]
-                    if char not in to_scan_code:
-                        to_scan_code[char] = (scan_code, bool(shift_state))
-                    from_scan_code[scan_code][shift_state] = char
+                # Try both manual and automatic scan_code->vk translations.
+                for vk in [scan_code_to_vk.get(scan_code, 0), user32.MapVirtualKeyW(scan_code, 3)]:
+                    ret = ToUnicode(vk, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
+                    if ret:
+                        # Sometimes two characters are written before the char we want,
+                        # usually an accented one such as Â. Couldn't figure out why.
+                        char = name_buffer.value[-1]
+                        if char not in to_scan_code:
+                            to_scan_code[char] = (scan_code, bool(shift_state))
+                        if scan_code not in from_scan_code:
+                            from_scan_code[scan_code][shift_state] = char
 
         from_scan_code[alt_gr_scan_code] = ['alt gr', 'alt gr']
         to_scan_code['alt gr'] = (alt_gr_scan_code, False)
