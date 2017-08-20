@@ -22,8 +22,9 @@ from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM
 LPMSG = POINTER(MSG)
 ULONG_PTR = POINTER(DWORD)
 
-# Shortcut.
-user32 = ctypes.windll.user32
+#https://github.com/boppreh/mouse/issues/1
+#user32 = ctypes.windll.user32
+user32 = ctypes.WinDLL('user32', use_last_error = True)
 
 VK_PACKET = 0xE7
 
