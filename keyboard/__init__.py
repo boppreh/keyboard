@@ -764,3 +764,29 @@ def get_typed_strings(events, allow_backspace=True):
     yield string
 
 _key_table = _KeyTable(press, release)
+
+recording = None
+def start_recording(recorded_events_queue=None):
+    """
+    Starts recording all keyboard events into a global variable, or the given
+    queue if any. Returns the queue of events and the hooked function.
+
+    Use `stop_recording()` or `unhook(hooked_function)` to stop.
+    """
+    global recording
+    recorded_events_queue = recorded_events_queue or queue.Queue()
+    recording = recorded_events_queue, hook(recorded_events_queue.put)
+    return recording
+
+def stop_recording():
+    """
+    Stops the global recording of events and returns a list of the events
+    captured.
+    """
+    global recording
+    if not recording:
+        raise ValueError('Must call "start_recording" before.')
+    recorded_events_queue, hooked = recording
+    unhook(hooked)
+    recording = None
+    return list(recorded_events_queue.queue)
