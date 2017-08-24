@@ -841,3 +841,4 @@ def read_shortcut():
             unlock(get_shortcut_name(names))
     hook(test)
     return wait()
+read_hotkey = read_shortcut
