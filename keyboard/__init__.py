@@ -813,7 +813,7 @@ def get_shortcut_name(names=None):
         _listener.start_if_necessary()
         names = [e.name for e in _pressed_events.values()]
     else:
-        names = [normalize_name(name) for name in names]
+        names = [_normalize_name(name) for name in names]
     clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
     # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
     # > List modifier keys in the correct order. If you use more than one modifier key in a
@@ -821,3 +821,23 @@ def get_shortcut_name(names=None):
     modifiers = ['ctrl', 'alt', 'shift', 'windows']
     sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
     return '+'.join(sorted(clean_names, key=sorting_key))
+
+def read_shortcut():
+    """
+    Similar to `read_key()`, but blocks until the user presses and releases a key
+    combination (or single key), then returns a string representing the shortcut
+    pressed.
+
+    Example:
+
+        read_shortcut()
+        # "ctrl+shift+p"
+    """
+    wait, unlock = _make_wait_and_unlock()
+    def test(event):
+        if event.event_type == KEY_UP:
+            unhook(test)
+            names = [e.name for e in _pressed_events.values()] + [event.name]
+            unlock(get_shortcut_name(names))
+    hook(test)
+    return wait()
