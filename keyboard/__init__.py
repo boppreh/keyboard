@@ -790,3 +790,34 @@ def stop_recording():
     unhook(hooked)
     recording = None
     return list(recorded_events_queue.queue)
+
+
+def get_shortcut_name(names=None):
+    """
+    Returns a string representation of shortcut from the given key names, or
+    the currently pressed keys if not given.  This function:
+
+    - normalizes names;
+    - removes "left" and "right" prefixes;
+    - replaces the "+" key name with "plus" to avoid ambiguity;
+    - puts modifier keys first, in a standardized order;
+    - sort remaining keys;
+    - finally, joins everything with "+".
+
+    Example:
+
+        get_shortcut_name(['+', 'left ctrl', 'shift'])
+        # "ctrl+shift+plus"
+    """
+    if names is None:
+        _listener.start_if_necessary()
+        names = [e.name for e in _pressed_events.values()]
+    else:
+        names = [normalize_name(name) for name in names]
+    clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
+    # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
+    # > List modifier keys in the correct order. If you use more than one modifier key in a
+    # > shortcut, always list them in this order: Control, Option, Shift, Command.
+    modifiers = ['ctrl', 'alt', 'shift', 'windows']
+    sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
+    return '+'.join(sorted(clean_names, key=sorting_key))
