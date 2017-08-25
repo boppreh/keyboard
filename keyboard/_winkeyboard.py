@@ -358,6 +358,9 @@ def _setup_tables():
                 name = normalize_name(name_buffer.value)
                 from_scan_code[scan_code] = [name, name]
                 to_scan_code[name] = (scan_code, False)
+                if name == 'alt':
+                    # Windows only reports "right alt" and "alt".
+                    to_scan_code['left ' + name] = (scan_code, False)
 
             if scan_code not in scan_code_to_vk: continue
             # Get associated character, such as "^", possibly overwriting the pure key name.
