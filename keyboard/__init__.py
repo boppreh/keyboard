@@ -842,3 +842,20 @@ def read_shortcut():
     hook(test)
     return wait()
 read_hotkey = read_shortcut
+
+
+def remap(src, dst):
+    """
+    Whenever the key combination `src` is pressed, suppress it and press
+    `dst` instead.
+
+    Example:
+
+        remap('alt+w', 'up')
+        remap('capslock', 'esc')
+    """
+    def handler():
+        state = stash_state()
+        press_and_release(dst)
+        restore_state(state)
+    return add_hotkey(src, handler, suppress=True)
