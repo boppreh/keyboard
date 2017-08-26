@@ -428,9 +428,9 @@ def prepare_intercept(callback):
             elif scan_code in from_scan_code:
                 name = from_scan_code[scan_code][shift_is_pressed]
             
-        if event_type == KEY_DOWN and name == 'shift':
+        if event_type == KEY_DOWN and 'shift' in name:
             shift_is_pressed = True
-        elif event_type == KEY_UP and name == 'shift':
+        elif event_type == KEY_UP and 'shift' in name:
             shift_is_pressed = False
 
         return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))

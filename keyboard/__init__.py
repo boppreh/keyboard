@@ -65,7 +65,7 @@ keyboard.wait()
 
 - Events generated under Windows don't report device id (`event.device == None`). [#21](https://github.com/boppreh/keyboard/issues/21)
 - Media keys on Linux may appear nameless (scan-code only) or not at all. [#20](https://github.com/boppreh/keyboard/issues/20)
-- Key suppression/blocking only available in Windows. [#22](https://github.com/boppreh/keyboard/issues/22)
+- Key suppression/blocking only available on Windows. [#22](https://github.com/boppreh/keyboard/issues/22)
 - To avoid depending on X ,the Linux parts reads raw device files (`/dev/input/input*`)
 but this requries root.
 - Other applications, such as some games, may register hooks that swallow all 
@@ -109,116 +109,122 @@ from ._keyboard_event import normalize_name as _normalize_name
 from ._generic import GenericListener as _GenericListener
 
 all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'}
-sided_keys = all_modifiers | {'windows'}
 for key in list(all_modifiers):
     all_modifiers.add('left ' + key)
     all_modifiers.add('right ' + key)
 
+# Side-effect-modifiers are modifiers keys that have side effects when pressed
+# by themselves. "Alt" brings up the application menu, and "Windows" shows the
+# start menu in Windows. Thankfully they are only activated on key UP, which
+# helps when blocking shortcuts.
+side_effect_modifiers = set(name for name in all_modifiers if 'alt' in name or 'windows' in name)
+
 _pressed_events = {}
 _active_modifiers = set()
+_blocking_shortcuts = {}
+_killed_keys = Counter()
 class _KeyboardListener(_GenericListener):
-    target_combos = Counter()
-    intermediary_combos = Counter()
-    pending_keys = tuple()
-    skip_blocking = False
+    pending_modifiers = set()
+    suppressed_modifiers = set()
+    is_replaying = False
 
     def init(self):
         _os_keyboard.init()
         
     def pre_process_event(self, event):
-        if not event.scan_code and event.name == 'unknown':
-            return False
+        return event.scan_code or (event.name and event.name != 'unknown')
+
+    def direct_callback(self, event):
+        """
+        This function is called for every OS keyboard event and decides if the
+        event should be blocked or not, and passes a copy of the event to
+        other, non-blocking, listeners.
+
+        There are two ways to block events: killing keys, which behaves as if
+        the key was not present, by suppressing all its events; and blocked
+        shortcuts, which suppress specific key combinations.
+
+        Properly blocking all key combos requires time travel: if "a+b" is
+        blocked, accepting or not "a" depends if it'll be followed by "b".
+        Things get hairer with multi-steps, timeouts, multiple blocks, keys
+        held between presses, etc. So we don't. Only modifiers+key are
+        accepted.
+
+        This is possible because modifiers fall into two categories:
+        - `ctrl` and `shift` usually have no effect on their own.
+        - `alt` and `windows` have actions by themselves, but only when
+        released.
+        So we allow `ctrl` and `shift`, in case they are being used by a game
+        or similar, and suppress key presses of `alt` and `windows`, faking a
+        key press when they are released by themselves.
+        """
+
+        # Pass through all fake key events, don't even report to other handlers.
+        if self.is_replaying:
+            print(event)
+            return True
 
         # Useful for media keys, which are reported with scan_code = 0, or
         # artificial events.
         if not event.scan_code:
             event.scan_code = to_scan_code(event.name)
 
-        if event.event_type == KEY_UP:
-            if event.name in all_modifiers:
-                _active_modifiers.discard(event.name)
-            if event.scan_code in _pressed_events:
-                del _pressed_events[event.scan_code]
-        else:
+        # Queue for handlers that won't block the event.
+        self.queue.put(event)
+
+        # Don't even register killed keys as pressed.
+        if event.name in _killed_keys: return False
+
+        if event.event_type == KEY_DOWN:
             if event.name in all_modifiers:
                 _active_modifiers.add(event.name)
             _pressed_events[event.scan_code] = event
 
-        return True
 
-    def direct_callback(self, event):
-        """
-        This function is called for every OS keyboard event and decides if the
-        event should be blocked or not.
+        if not _blocking_shortcuts:
+            accept = True
 
-        The complexity is due to several reasons:
+        elif event.name in side_effect_modifiers:
+            if event.event_type == KEY_DOWN:
+                self.pending_modifiers.add(event.name)
+                accept = False
+            elif event.name in self.suppressed_modifiers:
+                self.suppressed_modifiers.remove(event.name)
+                accept = False
+            elif event.name in self.pending_modifiers:
+                self.pending_modifiers.remove(event.name)
+                press(event.scan_code)
+                accept = True
+            else:
+                accept = True
 
-        - This callback is synchronous, so slowness translates into key delay
-        (hence `target_combos` and `pending_combos` being flat dictionaries
-        that require no extra processing to check key status).
-        - The user may block "combos" (many keys pressed together) instead of
-        single keys. If a key is part of a blocked combo but pressed alone, we
-        must somehow wait and see if it's allowed (hence `self.pending_keys`).
-        - Keys that were pending, and then allowed, have to be replayed before
-        the current event (hence calls to `press`).
-        - Replaying pending keys create events that appear here (hence
-        `self.skip_blocking` before calling `press`).
-        - If a modifier key (e.g. `shift`) is pending and the user presses an
-        allowed key (e.g. `a`), they expect the modifier to apply (e.g.
-        uppercase `A`).
-        - A held down key generates repeated KEY_DOWN events until released or
-        another key is pressed.
-        - All pending keys are being pressed, but not all pressed keys are
-        pending, and releasing a key only means that that key is not pending
-        anymore.
-        - Pending keys must be released in the same order they were pressed,
-        and before any other event is allowed.
-        - You have to be careful not to put duplicated events in the queue when
-        replaying pending keys.
-        """
-        # TDOO: allow blocking by scan-code. Maybe only deal with scan-codes?
-        # TODO: add note that simulated events and suppressed keys are still seen by hotkeys in the same program
-
-        # When releasing pending keys, the events generated by "press(key)" 
-        # come here. To avoid processing duplicate events, we set this flag
-        # when generating this artificial events because of pending keys.
-        if self.skip_blocking:
-            return True
-
-        # Queue for handlers that won't block the event.
-        self.queue.put(event)
-
-        name = event.name
-        current_combo = tuple(sorted(set(self.pending_keys) | _active_modifiers | set([name])))
-
-        if event.event_type == KEY_UP:
-            if name in self.pending_keys:
-                # A pending key was released, fake a press event and let it be
-                # released.
-                self.skip_blocking = True
-                press(name)
-                self.skip_blocking = False
-                # Remove released key from pending keys, but keep order.
-                self.pending_keys = tuple(k for k in self.pending_keys if k != name)
-            # Always allow KEY_UP events.
-            # TODO: allow blocking of KEY_UP events.
-            return True
-
-        if self.target_combos[current_combo]:
-            # Completely blocked and discarded. Don't clear the pending keys
-            # yet, let the natural KEY_UP events do it.
-            return False
-        elif self.intermediary_combos[current_combo]:
-            # Key is part of a blocked combo or should be pressed after a
-            # pending key. Store it and decide later.
-            self.pending_keys = current_combo
-            return False
         else:
-            # Key is allowed.
-            return True
+            shortcut_pair = (tuple(sorted(_active_modifiers)), event.name)
+            callbacks = _blocking_shortcuts.get(shortcut_pair, [])
+            if callbacks:
+                if event.event_type == KEY_DOWN:
+                    for callback in callbacks: callback()
+                    self.suppressed_modifiers |= self.pending_modifiers
+                    self.pending_modifiers.clear()
+                accept = event.name in all_modifiers
+            else:
+                if event.event_type == KEY_DOWN:
+                    while self.pending_modifiers:
+                        press(self.pending_modifiers.pop())
+                accept = True
+
+
+        if event.event_type == KEY_UP and event.scan_code in _pressed_events:
+            if event.name in all_modifiers:
+                _active_modifiers.discard(event.name)
+            del _pressed_events[event.scan_code]
+
+        print(accept, event)
+        return accept
 
     def listen(self):
         _os_keyboard.listen(self.direct_callback)
+
 _listener = _KeyboardListener()
 
 def matches(event, name):
@@ -278,6 +284,9 @@ def canonicalize(hotkey):
     if isinstance(hotkey, list) and all(isinstance(step, list) for step in hotkey):
         # Already canonicalized, nothing to do.
         return hotkey
+    elif isinstance(hotkey, list) and all(isinstance(key, (str, int)) for key in hotkey):
+        # Make list of names or scan codes into list of steps.
+        return canonicalize([hotkey])
     elif is_number(hotkey):
         return [[hotkey]]
 
@@ -302,71 +311,23 @@ def call_later(fn, args=(), delay=0.001):
     """
     _Thread(target=lambda: _time.sleep(delay) or fn(*args)).start()
 
-def block(combo, _d=1):
+def block_key(key):
     """
-    Suppresses all key events related to the given combo, so that other
-    programs won't receive them. Blocks add up. Only available in Windows at
-    the moment.
+    Completely blocks a given key, not registering any simple key events or
+    shortcuts containing it.
     """
-    _listener.start_if_necessary()
-    canonical = canonicalize(combo)
-    if len(canonical) > 1:
-        raise ValueError('Only single-step combos can be blocked (e.g. `shift+a`, not `shift+a, b`).')
-    targets, intermediaries = _generate_targets_and_intermediaries(canonical[0])
-    for target in targets:
-        _listener.target_combos[target] += _d
-    for intermediary in intermediaries:
-        _listener.intermediary_combos[intermediary] += _d
+    # TODO: map char for better performance, and block all left-right
+    # combinations.
+    _killed_keys.add(_normalize_name(key))
 
-def _generate_targets_and_intermediaries(combo):
-    # Blocked keys are checked in the `_listener.direct_callback` method.
-    # Because this method has to be as fast as possible, we generate every
-    # possible combination of key names that could result in the blocked combo,
-    # including adding "left" and  "right" to keys that are present in both
-    # sides, and in all possible orders.
-    #
-    # Subsets of the combo are added to the "intermediary_combos" dictionary,
-    # so that keys can be temporarily delayed while checking if they should be
-    # blocked or not.
-    #
-    # This naturally generates an incredible amount of combinations, but
-    # because combos are usually very short (<= 4 keys), it's still manageable.
-    options = [(key, 'left '+key, 'right '+key) if key in sided_keys else (key,) for key in combo]
-    targets, intermediaries = [], []
-    for combination in itertools.product(*options):
-        targets.append(tuple(sorted(combination)))
-
-        # All modifiers + one non-modifier.
-        if sum(k not in all_modifiers for k in combination) == len(combination) - 1:
-            # Don't delay every key event of `m` or `shift` just because
-            # someone registered `shift+m`.
-            combination = set(combination) - all_modifiers
-
-        for length in range(1, len(combination)):
-            for subset in itertools.combinations(combination, length):
-                intermediaries.append(tuple(sorted(subset)))
-
-    return targets, intermediaries
-
-def unblock(combo):
+def unblock_key(key):
     """
-    Removes a block related to the given combo. Because blocks add up, calling
-    `unblock(key)` may not complete allow it.
+    Removes a block from a key.
     """
-    block(key, _d=-1)
-
-def clear_all_blocks():
-    """
-    Remove all key blocks, including from hotkeys.
-    """
-    _listener.blocked_keys.clear()
-
-# Alias.
-unblock_all = clear_all_blocks
+    _killed_keys.discard(_normalize_name(key))
 
 
 _hotkeys = {}
-_hotkeys_suppressed = {}
 def clear_all_hotkeys():
     """
     Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
@@ -380,7 +341,6 @@ def clear_all_hotkeys():
         unhook(handler)
     _hotkeys.clear()
     clear_all_blocks()
-    _hotkeys_suppressed.clear()
 
 # Alias.
 remove_all_hotkeys = clear_all_hotkeys
@@ -421,100 +381,56 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     """
     steps = canonicalize(hotkey)
 
-    if len(steps) == 1 and len(steps[0]) == 1:
-        # Simplified implementation to make sure the basic case is 100%.
-        if suppress:
-            _listener.target_combos[steps[0]] += 1
-        def handler(event):
-            if (event.event_type == KEY_UP) == trigger_on_release and matches(event, steps[0][0]):
-                callback(*args)
-            return suppress
-        _hotkeys[hotkey] = handler
-        # TODO: unblock on unhook
-        return hook(handler)
-
-    if suppress:
-        # We could just use `block(step)` and `unblock(step)`, but the
-        # canonicalization and permutations are very expensive to compute.
-        # So we pre-compute the permutations/combinations/orderings and prepare
-        # easy-to-use functions to block and unblock the combos for each step.
-        steps_blocking = []
-        steps_unblocking = []
-        for step in steps:
-            combo_targets, combo_intermediaries = _generate_targets_and_intermediaries(step)
-            def block(combo_targets=combo_targets, combo_intermediaries=combo_intermediaries):
-                for target in combo_targets:
-                    _listener.target_combos[target] += 1
-                for intermediary in combo_intermediaries:
-                    _listener.intermediary_combos[intermediary] += 1
-            def unblock(combo_targets=combo_targets, combo_intermediaries=combo_intermediaries):
-                for target in combo_targets:
-                    _listener.target_combos[target] -= 1
-                for intermediary in combo_intermediaries:
-                    _listener.intermediary_combos[intermediary] -= 1
-            steps_blocking.append(block)
-            steps_unblocking.append(unblock)
-    else:
-        steps_blocking = steps_unblocking = [lambda: None] * len(steps)
-
     state = _State()
     state.step = 0
     state.time = _time.time()
 
-    steps_blocking[0]()
-    # TODO: release block
-
-    all_match = lambda event: False if state.step >= len(steps) else all(is_pressed(part) or matches(event, part) for part in steps[state.step])
-
-    def set_step(i):
-        # Change the current step, blocking/unblocking combos as necessary.
-        if i != state.step:
-            if 0 < i < len(steps):
-                steps_blocking[i]()
-            if 0 < state.step < len(steps):
-                steps_unblocking[state.step]()
-            state.step = i
-
     def handler(event):
         if event.event_type == KEY_UP:
-            if trigger_on_release and state.step == len(steps) and not all_match(event):
-                set_step(0)
+            if trigger_on_release and state.step == len(steps):
+                state.step = 0
                 callback(*args)
                 return suppress
-            return False
+            return
 
         # Just waiting for the user to release a key.
         if trigger_on_release and state.step >= len(steps):
-            return False
+            return
 
         timed_out = state.step > 0 and timeout and event.time - state.time > timeout
-        unexpected = state.step >= len(steps) or not any(matches(event, part) for part in steps[state.step])
+        unexpected = not any(matches(event, part) for part in steps[state.step])
 
         if unexpected or timed_out:
             if state.step > 0:
-                # TODO: re-send keys that were blocked in previous steps but
-                # not used.
-                set_step(0)
+                state.step = 0
                 # Could be start of hotkey again.
                 handler(event)
+            else:
+                state.step = 0
         else:
             state.time = event.time
-            if all_match(event):
-                set_step(state.step + 1)
+            if all(is_pressed(part) or matches(event, part) for part in steps[state.step]):
+                state.step += 1
                 if not trigger_on_release and state.step == len(steps):
-                    set_step(0)
+                    state.step = 0
                     callback(*args)
                     return suppress
-        return False
 
     _hotkeys[hotkey] = handler
-
-    return hook(handler)
+    if suppress:
+        if len(steps) > 1:
+            raise NotImplementedError("Multi-step hotkeys are not suppressable. Please see https://github.com/boppreh/keyboard/issues/22")
+        shortcut, = steps    
+        block_shortcut(shortcut)
+        return hook(handler, lambda: unblock_shortcut(shortcut))
+    else:
+        return hook(handler)
 
 # Alias.
 register_hotkey = add_hotkey
 
-def hook(callback):
+removal_callbacks = {}
+def hook(callback, on_remove=lambda: None):
     """
     Installs a global listener on all available keyboards, invoking `callback`
     each time a key is pressed or released.
@@ -531,11 +447,13 @@ def hook(callback):
     Returns the given callback for easier development.
     """
     _listener.add_handler(callback)
+    removal_callbacks[callback] = on_remove
     return callback
 
 def unhook(callback):
     """ Removes a previously hooked callback. """
     _listener.remove_handler(callback)
+    removal_callbacks[callback]()
 
 def unhook_all():
     """
@@ -544,6 +462,9 @@ def unhook_all():
     """
     _hotkeys.clear()
     _word_listeners.clear()
+    for callback in removal_callbacks.values():
+        callback()
+    removal_callbacks.clear()
     del _listener.handlers[:]
 
 def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
@@ -714,12 +635,16 @@ def restore_state(scan_codes):
     Given a list of scan_codes ensures these keys, and only these keys, are
     pressed. Pairs well with `stash_state`.
     """
+    _listener.is_replaying = True
+
     current = set(_pressed_events)
     target = set(scan_codes)
     for scan_code in current - target:
         _os_keyboard.release(scan_code)
     for scan_code in target - current:
         _os_keyboard.press(scan_code)
+
+    _listener.is_replaying = False
 
 def write(text, delay=0, restore_state_after=True, exact=False):
     """
@@ -783,7 +708,7 @@ def to_scan_code(key):
         scan_code, modifiers = _os_keyboard.map_char(_normalize_name(key))
         return scan_code
 
-def send(combination, do_press=True, do_release=True):
+def send(combination, do_press=True, do_release=True, as_replay=True):
     """
     Sends OS events that perform the given hotkey combination.
 
@@ -799,6 +724,9 @@ def send(combination, do_press=True, do_release=True):
 
     Note: keys are released in the opposite order they were pressed.
     """
+    if as_replay:
+        _listener.is_replaying = True
+
     for keys in canonicalize(combination):
         if do_press:
             for key in keys:
@@ -808,6 +736,12 @@ def send(combination, do_press=True, do_release=True):
             for key in reversed(keys):
                 _os_keyboard.release(to_scan_code(key))
 
+    if as_replay:
+        _listener.is_replaying = False
+
+# Alias.
+press_and_release = send
+
 def press(combination):
     """ Presses and holds down a key combination (see `send`). """
     send(combination, True, False)
@@ -815,10 +749,6 @@ def press(combination):
 def release(combination):
     """ Releases a key combination (see `send`). """
     send(combination, False, True)
-
-def press_and_release(combination):
-    """ Presses and releases the key combination (see `send`). """
-    send(combination, True, True)
 
 def _make_wait_and_unlock():
     """
@@ -1035,8 +965,32 @@ def remap(src, dst):
         remap('alt+w', 'up')
         remap('capslock', 'esc')
     """
+    _listener.start_if_necessary()
+
+    steps = canonicalize(src)
+    if len(steps) > 1:
+        raise NotImplementedError('Cannot remap multi-step combination ({}).'.format(key))
+    names = set(steps[0])
+
+    modifiers = names & all_modifiers
+    rest = names - all_modifiers
+    if len(rest) != 1:
+        raise NotImplementedError('Can only remap combinations of modifiers plus a single key.')
+
+
     def handler():
-        state = stash_state()
-        press_and_release(dst)
-        restore_state(state)
-    return add_hotkey(src, handler, suppress=True)
+        for modifier in _active_modifiers - side_effect_modifiers:
+            release(modifier)
+        send(dst, as_replay=False)
+        for modifier in _active_modifiers - side_effect_modifiers:
+            press(modifier)
+
+    key = rest.pop()
+    for possible_combination in itertools.product(*([m, 'left '+m, 'right '+m] for m in modifiers)):
+        pair = (tuple(sorted(possible_combination)), key)
+        if not pair in _blocking_shortcuts:
+            _blocking_shortcuts[pair] = []
+        _blocking_shortcuts[pair].append(handler)
+
+    # TDOO
+    return
