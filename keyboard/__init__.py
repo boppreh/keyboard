@@ -123,6 +123,7 @@ _pressed_events = {}
 _active_modifiers = set()
 _blocking_shortcuts = {}
 _killed_keys = Counter()
+_filtered_modifiers = Counter()
 class _KeyboardListener(_GenericListener):
     is_replaying = False
 
@@ -219,20 +220,19 @@ class _KeyboardListener(_GenericListener):
         if event.name in _killed_keys: return False
 
         event_type = event.event_type
-        is_modifier = event.name in all_modifiers
 
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_DOWN:
-            if is_modifier: _active_modifiers.add(event.name)
+            if event.name in all_modifiers: _active_modifiers.add(event.name)
             _pressed_events[event.scan_code] = event
         elif event_type == KEY_UP and event.scan_code in _pressed_events:
-            if is_modifier: _active_modifiers.discard(event.name)
+            if event.name in all_modifiers: _active_modifiers.discard(event.name)
             del _pressed_events[event.scan_code]
 
         accept = True
 
         if _blocking_shortcuts:
-            if is_modifier:
+            if _filtered_modifiers[event.name]:
                 origin = 'modifier'
                 modifiers_to_update = [event.name]
             else:
@@ -1024,10 +1024,10 @@ def remap(src, dst):
 
     key = rest.pop()
     for possible_combination in itertools.product(*([m, 'left '+m, 'right '+m] for m in modifiers)):
+        for modifier in possible_combination:
+            _filtered_modifiers[modifier] += 1
         pair = (tuple(sorted(possible_combination)), key)
-        if not pair in _blocking_shortcuts:
-            _blocking_shortcuts[pair] = []
-        _blocking_shortcuts[pair].append(handler)
+        _blocking_shortcuts.setdefault(pair, []).append(handler)
 
     # TDOO
     return
