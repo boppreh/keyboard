@@ -124,9 +124,52 @@ _active_modifiers = set()
 _blocking_shortcuts = {}
 _killed_keys = Counter()
 class _KeyboardListener(_GenericListener):
-    pending_modifiers = set()
-    suppressed_modifiers = set()
     is_replaying = False
+
+    # Supporting hotkey suppression is harder than it looks. See
+    # https://github.com/boppreh/keyboard/issues/22
+    modifier_states = {} # "alt" -> "allowed"
+    # This table decies when to block a key event because of a shortcut or not.
+    transition_table = {
+        #Current state of the modifier, per `modifier_states`.
+        #|
+        #|             Type of event that triggered this modifier update.
+        #|             |
+        #|             |         Type of key that triggered this modiier update.
+        #|             |         |
+        #|             |         |            Should we send a fake key press?
+        #|             |         |            |
+        #|             |         |            |       Accept the event or block?
+        #|             |         |            |       |
+        #|             |         |            |       |      Next state.
+        #v             v         v            v       v      v
+        ('free',       KEY_UP,   'modifier'): (False, True, 'free'),
+        ('free',       KEY_DOWN, 'modifier'): (False, False, 'pending'),
+        ('pending',    KEY_UP,   'modifier'): (True,  True, 'free'),
+        ('pending',    KEY_DOWN, 'modifier'): (False, True, 'allowed'),
+        ('suppressed', KEY_UP,   'modifier'): (False, False, 'free'),
+        ('suppressed', KEY_DOWN, 'modifier'): (False, False, 'suppressed'),
+        ('allowed',    KEY_UP,   'modifier'): (False, True, 'free'),
+        ('allowed',    KEY_DOWN, 'modifier'): (False, True, 'allowed'),
+
+        ('free',       KEY_UP,   'shortcut'): (False, False, 'free'),
+        ('free',       KEY_DOWN, 'shortcut'): (False, False, 'free'),
+        ('pending',    KEY_UP,   'shortcut'): (False, False, 'suppressed'),
+        ('pending',    KEY_DOWN, 'shortcut'): (False, False, 'suppressed'),
+        ('suppressed', KEY_UP,   'shortcut'): (False, False, 'suppressed'),
+        ('suppressed', KEY_DOWN, 'shortcut'): (False, False, 'suppressed'),
+        ('allowed',    KEY_UP,   'shortcut'): (False, False, 'allowed'),
+        ('allowed',    KEY_DOWN, 'shortcut'): (False, False, 'allowed'),
+
+        ('free',       KEY_UP,   'other'):    (False, True, 'free'),
+        ('free',       KEY_DOWN, 'other'):    (False, True, 'free'),
+        ('pending',    KEY_UP,   'other'):    (True,  True, 'allowed'),
+        ('pending',    KEY_DOWN, 'other'):    (True,  True, 'allowed'),
+        ('suppressed', KEY_UP,   'other'):    (True,  True, 'allowed'),
+        ('suppressed', KEY_DOWN, 'other'):    (True,  True, 'allowed'),
+        ('allowed',    KEY_UP,   'other'):    (False, True, 'allowed'),
+        ('allowed',    KEY_DOWN, 'other'):    (False, True, 'allowed'),
+    }
 
     def init(self):
         _os_keyboard.init()
@@ -161,7 +204,7 @@ class _KeyboardListener(_GenericListener):
 
         # Pass through all fake key events, don't even report to other handlers.
         if self.is_replaying:
-            print(event)
+            print('Replaying', event)
             return True
 
         # Useful for media keys, which are reported with scan_code = 0, or
@@ -176,48 +219,43 @@ class _KeyboardListener(_GenericListener):
         if event.name in _killed_keys: return False
 
         if event.event_type == KEY_DOWN:
+            _pressed_events[event.scan_code] = event
             if event.name in all_modifiers:
                 _active_modifiers.add(event.name)
-            _pressed_events[event.scan_code] = event
 
+        accept = True
 
-        if not _blocking_shortcuts:
-            accept = True
-
-        elif event.name in side_effect_modifiers:
-            if event.event_type == KEY_DOWN:
-                self.pending_modifiers.add(event.name)
-                accept = False
-            elif event.name in self.suppressed_modifiers:
-                self.suppressed_modifiers.remove(event.name)
-                accept = False
-            elif event.name in self.pending_modifiers:
-                self.pending_modifiers.remove(event.name)
-                press(event.scan_code)
-                accept = True
+        if _blocking_shortcuts:
+            if event.name in all_modifiers:
+                origin = 'modifier'
+                to_update = [event.name]
             else:
-                accept = True
+                to_update = _active_modifiers
+                shortcut_pair = (tuple(sorted(_active_modifiers)), event.name)
+                callbacks = _blocking_shortcuts.get(shortcut_pair, [])
+                if callbacks:
+                    if event.event_type == KEY_DOWN:
+                        for callback in callbacks:
+                            callback()
+                    origin = 'shortcut'
+                else:
+                    origin = 'other'
 
-        else:
-            shortcut_pair = (tuple(sorted(_active_modifiers)), event.name)
-            callbacks = _blocking_shortcuts.get(shortcut_pair, [])
-            if callbacks:
-                if event.event_type == KEY_DOWN:
-                    for callback in callbacks: callback()
-                    self.suppressed_modifiers |= self.pending_modifiers
-                    self.pending_modifiers.clear()
-                accept = event.name in all_modifiers
-            else:
-                if event.event_type == KEY_DOWN:
-                    while self.pending_modifiers:
-                        press(self.pending_modifiers.pop())
-                accept = True
-
+            for key in to_update:
+                transition_tuple = (self.modifier_states.get(key, 'free'), event.event_type, origin)
+                should_press, accept, new_state = self.transition_table[transition_tuple]
+                #print(transition_tuple, self.transition_table[transition_tuple])
+                if should_press:
+                    press(key)
+                if new_state == 'free':
+                    del self.modifier_states[key]
+                else:
+                    self.modifier_states[key] = new_state
 
         if event.event_type == KEY_UP and event.scan_code in _pressed_events:
+            del _pressed_events[event.scan_code]
             if event.name in all_modifiers:
                 _active_modifiers.discard(event.name)
-            del _pressed_events[event.scan_code]
 
         print(accept, event)
         return accept
@@ -979,11 +1017,13 @@ def remap(src, dst):
 
 
     def handler():
-        for modifier in _active_modifiers - side_effect_modifiers:
-            release(modifier)
-        send(dst, as_replay=False)
-        for modifier in _active_modifiers - side_effect_modifiers:
-            press(modifier)
+        for state, modifier in _listener.modifier_states.items():
+            if state == 'allowed':
+                release(modifier)
+        send(dst)
+        for state, modifier in _listener.modifier_states.items():
+            if state == 'allowed':
+                press(modifier)
 
     key = rest.pop()
     for possible_combination in itertools.product(*([m, 'left '+m, 'right '+m] for m in modifiers)):
