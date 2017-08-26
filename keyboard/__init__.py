@@ -7,8 +7,8 @@ Take full control of your keyboard with this small Python library. Hook global e
 
 ## Features
 
-- Global event hook on all keyboards (captures keys regardless of focus).
-- **Listen** and **sends** keyboard events.
+- **Global event hook** on all keyboards (captures keys regardless of focus).
+- **Listen** and **send** keyboard events.
 - Works with **Windows** and **Linux** (requires sudo), with experimental **OS X** support (thanks @glitchassassin!).
 - **Pure Python**, no C modules to be compiled.
 - **Zero dependencies**. Trivial to install and deploy, just copy the files.
@@ -82,14 +82,14 @@ from ._keyboard_event import KeyboardEvent
 try:
     # Python2
     long, basestring
-    is_str = lambda x: isinstance(x, basestring)
-    is_number = lambda x: isinstance(x, (int, long))
-    import Queue as queue
+    _is_str = lambda x: isinstance(x, basestring)
+    _is_number = lambda x: isinstance(x, (int, long))
+    import Queue as _queue
 except NameError:
     # Python3
-    is_str = lambda x: isinstance(x, str)
-    is_number = lambda x: isinstance(x, int)
-    import queue
+    _is_str = lambda x: isinstance(x, str)
+    _is_number = lambda x: isinstance(x, int)
+    import queue as _queue
 
 # Just a dynamic object to store attributes for the closures.
 class _State(object): pass
@@ -218,44 +218,41 @@ class _KeyboardListener(_GenericListener):
         # Don't even register killed keys as pressed.
         if event.name in _killed_keys: return False
 
-        if event.event_type == KEY_DOWN:
+        event_type = event.event_type
+        is_modifier = event.name in all_modifiers
+
+        # Update tables of currently pressed keys and modifiers.
+        if event_type == KEY_DOWN:
+            if is_modifier: _active_modifiers.add(event.name)
             _pressed_events[event.scan_code] = event
-            if event.name in all_modifiers:
-                _active_modifiers.add(event.name)
+        elif event_type == KEY_UP and event.scan_code in _pressed_events:
+            if is_modifier: _active_modifiers.discard(event.name)
+            del _pressed_events[event.scan_code]
 
         accept = True
 
         if _blocking_shortcuts:
-            if event.name in all_modifiers:
+            if is_modifier:
                 origin = 'modifier'
-                to_update = [event.name]
+                modifiers_to_update = [event.name]
             else:
-                to_update = _active_modifiers
+                modifiers_to_update = _active_modifiers
                 shortcut_pair = (tuple(sorted(_active_modifiers)), event.name)
                 callbacks = _blocking_shortcuts.get(shortcut_pair, [])
                 if callbacks:
-                    if event.event_type == KEY_DOWN:
+                    if event_type == KEY_DOWN:
                         for callback in callbacks:
                             callback()
                     origin = 'shortcut'
                 else:
                     origin = 'other'
 
-            for key in to_update:
-                transition_tuple = (self.modifier_states.get(key, 'free'), event.event_type, origin)
+            for key in modifiers_to_update:
+                transition_tuple = (self.modifier_states.get(key, 'free'), event_type, origin)
                 should_press, accept, new_state = self.transition_table[transition_tuple]
-                #print(transition_tuple, self.transition_table[transition_tuple])
+                self.modifier_states[key] = new_state
                 if should_press:
                     press(key)
-                if new_state == 'free':
-                    del self.modifier_states[key]
-                else:
-                    self.modifier_states[key] = new_state
-
-        if event.event_type == KEY_UP and event.scan_code in _pressed_events:
-            del _pressed_events[event.scan_code]
-            if event.name in all_modifiers:
-                _active_modifiers.discard(event.name)
 
         print(accept, event)
         return accept
@@ -270,7 +267,7 @@ def matches(event, name):
     Returns True if the given event represents the same key as the one given in
     `name`.
     """
-    if is_number(name):
+    if _is_number(name):
         return event.scan_code == name
 
     normalized = _normalize_name(name)
@@ -291,7 +288,7 @@ def is_pressed(key):
         is_pressed('ctrl+space') -> True
     """
     _listener.start_if_necessary()
-    if is_number(key):
+    if _is_number(key):
         return key in _pressed_events
     elif len(key) > 1 and ('+' in key or ',' in key):
         parts = canonicalize(key)
@@ -325,10 +322,10 @@ def canonicalize(hotkey):
     elif isinstance(hotkey, list) and all(isinstance(key, (str, int)) for key in hotkey):
         # Make list of names or scan codes into list of steps.
         return canonicalize([hotkey])
-    elif is_number(hotkey):
+    elif _is_number(hotkey):
         return [[hotkey]]
 
-    if not is_str(hotkey):
+    if not _is_str(hotkey):
         raise ValueError('Unexpected hotkey: {}. Expected int scan code, str key combination or normalized hotkey.'.format(hotkey))
 
     if len(hotkey) == 1 or ('+' not in hotkey and ',' not in hotkey):
@@ -740,7 +737,7 @@ def to_scan_code(key):
     Note that a name may belong to more than one physical key, in which case
     one of the scan codes will be chosen.
     """
-    if is_number(key):
+    if _is_number(key):
         return key
     else:
         scan_code, modifiers = _os_keyboard.map_char(_normalize_name(key))
@@ -793,12 +790,12 @@ def _make_wait_and_unlock():
     Method to work around CPython's inability to interrupt Lock.join with
     signals. Without this Ctrl+C doesn't close the program.
     """
-    q = queue.Queue(maxsize=1)
+    q = _queue.Queue(maxsize=1)
     def wait():
         while True:
             try:
                 return q.get(timeout=1)
-            except queue.Empty:
+            except _queue.Empty:
                 pass
     return (wait, lambda v=None: q.put(v))
 
@@ -914,7 +911,7 @@ def get_typed_strings(events, allow_backspace=True):
     yield string
 
 
-recording = None
+_recording = None
 def start_recording(recorded_events_queue=None):
     """
     Starts recording all keyboard events into a global variable, or the given
@@ -922,22 +919,22 @@ def start_recording(recorded_events_queue=None):
 
     Use `stop_recording()` or `unhook(hooked_function)` to stop.
     """
-    global recording
-    recorded_events_queue = recorded_events_queue or queue.Queue()
-    recording = recorded_events_queue, hook(recorded_events_queue.put)
-    return recording
+    global _recording
+    recorded_events_queue = recorded_events_queue or _queue.Queue()
+    _recording = recorded_events_queue, hook(recorded_events_queue.put)
+    return _recording
 
 def stop_recording():
     """
     Stops the global recording of events and returns a list of the events
     captured.
     """
-    global recording
-    if not recording:
+    global _recording
+    if not _recording:
         raise ValueError('Must call "start_recording" before.')
-    recorded_events_queue, hooked = recording
+    recorded_events_queue, hooked = _recording
     unhook(hooked)
-    recording = None
+    _recording = None
     return list(recorded_events_queue.queue)
 
 
