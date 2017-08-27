@@ -206,9 +206,6 @@ class _KeyboardListener(_GenericListener):
         if not event.scan_code:
             event.scan_code = to_scan_code(event.name)
 
-        # Queue for handlers that won't block the event.
-        self.queue.put(event)
-
         if _blocking_hook and not _blocking_hook(event):
             return False
 
@@ -252,6 +249,9 @@ class _KeyboardListener(_GenericListener):
         if event_type == KEY_UP:
             if event.name in all_modifiers: self.active_modifiers.discard(event.name)
             if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
+
+        # Queue for handlers that won't block the event.
+        self.queue.put(event)
 
         return accept
 
@@ -1105,3 +1105,40 @@ def unhook_blocking():
     """
     global _blocking_hook
     _blocking_hook = None
+
+def add_multi_step_blocking_hotkey(hotkey, callback):
+    # TODO: timeout
+    # TODO: merge hotkeys instead of overwriting
+    parts = canonicalize(hotkey)
+
+    index = 0
+    def set_index(new_index):
+        if len(parts) == 1 and new_index == 1:
+            return callback()
+
+        nonlocal index
+        unhook_blocking_hotkey(parts[index])
+        index = new_index
+        if index == len(parts):
+            callback()
+            index = 0
+        hook_blocking_hotkey(parts[index], triggered)
+        
+    def triggered(event):
+        if event.event_type == KEY_DOWN:
+            set_index(index+1)
+        return False
+    hook_blocking_hotkey(parts[index], triggered)
+
+    if len(parts) > 1:
+        # TODO: allow "a, a, b" when typing "aaab"
+        def catch_misses(event):
+            if event.event_type == KEY_DOWN and index and event.name not in parts[index]:
+                for part in parts[:index]:
+                    send(part)
+                set_index(0)
+            return True
+        hook_blocking(catch_misses)
+
+    # TODO
+    return
