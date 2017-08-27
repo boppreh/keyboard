@@ -529,8 +529,5 @@ def type_unicode(character):
     SendInput(nInputs, pInputs, cbSize)
 
 if __name__ == '__main__':
-    import keyboard
-    def p(event):
-        print(event)
-    keyboard.hook(p)
+    listen(lambda e: print(e) or True)
     input()

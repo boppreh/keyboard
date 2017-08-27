@@ -197,7 +197,6 @@ class _KeyboardListener(_GenericListener):
         or similar, and suppress key presses of `alt` and `windows`, faking a
         key press when they are released by themselves.
         """
-
         # Pass through all fake key events, don't even report to other handlers.
         if self.is_replaying:
             return True
@@ -210,7 +209,6 @@ class _KeyboardListener(_GenericListener):
         # Queue for handlers that won't block the event.
         self.queue.put(event)
 
-        print(_blocking_hook, _blocking_hook and _blocking_hook(event))
         if _blocking_hook and not _blocking_hook(event):
             return False
 
