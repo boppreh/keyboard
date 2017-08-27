@@ -225,9 +225,6 @@ class _KeyboardListener(_GenericListener):
         if event_type == KEY_DOWN:
             if event.name in all_modifiers: _active_modifiers.add(event.name)
             _pressed_events[event.scan_code] = event
-        elif event_type == KEY_UP and event.scan_code in _pressed_events:
-            if event.name in all_modifiers: _active_modifiers.discard(event.name)
-            del _pressed_events[event.scan_code]
 
         accept = True
 
@@ -238,11 +235,10 @@ class _KeyboardListener(_GenericListener):
             else:
                 modifiers_to_update = _active_modifiers
                 shortcut_pair = (tuple(sorted(_active_modifiers)), event.name)
-                callbacks = _blocking_shortcuts.get(shortcut_pair, [])
-                if callbacks:
-                    if event_type == KEY_DOWN:
-                        for callback in callbacks:
-                            callback()
+                callback_pairs = _blocking_shortcuts.get(shortcut_pair, [])
+                if callback_pairs:
+                    for on_key_down, on_key_up in callback_pairs:
+                        [on_key_down, on_key_up][event_type == KEY_UP]()
                     origin = 'shortcut'
                 else:
                     origin = 'other'
@@ -253,6 +249,10 @@ class _KeyboardListener(_GenericListener):
                 self.modifier_states[key] = new_state
                 if should_press:
                     press(key)
+
+        if event_type == KEY_UP:
+            if event.name in all_modifiers: _active_modifiers.discard(event.name)
+            if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
 
         print(accept, event)
         return accept
@@ -990,6 +990,29 @@ def read_shortcut():
 read_hotkey = read_shortcut
 
 
+def add_blocking_hotkey(shortcut, on_press=lambda: None, on_release=lambda: None):
+    _listener.start_if_necessary()
+
+    steps = canonicalize(shortcut)
+    if len(steps) > 1:
+        raise NotImplementedError('Cannot remap multi-step combination ({}).'.format(key))
+    names = set(steps[0])
+
+    modifiers = names & all_modifiers
+    rest = names - all_modifiers
+    if len(rest) != 1:
+        raise NotImplementedError('Can only remap combinations of modifiers plus a single key.')
+
+    key = rest.pop()
+    for possible_combination in itertools.product(*([m, 'left '+m, 'right '+m] for m in modifiers)):
+        for modifier in possible_combination:
+            _filtered_modifiers[modifier] += 1
+        pair = (tuple(sorted(possible_combination)), key)
+        _blocking_shortcuts.setdefault(pair, []).append((on_press, on_release))
+
+    # TDOO
+    return
+
 def remap(src, dst):
     """
     Whenever the key combination `src` is pressed, suppress it and press
@@ -1000,19 +1023,6 @@ def remap(src, dst):
         remap('alt+w', 'up')
         remap('capslock', 'esc')
     """
-    _listener.start_if_necessary()
-
-    steps = canonicalize(src)
-    if len(steps) > 1:
-        raise NotImplementedError('Cannot remap multi-step combination ({}).'.format(key))
-    names = set(steps[0])
-
-    modifiers = names & all_modifiers
-    rest = names - all_modifiers
-    if len(rest) != 1:
-        raise NotImplementedError('Can only remap combinations of modifiers plus a single key.')
-
-
     def handler():
         for state, modifier in _listener.modifier_states.items():
             if state == 'allowed':
@@ -1021,13 +1031,4 @@ def remap(src, dst):
         for state, modifier in _listener.modifier_states.items():
             if state == 'allowed':
                 press(modifier)
-
-    key = rest.pop()
-    for possible_combination in itertools.product(*([m, 'left '+m, 'right '+m] for m in modifiers)):
-        for modifier in possible_combination:
-            _filtered_modifiers[modifier] += 1
-        pair = (tuple(sorted(possible_combination)), key)
-        _blocking_shortcuts.setdefault(pair, []).append(handler)
-
-    # TDOO
-    return
+    return add_blocking_hotkey(src, handler)
