@@ -112,18 +112,13 @@ all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'}
 for key in list(all_modifiers):
     all_modifiers.add('left ' + key)
     all_modifiers.add('right ' + key)
-
-# Side-effect-modifiers are modifiers keys that have side effects when pressed
-# by themselves. "Alt" brings up the application menu, and "Windows" shows the
-# start menu in Windows. Thankfully they are only activated on key UP, which
-# helps when blocking shortcuts.
-side_effect_modifiers = set(name for name in all_modifiers if 'alt' in name or 'windows' in name)
+sided_keys = {'ctrl', 'alt', 'shift', 'windows'}
 
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
     active_modifiers = set()
-    blocking_shortcuts = {}
-    killed_keys = set()
+    blocking_hotkeys = {}
+    blocking_keys = {}
     filtered_modifiers = Counter()
     is_replaying = False
 
@@ -139,7 +134,7 @@ class _KeyboardListener(_GenericListener):
         #|             |         |
         #|             |         |            Should we send a fake key press?
         #|             |         |            |
-        #|             |         |     =>     |       Accept the event or block?
+        #|             |         |     =>     |       Accept the event?
         #|             |         |            |       |
         #|             |         |            |       |      Next state.
         #v             v         v            v       v      v
@@ -152,14 +147,14 @@ class _KeyboardListener(_GenericListener):
         ('allowed',    KEY_UP,   'modifier'): (False, True, 'free'),
         ('allowed',    KEY_DOWN, 'modifier'): (False, True, 'allowed'),
 
-        ('free',       KEY_UP,   'shortcut'): (False, False, 'free'),
-        ('free',       KEY_DOWN, 'shortcut'): (False, False, 'free'),
-        ('pending',    KEY_UP,   'shortcut'): (False, False, 'suppressed'),
-        ('pending',    KEY_DOWN, 'shortcut'): (False, False, 'suppressed'),
-        ('suppressed', KEY_UP,   'shortcut'): (False, False, 'suppressed'),
-        ('suppressed', KEY_DOWN, 'shortcut'): (False, False, 'suppressed'),
-        ('allowed',    KEY_UP,   'shortcut'): (False, False, 'allowed'),
-        ('allowed',    KEY_DOWN, 'shortcut'): (False, False, 'allowed'),
+        ('free',       KEY_UP,   'hotkey'):   (False, None, 'free'),
+        ('free',       KEY_DOWN, 'hotkey'):   (False, None, 'free'),
+        ('pending',    KEY_UP,   'hotkey'):   (False, None, 'suppressed'),
+        ('pending',    KEY_DOWN, 'hotkey'):   (False, None, 'suppressed'),
+        ('suppressed', KEY_UP,   'hotkey'):   (False, None, 'suppressed'),
+        ('suppressed', KEY_DOWN, 'hotkey'):   (False, None, 'suppressed'),
+        ('allowed',    KEY_UP,   'hotkey'):   (False, None, 'allowed'),
+        ('allowed',    KEY_DOWN, 'hotkey'):   (False, None, 'allowed'),
 
         ('free',       KEY_UP,   'other'):    (False, True, 'free'),
         ('free',       KEY_DOWN, 'other'):    (False, True, 'free'),
@@ -185,7 +180,7 @@ class _KeyboardListener(_GenericListener):
 
         There are two ways to block events: killing keys, which behaves as if
         the key was not present, by suppressing all its events; and blocked
-        shortcuts, which suppress specific key combinations.
+        hotkeys, which suppress specific key combinations.
 
         Properly blocking all key combos requires time travel: if "a+b" is
         blocked, accepting or not "a" depends if it'll be followed by "b".
@@ -215,10 +210,12 @@ class _KeyboardListener(_GenericListener):
         # Queue for handlers that won't block the event.
         self.queue.put(event)
 
-        # Don't even register killed keys as pressed.
-        if event.name in self.killed_keys: return False
-
         event_type = event.event_type
+
+        # Mappings based on individual keys instead of hotkeys.
+        if event.name in self.blocking_keys:
+            return self.blocking_keys[event.name](event)
+
 
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_DOWN:
@@ -228,25 +225,23 @@ class _KeyboardListener(_GenericListener):
         # Default accept.
         accept = True
 
-        if self.blocking_shortcuts:
+        if self.blocking_hotkeys:
             if self.filtered_modifiers[event.name]:
                 origin = 'modifier'
                 modifiers_to_update = [event.name]
             else:
                 modifiers_to_update = self.active_modifiers
-                shortcut_pair = (tuple(sorted(self.active_modifiers)), event.name)
-                callback_pairs = self.blocking_shortcuts.get(shortcut_pair, [])
-
-                if callback_pairs:
-                    for on_key_down, on_key_up in callback_pairs:
-                        [on_key_down, on_key_up][event_type == KEY_UP]()
-                    origin = 'shortcut'
+                hotkey_pair = (tuple(sorted(self.active_modifiers)), event.name)
+                if hotkey_pair in self.blocking_hotkeys:
+                    accept = self.blocking_hotkeys[hotkey_pair](event)
+                    origin = 'hotkey'
                 else:
                     origin = 'other'
 
             for key in modifiers_to_update:
                 transition_tuple = (self.modifier_states.get(key, 'free'), event_type, origin)
-                should_press, accept, new_state = self.transition_table[transition_tuple]
+                should_press, new_accept, new_state = self.transition_table[transition_tuple]
+                if new_accept is not None: accept = new_accept
                 self.modifier_states[key] = new_state
                 if should_press:
                     press(key)
@@ -348,22 +343,6 @@ def call_later(fn, args=(), delay=0.001):
     """
     _Thread(target=lambda: _time.sleep(delay) or fn(*args)).start()
 
-def block_key(key):
-    """
-    Completely blocks a given key, not registering any simple key events or
-    shortcuts containing it.
-    """
-    _listener.start_if_necessary()
-    for prefix in ['', 'left ', 'right ']:
-        _listener.killed_keys.add(_normalize_name(prefix + key))
-
-def unblock_key(key):
-    """
-    Removes a block from a key.
-    """
-    for prefix in ['', 'left ', 'right ']:
-        _listener.killed_keys.discard(_normalize_name(prefix + key))
-
 
 _hotkeys = {}
 def clear_all_hotkeys():
@@ -458,9 +437,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     if suppress:
         if len(steps) > 1:
             raise NotImplementedError("Multi-step hotkeys are not suppressable. Please see https://github.com/boppreh/keyboard/issues/22")
-        shortcut, = steps    
-        block_shortcut(shortcut)
-        return hook(handler, lambda: unblock_shortcut(shortcut))
+        hotkey, = steps    
+        block_hotkey(hotkey)
+        return hook(handler, lambda: unblock_hotkey(hotkey))
     else:
         return hook(handler)
 
@@ -746,7 +725,7 @@ def to_scan_code(key):
         scan_code, modifiers = _os_keyboard.map_char(_normalize_name(key))
         return scan_code
 
-def send(combination, do_press=True, do_release=True, as_replay=True):
+def send(combination, do_press=True, do_release=True):
     """
     Sends OS events that perform the given hotkey combination.
 
@@ -762,8 +741,7 @@ def send(combination, do_press=True, do_release=True, as_replay=True):
 
     Note: keys are released in the opposite order they were pressed.
     """
-    if as_replay:
-        _listener.is_replaying = True
+    _listener.is_replaying = True
 
     for keys in canonicalize(combination):
         if do_press:
@@ -774,8 +752,7 @@ def send(combination, do_press=True, do_release=True, as_replay=True):
             for key in reversed(keys):
                 _os_keyboard.release(to_scan_code(key))
 
-    if as_replay:
-        _listener.is_replaying = False
+    _listener.is_replaying = False
 
 # Alias.
 press_and_release = send
@@ -941,9 +918,9 @@ def stop_recording():
     return list(recorded_events_queue.queue)
 
 
-def get_shortcut_name(names=None):
+def get_hotkey_name(names=None):
     """
-    Returns a string representation of shortcut from the given key names, or
+    Returns a string representation of hotkey from the given key names, or
     the currently pressed keys if not given.  This function:
 
     - normalizes names;
@@ -955,7 +932,7 @@ def get_shortcut_name(names=None):
 
     Example:
 
-        get_shortcut_name(['+', 'left ctrl', 'shift'])
+        get_hotkey_name(['+', 'left ctrl', 'shift'])
         # "ctrl+shift+plus"
     """
     if names is None:
@@ -966,20 +943,20 @@ def get_shortcut_name(names=None):
     clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
     # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
     # > List modifier keys in the correct order. If you use more than one modifier key in a
-    # > shortcut, always list them in this order: Control, Option, Shift, Command.
+    # > hotkey, always list them in this order: Control, Option, Shift, Command.
     modifiers = ['ctrl', 'alt', 'shift', 'windows']
     sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
     return '+'.join(sorted(clean_names, key=sorting_key))
 
-def read_shortcut():
+def read_hotkey():
     """
     Similar to `read_key()`, but blocks until the user presses and releases a key
-    combination (or single key), then returns a string representing the shortcut
+    combination (or single key), then returns a string representing the hotkey
     pressed.
 
     Example:
 
-        read_shortcut()
+        read_hotkey()
         # "ctrl+shift+p"
     """
     wait, unlock = _make_wait_and_unlock()
@@ -987,38 +964,65 @@ def read_shortcut():
         if event.event_type == KEY_UP:
             unhook(test)
             names = [e.name for e in _pressed_events.values()] + [event.name]
-            unlock(get_shortcut_name(names))
+            unlock(get_hotkey_name(names))
     hook(test)
     return wait()
-read_hotkey = read_shortcut
+read_hotkey = read_hotkey
 
 
-def add_blocking_hotkey(shortcut, on_press=lambda: None, on_release=lambda: None):
+def _get_sided_keys(key):
+    """
+    Generates key variations with 'left' and 'right' when the key is sided.
+    """
+    if key in sided_keys:
+        yield from (prefix + key for prefix in ['', 'left ', 'right '])
+    else:
+        yield key
+
+def hook_blocking_hotkey(hotkey, handler):
+    """
+    Sets an event handler to be called whenever the given hotkey is triggered.
+    This event will be blcoking (the OS will wait for this handler to finish),
+    and may return True or False if the hotkey should be suppressed or not.
+    """
     _listener.start_if_necessary()
 
-    steps = canonicalize(shortcut)
+    steps = canonicalize(hotkey)
     if len(steps) > 1:
-        raise NotImplementedError('Cannot remap multi-step combination ({}).'.format(key))
+        raise NotImplementedError('Cannot set multi-step blocking hotkey (e.g. "alt+s, t").')
     names = set(steps[0])
 
     modifiers = names & all_modifiers
-    rest = names - all_modifiers
+    rest = names - modifiers
     if len(rest) != 1:
         raise NotImplementedError('Can only remap combinations of modifiers plus a single key.')
 
-    key = rest.pop()
-    for possible_combination in itertools.product(*([m, 'left '+m, 'right '+m] for m in modifiers)):
+    main_key = rest.pop()
+    for possible_combination in itertools.product(*(_get_sided_keys(m) for m in modifiers)):
         for modifier in possible_combination:
             _listener.filtered_modifiers[modifier] += 1
-        pair = (tuple(sorted(possible_combination)), key)
-        _listener.blocking_shortcuts.setdefault(pair, []).append((on_press, on_release))
-
-    # TDOO
+        pair = (tuple(sorted(possible_combination)), main_key)
+        _listener.blocking_hotkeys[pair] = handler
+    # TODO
     return
 
-def remap(src, dst):
+def hook_blocking_key(key, handler):
     """
-    Whenever the key combination `src` is pressed, suppress it and press
+    Sets an event handler to be called for all events regarding the given key,
+    regardless of modifiers.
+    This event will be blcoking (the OS will wait for this handler to finish),
+    and may return True or False if the hotkey should be suppressed or not.
+    """
+    _listener.start_if_necessary()
+    for sided_key in _get_sided_keys(_normalize_name(key)):
+        _listener.blocking_keys[sided_key] = handler
+    # TODO
+    return
+
+
+def remap_hotkey(src, dst):
+    """
+    Whenever the hotkey `src` is pressed, suppress it and send
     `dst` instead.
 
     Example:
@@ -1026,7 +1030,8 @@ def remap(src, dst):
         remap('alt+w', 'up')
         remap('capslock', 'esc')
     """
-    def handler():
+    def handler(event):
+        if event.event_type == KEY_UP: return False
         for state, modifier in _listener.modifier_states.items():
             if state == 'allowed':
                 release(modifier)
@@ -1034,4 +1039,24 @@ def remap(src, dst):
         for state, modifier in _listener.modifier_states.items():
             if state == 'allowed':
                 press(modifier)
-    return add_blocking_hotkey(src, handler)
+        return False
+    return hook_blocking_hotkey(src, handler)
+
+def remap_key(src, dst):
+    """
+    Whenever the key `src` is pressed or released, regardless of modifiers,
+    press or release `dst` instead.
+    """
+    def handler(event):
+        if event.event_type == KEY_DOWN:
+            press(dst)
+        else:
+            release(dst)
+        return False
+    return hook_blocking_key(src, handler)
+
+def block_key(key):
+    """
+    Suppresses all key events of the given key, regardless of modifiers.
+    """
+    return hook_blocking_key(key, lambda e: False)
