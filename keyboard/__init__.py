@@ -115,6 +115,7 @@ for key in list(all_modifiers):
 sided_keys = {'ctrl', 'alt', 'shift', 'windows'}
 
 _pressed_events = {}
+_blocking_hook = None
 class _KeyboardListener(_GenericListener):
     active_modifiers = set()
     blocking_hotkeys = {}
@@ -208,6 +209,10 @@ class _KeyboardListener(_GenericListener):
 
         # Queue for handlers that won't block the event.
         self.queue.put(event)
+
+        print(_blocking_hook, _blocking_hook and _blocking_hook(event))
+        if _blocking_hook and not _blocking_hook(event):
+            return False
 
         event_type = event.event_type
 
@@ -394,14 +399,11 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         add_hotkey('ctrl+q', quit)
         add_hotkey('ctrl+alt+enter, space', some_callback)
     """
-    steps = canonicalize(hotkey)
-
     if suppress:
-        if len(steps) > 1:
-            raise NotImplementedError("Multi-step hotkeys are not suppressable. Please see https://github.com/boppreh/keyboard/issues/22")
-        hotkey, = steps
         # TODO: removal
         return hook_blocking_hotkey(hotkey, lambda e: (callback(args), False)[1])
+
+    steps = canonicalize(hotkey)
 
     state = _State()
     state.step = 0
@@ -987,13 +989,13 @@ def hook_blocking_hotkey(hotkey, handler):
 
     steps = canonicalize(hotkey)
     if len(steps) > 1:
-        raise NotImplementedError('Cannot set multi-step blocking hotkey (e.g. "alt+s, t").')
+        raise NotImplementedError('Cannot set multi-step blocking hotkey (e.g. "alt+s, t"). Please see https://github.com/boppreh/keyboard/issues/22')
     names = set(steps[0])
 
     modifiers = names & all_modifiers
     rest = names - modifiers
     if len(rest) != 1:
-        raise NotImplementedError('Can only remap combinations of modifiers plus a single key.')
+        raise NotImplementedError('Can only remap combinations of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
 
     main_key = rest.pop()
     for possible_combination in itertools.product(*(_get_sided_keys(m) for m in modifiers)):
@@ -1058,3 +1060,17 @@ def block_key(key):
     Suppresses all key events of the given key, regardless of modifiers.
     """
     return hook_blocking_key(key, lambda e: False)
+
+
+def hook_blocking(handler):
+    """
+    Sets a global, blocking hook. The given `handler` will be invoked for every
+    keyboard event, and if `handler` returns False, the event will be
+    suppressed. Because this is a blocking hook, if `handler` takes too long to
+    return a noticeable delay will be added to every key event.
+    """
+    global _blocking_hook
+    _blocking_hook = handler
+    _listener.start_if_necessary()
+    # TODO
+    return
