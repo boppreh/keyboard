@@ -120,17 +120,16 @@ for key in list(all_modifiers):
 side_effect_modifiers = set(name for name in all_modifiers if 'alt' in name or 'windows' in name)
 
 _pressed_events = {}
-_active_modifiers = set()
-_blocking_shortcuts = {}
-_killed_keys = Counter()
-_filtered_modifiers = Counter()
 class _KeyboardListener(_GenericListener):
+    active_modifiers = set()
+    blocking_shortcuts = {}
+    killed_keys = set()
+    filtered_modifiers = Counter()
     is_replaying = False
 
     # Supporting hotkey suppression is harder than it looks. See
     # https://github.com/boppreh/keyboard/issues/22
     modifier_states = {} # "alt" -> "allowed"
-    # This table decies when to block a key event because of a shortcut or not.
     transition_table = {
         #Current state of the modifier, per `modifier_states`.
         #|
@@ -140,7 +139,7 @@ class _KeyboardListener(_GenericListener):
         #|             |         |
         #|             |         |            Should we send a fake key press?
         #|             |         |            |
-        #|             |         |            |       Accept the event or block?
+        #|             |         |     =>     |       Accept the event or block?
         #|             |         |            |       |
         #|             |         |            |       |      Next state.
         #v             v         v            v       v      v
@@ -217,25 +216,27 @@ class _KeyboardListener(_GenericListener):
         self.queue.put(event)
 
         # Don't even register killed keys as pressed.
-        if event.name in _killed_keys: return False
+        if event.name in self.killed_keys: return False
 
         event_type = event.event_type
 
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_DOWN:
-            if event.name in all_modifiers: _active_modifiers.add(event.name)
+            if event.name in all_modifiers: self.active_modifiers.add(event.name)
             _pressed_events[event.scan_code] = event
 
+        # Default accept.
         accept = True
 
-        if _blocking_shortcuts:
-            if _filtered_modifiers[event.name]:
+        if self.blocking_shortcuts:
+            if self.filtered_modifiers[event.name]:
                 origin = 'modifier'
                 modifiers_to_update = [event.name]
             else:
-                modifiers_to_update = _active_modifiers
-                shortcut_pair = (tuple(sorted(_active_modifiers)), event.name)
-                callback_pairs = _blocking_shortcuts.get(shortcut_pair, [])
+                modifiers_to_update = self.active_modifiers
+                shortcut_pair = (tuple(sorted(self.active_modifiers)), event.name)
+                callback_pairs = self.blocking_shortcuts.get(shortcut_pair, [])
+
                 if callback_pairs:
                     for on_key_down, on_key_up in callback_pairs:
                         [on_key_down, on_key_up][event_type == KEY_UP]()
@@ -250,8 +251,9 @@ class _KeyboardListener(_GenericListener):
                 if should_press:
                     press(key)
 
+        # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_UP:
-            if event.name in all_modifiers: _active_modifiers.discard(event.name)
+            if event.name in all_modifiers: self.active_modifiers.discard(event.name)
             if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
 
         print(accept, event)
@@ -351,15 +353,16 @@ def block_key(key):
     Completely blocks a given key, not registering any simple key events or
     shortcuts containing it.
     """
-    # TODO: map char for better performance, and block all left-right
-    # combinations.
-    _killed_keys.add(_normalize_name(key))
+    _listener.start_if_necessary()
+    for prefix in ['', 'left ', 'right ']:
+        _listener.killed_keys.add(_normalize_name(prefix + key))
 
 def unblock_key(key):
     """
     Removes a block from a key.
     """
-    _killed_keys.discard(_normalize_name(key))
+    for prefix in ['', 'left ', 'right ']:
+        _listener.killed_keys.discard(_normalize_name(prefix + key))
 
 
 _hotkeys = {}
@@ -1006,9 +1009,9 @@ def add_blocking_hotkey(shortcut, on_press=lambda: None, on_release=lambda: None
     key = rest.pop()
     for possible_combination in itertools.product(*([m, 'left '+m, 'right '+m] for m in modifiers)):
         for modifier in possible_combination:
-            _filtered_modifiers[modifier] += 1
+            _listener.filtered_modifiers[modifier] += 1
         pair = (tuple(sorted(possible_combination)), key)
-        _blocking_shortcuts.setdefault(pair, []).append((on_press, on_release))
+        _listener.blocking_shortcuts.setdefault(pair, []).append((on_press, on_release))
 
     # TDOO
     return
