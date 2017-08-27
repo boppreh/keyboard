@@ -199,7 +199,6 @@ class _KeyboardListener(_GenericListener):
 
         # Pass through all fake key events, don't even report to other handlers.
         if self.is_replaying:
-            print('Replaying', event)
             return True
 
         # Useful for media keys, which are reported with scan_code = 0, or
@@ -251,7 +250,6 @@ class _KeyboardListener(_GenericListener):
             if event.name in all_modifiers: self.active_modifiers.discard(event.name)
             if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
 
-        print(accept, event)
         return accept
 
     def listen(self):
@@ -398,6 +396,13 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     """
     steps = canonicalize(hotkey)
 
+    if suppress:
+        if len(steps) > 1:
+            raise NotImplementedError("Multi-step hotkeys are not suppressable. Please see https://github.com/boppreh/keyboard/issues/22")
+        hotkey, = steps
+        # TODO: removal
+        return hook_blocking_hotkey(hotkey, lambda e: (callback(args), False)[1])
+
     state = _State()
     state.step = 0
     state.time = _time.time()
@@ -434,14 +439,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
                     return suppress
 
     _hotkeys[hotkey] = handler
-    if suppress:
-        if len(steps) > 1:
-            raise NotImplementedError("Multi-step hotkeys are not suppressable. Please see https://github.com/boppreh/keyboard/issues/22")
-        hotkey, = steps    
-        block_hotkey(hotkey)
-        return hook(handler, lambda: unblock_hotkey(hotkey))
-    else:
-        return hook(handler)
+    return hook(handler)
 
 # Alias.
 register_hotkey = add_hotkey
