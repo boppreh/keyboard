@@ -977,32 +977,48 @@ def _get_sided_keys(key):
     else:
         yield key
 
+def _parse_blocking_hotkey(hotkey):
+    _listener.start_if_necessary()
+
+    steps = canonicalize(hotkey)
+    if len(steps) > 1:
+        raise NotImplementedError('Cannot hook multi-step blocking hotkey (e.g. "alt+s, t"). Please see https://github.com/boppreh/keyboard/issues/22')
+    names = set(steps[0])
+
+    modifiers = names & all_modifiers
+    rest = names - modifiers
+    if len(rest) != 1:
+        raise NotImplementedError('Can only hook combinations of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
+
+    main_key = rest.pop()
+    return main_key, itertools.product(*(_get_sided_keys(m) for m in modifiers))
+
 def hook_blocking_hotkey(hotkey, handler):
     """
     Sets an event handler to be called whenever the given hotkey is triggered.
     This event will be blcoking (the OS will wait for this handler to finish),
     and may return True or False if the hotkey should be suppressed or not.
     """
-    _listener.start_if_necessary()
-
-    steps = canonicalize(hotkey)
-    if len(steps) > 1:
-        raise NotImplementedError('Cannot set multi-step blocking hotkey (e.g. "alt+s, t"). Please see https://github.com/boppreh/keyboard/issues/22')
-    names = set(steps[0])
-
-    modifiers = names & all_modifiers
-    rest = names - modifiers
-    if len(rest) != 1:
-        raise NotImplementedError('Can only remap combinations of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
-
-    main_key = rest.pop()
-    for possible_combination in itertools.product(*(_get_sided_keys(m) for m in modifiers)):
+    main_key, combinations = _parse_blocking_hotkey(hotkey)
+    for possible_combination in combinations:
         for modifier in possible_combination:
             _listener.filtered_modifiers[modifier] += 1
         pair = (tuple(sorted(possible_combination)), main_key)
         _listener.blocking_hotkeys[pair] = handler
-    # TODO
-    return
+
+    return hotkey
+
+def unhook_blocking_hotkey(hotkey):
+    """
+    Removes a hotkey hook added via `hook_blocking_hotkey`.
+    """
+    main_key, combinations = _parse_blocking_hotkey(hotkey)
+    for possible_combination in combinations:
+        for modifier in possible_combination:
+            _listener.filtered_modifiers[modifier] -= 1
+        pair = (tuple(sorted(possible_combination)), main_key)
+        del _listener.blocking_hotkeys[pair]
+
 
 def hook_blocking_key(key, handler):
     """
@@ -1014,9 +1030,15 @@ def hook_blocking_key(key, handler):
     _listener.start_if_necessary()
     for sided_key in _get_sided_keys(_normalize_name(key)):
         _listener.blocking_keys[sided_key] = handler
-    # TODO
-    return
+    return key
 
+def unhook_blocking_key(key, handler):
+    """
+    Removes a hook added via `hook_blocking_key`.
+    """
+    for sided_key in _get_sided_keys(_normalize_name(key)):
+        del _listener.blocking_keys[sided_key]
+    return key
 
 def remap_hotkey(src, dst):
     """
@@ -1039,6 +1061,7 @@ def remap_hotkey(src, dst):
                 press(modifier)
         return False
     return hook_blocking_hotkey(src, handler)
+unremap_hotkey = unhook_blocking_hotkey
 
 def remap_key(src, dst):
     """
@@ -1052,12 +1075,14 @@ def remap_key(src, dst):
             release(dst)
         return False
     return hook_blocking_key(src, handler)
+unremap_key = unhook_blocking_key
 
 def block_key(key):
     """
     Suppresses all key events of the given key, regardless of modifiers.
     """
     return hook_blocking_key(key, lambda e: False)
+unblock_key = unhook_blocking_key
 
 
 def hook_blocking(handler):
@@ -1066,9 +1091,17 @@ def hook_blocking(handler):
     keyboard event, and if `handler` returns False, the event will be
     suppressed. Because this is a blocking hook, if `handler` takes too long to
     return a noticeable delay will be added to every key event.
+
+    Only one such hook may be active.
     """
     global _blocking_hook
     _blocking_hook = handler
     _listener.start_if_necessary()
-    # TODO
-    return
+    return handler
+
+def unhook_blocking():
+    """
+    Removes a hook added via `hook_blocking`.
+    """
+    global _blocking_hook
+    _blocking_hook = None
