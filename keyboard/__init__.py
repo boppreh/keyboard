@@ -640,6 +640,7 @@ def stash_state():
     Builds a list of all currently pressed scan codes, releases them and returns
     the list. Pairs well with `restore_state`.
     """
+    # TODO: stash caps lock state.
     state = sorted(_pressed_events)
     for scan_code in state:
         _os_keyboard.release(scan_code)
@@ -1111,30 +1112,30 @@ def add_multi_step_blocking_hotkey(hotkey, callback):
     # TODO: merge hotkeys instead of overwriting
     parts = canonicalize(hotkey)
 
-    index = 0
+    state = _State()
+    state.index = 0
     def set_index(new_index):
         if len(parts) == 1 and new_index == 1:
             return callback()
 
-        nonlocal index
-        unhook_blocking_hotkey(parts[index])
-        index = new_index
-        if index == len(parts):
+        unhook_blocking_hotkey(parts[state.index])
+        state.index = new_index
+        if state.index == len(parts):
             callback()
-            index = 0
-        hook_blocking_hotkey(parts[index], triggered)
+            state.index = 0
+        hook_blocking_hotkey(parts[state.index], triggered)
         
     def triggered(event):
         if event.event_type == KEY_DOWN:
-            set_index(index+1)
+            set_index(state.index+1)
         return False
-    hook_blocking_hotkey(parts[index], triggered)
+    hook_blocking_hotkey(parts[state.index], triggered)
 
     if len(parts) > 1:
         # TODO: allow "a, a, b" when typing "aaab"
         def catch_misses(event):
-            if event.event_type == KEY_DOWN and index and event.name not in parts[index]:
-                for part in parts[:index]:
+            if event.event_type == KEY_DOWN and state.index and event.name not in parts[state.index]:
+                for part in parts[:state.index]:
                     send(part)
                 set_index(0)
             return True
