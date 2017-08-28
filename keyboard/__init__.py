@@ -387,12 +387,15 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     Note: the callback is executed in a separate thread, asynchronously. For an
     example of how to use a callback synchronously, see `wait`.
 
-    Examples (note: 57 is the common scan code for "space"):
+    Examples:
 
-        add_hotkey(57, print, args=['space was pressed'])
+        # Different but equivalent ways to listen for a spacebar key press.
         add_hotkey(' ', print, args=['space was pressed'])
         add_hotkey('space', print, args=['space was pressed'])
         add_hotkey('Space', print, args=['space was pressed'])
+        # Here 57 represents the keyboard code for spacebar; so you will be
+        # pressing 'spacebar', not '57' to activate the print function.
+        add_hotkey(57, print, args=['space was pressed'])
 
         add_hotkey('ctrl+q', quit)
         add_hotkey('ctrl+alt+enter, space', some_callback)
