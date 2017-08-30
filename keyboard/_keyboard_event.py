@@ -200,7 +200,7 @@ canonical_names = {
     'play/pause': 'play/pause media',
 
     'nummult': '*',
-    'num decimal': '.',
+    'num decimal': 'decimal',
     'num multiply': '*',
     'num divide': '/',
     'num add': '+',
