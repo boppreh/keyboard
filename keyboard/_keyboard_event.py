@@ -146,6 +146,7 @@ canonical_names = {
     'guillemotright': '»',
     'guillemotleft': '«',
     
+    'acute/cedilla': '\'',
     'acute': '´',
     'agudo': '´',
     'grave': '`',
@@ -190,6 +191,8 @@ canonical_names = {
 
     'play/pause': 'play/pause media',
 
+    'nummult': '*',
+    'num decimal': '.',
     'num multiply': '*',
     'num divide': '/',
     'num add': '+',
@@ -221,8 +224,9 @@ def normalize_name(name):
     if not isinstance(name, basestring):
         raise ValueError('Can only normalize string names. Unexpected '+ repr(name))
 
-    name = name.lower()
-    if name != '_':
+    if len(name) > 1:
+        name = name.lower()
+    if name != '_' and '_' in name:
         name = name.replace('_', ' ')
 
     return canonical_names.get(name, name)
