@@ -119,8 +119,12 @@ SendInput = user32.SendInput
 SendInput.argtypes = [c_uint, POINTER(INPUT), c_int]
 SendInput.restype = c_uint
 
+# https://msdn.microsoft.com/en-us/library/windows/desktop/ms646307(v=vs.85).aspx
+MAPVK_VK_TO_CHAR = 2
 MAPVK_VK_TO_VSC = 0
 MAPVK_VSC_TO_VK = 1
+MAPVK_VK_TO_VSC_EX = 4
+MAPVK_VSC_TO_VK_EX = 3 
 
 VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
@@ -147,7 +151,7 @@ keyboard_event_types = {
 
 # List taken from the official documentation, but stripped of the OEM-specific keys.
 # Keys are virtual key codes, values are pairs (name, is_keypad).
-from_virtual_key = {
+official_virtual_keys = {
     0x03: ('control-break processing', False),
     0x08: ('backspace', False),
     0x09: ('tab', False),
@@ -278,7 +282,7 @@ from_virtual_key = {
     0xa7: ('browser forward', False),
     0xa8: ('browser refresh', False),
     0xa9: ('browser stop', False),
-    0xaa: ('browser search key ', False),
+    0xaa: ('browser search key', False),
     0xab: ('browser favorites', False),
     0xac: ('browser start and home', False),
     0xad: ('volume mute', False),
@@ -313,11 +317,13 @@ from_virtual_key = {
 possible_extended_keys = [0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0xc, 0x6b, 0x2e, 0x2d, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f]
 reversed_extended_keys = [0x6f, 0xd]
 
-from_scan_code = {}
-to_scan_code = {}
+scan_code_to_name = {}
+name_to_scan_code = {}
 vk_to_scan_code = {}
 scan_code_to_vk = {}
 tables_lock = Lock()
+
+keypad_keys = set()
 
 # Alt gr is way outside the usual range of keys (0..127) and on my
 # computer is named as 'ctrl'. Therefore we add it manually and hope
@@ -334,54 +340,78 @@ def _setup_tables():
     tables_lock.acquire()
 
     try:
-        if from_scan_code and to_scan_code: return
-
-        for vk in range(0x01, 0x100):
-            scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
-            if not scan_code: continue
-
-            # Scan codes may map to multiple virtual key codes.
-            # In this case prefer the officially defined ones.
-            if scan_code_to_vk.get(scan_code, 0) not in from_virtual_key:
-                scan_code_to_vk[scan_code] = vk
-            vk_to_scan_code[vk] = scan_code
+        if scan_code_to_name and name_to_scan_code: return
 
         name_buffer = ctypes.create_unicode_buffer(32)
         keyboard_state = keyboard_state_type()
-        for scan_code in range(2**(23-16)):
-            from_scan_code[scan_code] = ['unknown', 'unknown']
 
+        # There are three ways to get names out of scan codes / virtual key codes:
+        # - MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR)
+        # - ToUnicode(vk, scan_code)
+        # - GetKeyNameText(scan_code)
+
+        for scan_code in range(128):
+            scan_code_to_name[scan_code] = [None, None]
+
+        # Get names and scan codes for every virtual key code.
+        for vk in range(0x01, 0x100):
+            scan_code = user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC)
+
+            if not scan_code:
+                # Some keys don't have a scan code. In this case we use -vk
+                # as pretend scan code, and remember this when sending events.
+                scan_code = -vk
+                scan_code_to_name[scan_code] = [None, None]
+
+            scan_code_to_vk[scan_code] = vk
+            vk_to_scan_code[vk] = scan_code
+
+            char = chr(user32.MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) & 0xFF)
+            if char != '\x00':
+                name_to_scan_code[char] = (scan_code, False)
+                scan_code_to_name[scan_code][False] = char
+
+            if vk in official_virtual_keys:
+                name, is_keypad = official_virtual_keys[vk]
+                # Overwrite with official name.
+                name_to_scan_code[name] = (scan_code, False)
+                scan_code_to_name[scan_code][False] = name
+                if is_keypad:
+                    keypad_keys.add(scan_code)
+
+            for shift_state in [0, 1]:
+                # https://msdn.microsoft.com/en-us/library/windows/desktop/ms646320%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396
+                # "Typically, ToUnicode performs the translation based on the virtual-key code."
+                keyboard_state[0x10] = shift_state * 0xFF
+                ret = ToUnicode(vk, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
+                if not ret: continue
+                # Sometimes two characters are written before the char we want,
+                # usually an accented one such as Â. Couldn't figure out why.
+                char = name_buffer.value[-1]
+                name_to_scan_code[char] = (scan_code, bool(shift_state))
+                scan_code_to_name[scan_code][shift_state] = char
+
+        # Get names for every scan code, including the ones that don't have a virtual key code.
+        for scan_code in range(128):
             # Get pure key name, such as "shift". This depends on locale and
             # may return a translated name.
             for enhanced in [1, 0]:
                 ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
-                if not ret:
-                    continue
+                if not ret: continue
                 name = normalize_name(name_buffer.value)
-                from_scan_code[scan_code] = [name, name]
-                to_scan_code[name] = (scan_code, False)
+                if len(name) == 1: name = name.lower()
+                name_to_scan_code[name] = (scan_code, False)
+                scan_code_to_name[scan_code][False] = name
                 if name == 'alt':
-                    # Windows only reports "right alt" and "alt".
-                    to_scan_code['left ' + name] = (scan_code, False)
+                    # Windows only reports "right alt" and "alt", so we
+                    # manually add an extra entry.
+                    name_to_scan_code['left ' + name] = (scan_code, False)
 
-            if scan_code not in scan_code_to_vk: continue
-            # Get associated character, such as "^", possibly overwriting the pure key name.
-            for shift_state in [0, 1]:
-                keyboard_state[0x10] = shift_state * 0xFF
-                # Try both manual and automatic scan_code->vk translations.
-                for vk in [scan_code_to_vk.get(scan_code, 0), user32.MapVirtualKeyW(scan_code, 3)]:
-                    ret = ToUnicode(vk, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
-                    if ret:
-                        # Sometimes two characters are written before the char we want,
-                        # usually an accented one such as Â. Couldn't figure out why.
-                        char = name_buffer.value[-1]
-                        if char not in to_scan_code:
-                            to_scan_code[char] = (scan_code, bool(shift_state))
-                        if scan_code not in from_scan_code:
-                            from_scan_code[scan_code][shift_state] = char
+        scan_code_to_name[alt_gr_scan_code] = ['alt gr', 'alt gr']
+        name_to_scan_code['alt gr'] = (alt_gr_scan_code, False)
 
-        from_scan_code[alt_gr_scan_code] = ['alt gr', 'alt gr']
-        to_scan_code['alt gr'] = (alt_gr_scan_code, False)
+        name_to_scan_code.update((normalize_name(name), pair) for name, pair in name_to_scan_code.items())
+        scan_code_to_name.update((scan_code, (normalize_name(pair[0]), normalize_name(pair[1] or pair[0]))) for scan_code, pair in scan_code_to_name.items())
     finally:
         tables_lock.release()
 
@@ -410,25 +440,24 @@ def prepare_intercept(callback):
         is_keypad = False
         if scan_code == alt_gr_scan_code:
             alt_gr_is_pressed = event_type == KEY_DOWN
-            name = 'alt gr'
-        else:
-            if vk in from_virtual_key:
-                # Pressing AltGr also triggers "right menu" quickly after. We
-                # try to filter out this event. The `alt_gr_is_pressed` flag
-                # is to avoid messing with keyboards that don't even have an
-                # alt gr key.
-                if vk == 165:
-                    return True
 
-                name, is_keypad = from_virtual_key[vk]
-                if vk in possible_extended_keys and not is_extended:
-                    is_keypad = True
-                # What the hell Windows?
-                if vk in reversed_extended_keys and is_extended:
-                    is_keypad = True                
-            
-            elif scan_code in from_scan_code:
-                name = from_scan_code[scan_code][shift_is_pressed]
+        if vk in official_virtual_keys:
+            # Pressing AltGr also triggers "right menu" quickly after. We
+            # try to filter out this event. The `alt_gr_is_pressed` flag
+            # is to avoid messing with keyboards that don't even have an
+            # alt gr key.
+            if vk == 165:
+                return True
+
+            name, is_keypad = official_virtual_keys[vk]
+            if vk in possible_extended_keys and not is_extended:
+                is_keypad = True
+            # What the hell Windows?/
+            if vk in reversed_extended_keys and is_extended:
+                is_keypad = True                
+
+        if scan_code in scan_code_to_name:
+            name = scan_code_to_name[scan_code][shift_is_pressed]
             
         if event_type == KEY_DOWN and 'shift' in name:
             shift_is_pressed = True
@@ -482,34 +511,27 @@ def listen(callback):
 def map_char(name):
     _setup_tables()
 
-    wants_keypad = name.startswith('keypad ')
-    if wants_keypad:
+    if name.startswith('keypad '):
         name = name[len('keypad '):]
+        for vk in official_virtual_keys:
+            candidate_name, is_keypad = official_virtual_keys[vk]
+            if is_keypad and candidate_name in (name, 'left ' + name, 'right ' + name):
+                return vk_to_scan_code[vk], []
 
-    for vk in from_virtual_key:
-        candidate_name, is_keypad = from_virtual_key[vk]
-        if candidate_name in (name, 'left ' + name, 'right ' + name) and is_keypad == wants_keypad:
-            # HACK: use negative scan codes to identify virtual key codes.
-            # This is required to correctly associate media keys, since they report a scan
-            # code of 0 but still have valid virtual key codes. It also helps standardizing
-            # the key names, since the virtual key code table is constant.
-            return -vk, []
-
-    if name in to_scan_code:
-        scan_code, shift = to_scan_code[name]
+    if name in name_to_scan_code:
+        scan_code, shift = name_to_scan_code[name]
         return scan_code, ['shift'] if shift else []
     else:
         raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
-# For pressing and releasing, we need both the scan code and virtual key code.
-# Only one is necessary most of the time, but some intrusive software require both.
 def _send_event(code, event_type):
-    if code < 0:
-        vk = -code
-        code = vk_to_scan_code[vk]
-    else:
+    if code > 0:
         vk = scan_code_to_vk.get(code, 0)
-    user32.keybd_event(vk, code, event_type, 0)
+        user32.keybd_event(vk, code, event_type, 0)
+    else:
+        # Negative scan code is a way to indicate we don't have a scan code,
+        # and the value actually contains the Virtual key code.
+        user32.keybd_event(-code, 0, event_type, 0)
 
 def press(code):
     _send_event(code, 0)
@@ -533,5 +555,9 @@ def type_unicode(character):
     SendInput(nInputs, pInputs, cbSize)
 
 if __name__ == '__main__':
-    listen(lambda e: print(e) or True)
+    _setup_tables()
+    import pprint
+    pprint.pprint(name_to_scan_code)
+    pprint.pprint(scan_code_to_name)
+    listen(lambda e: print(e.to_json()) or True)
     input()
