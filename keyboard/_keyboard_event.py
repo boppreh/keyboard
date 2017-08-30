@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from time import time as now
+import json
 
 try:
     basestring
@@ -24,6 +25,13 @@ class KeyboardEvent(object):
         self.is_keypad = is_keypad
         if name:
             self.name = normalize_name(name)
+
+    def to_json(self):
+        attrs = dict(
+            (attr, getattr(self, attr)) for attr in ['event_type', 'scan_code', 'name', 'time', 'device', 'is_keypad']
+            if not attr.startswith('_') and getattr(self, attr) is not None
+        )
+        return json.dumps(attrs)
 
     def __repr__(self):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
