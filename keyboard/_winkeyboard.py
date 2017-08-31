@@ -5,6 +5,11 @@ invoking the Win32 API through the ctypes module. This is error prone
 and can introduce very unpythonic failure modes, such as segfaults and
 low level memory leaks. But it is also dependency-free, very performant
 well documented on Microsoft's webstie and scattered examples.
+
+# TODO:
+- Decimal point in keypad doesn't have a name.
+- Keypad numbers still print as numbers even when nunlock is off.
+- ALt-Gr + keys doesn't have a different name (harder, requires keeping track of alt-gr).
 """
 import atexit
 from threading import Lock
@@ -445,19 +450,20 @@ def prepare_intercept(callback):
         global shift_is_pressed
 
         # Pressing AltGr also triggers "right menu" quickly after. We
-        # try to filter out this event. The `alt_gr_is_pressed` flag
-        # is to avoid messing with keyboards that don't even have an
-        # alt gr key.
+        # try to filter out this event.
         if vk == 165:
             return True
 
         entry = (scan_code, vk, is_extended, shift_is_pressed)
-        name = to_name.get(entry) or to_name.setdefault(entry, get_event_name(*entry))
+        try:
+            name = to_name.get(entry) or to_name.setdefault(entry, next(get_event_names(*entry)))
+        except StopIteration:
+            name = None
             
         # TODO: inaccurate when holding multiple different shifts.
-        if event_type == KEY_DOWN and 'shift' in name:
+        if event_type == KEY_DOWN and name and 'shift' in name:
             shift_is_pressed = True
-        elif event_type == KEY_UP and 'shift' in name:
+        elif event_type == KEY_UP and name and 'shift' in name:
             shift_is_pressed = False
 
         is_keypad = (scan_code, vk, is_extended) in keypad_keys
