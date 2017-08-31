@@ -10,6 +10,7 @@ well documented on Microsoft's webstie and scattered examples.
 - Decimal point in keypad doesn't have a name.
 - Keypad numbers still print as numbers even when nunlock is off.
 - ALt-Gr + keys doesn't have a different name (harder, requires keeping track of alt-gr).
+- No way to specify if user wants a keypad key or not in `map_char`.
 """
 import atexit
 from threading import Lock
@@ -331,7 +332,11 @@ def get_event_names(scan_code, vk, is_extended, shift_state):
     keyboard_state[0x10] = shift_state * 0xFF
     unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
     if unicode_ret and unicode_buffer.value:
-        yield unicode_buffer.value
+        yield str(unicode_buffer.value)
+        # ToUnicode has the side effect of setting global flags for dead keys.
+        # Therefore we need to call it twice to clear those flags.
+        # If your 6 and 7 keys are named "^6" and "^7", this is the reason.
+        ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
 
     name_ret = GetKeyNameText(scan_code << 16 | is_extended << 24, name_buffer, 1024)
     if name_ret and name_buffer.value:
@@ -371,12 +376,12 @@ def _setup_name_tables():
                 for shift_state in [0, 1]:
                     entry = (scan_code, vk, extended, shift_state)
                     # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
-                    names = [normalize_name(name) for name in get_event_names(*entry)]
+                    names = list(get_event_names(*entry))
                     if names:
-                        to_name[entry] = names[0]
+                        to_name[entry] = names
                         # Remember the "id" of the name, as the first techniques
                         # have better results and therefore priority.
-                        for i, name in enumerate(names):
+                        for i, name in enumerate(map(normalize_name, names)):
                             from_name.setdefault(name, set()).add((i, entry))
 
         # TODO: single quotes on US INTL is returning the dead key (?), and therefore
@@ -387,7 +392,7 @@ def _setup_name_tables():
         # Windows is consistent in its inconsistency.
         for extended in [0, 1]:
             for shift_state in [0, 1]:
-                to_name[(541, 162, extended, shift_state)] = 'alt gr'
+                to_name[(541, 162, extended, shift_state)] = ['alt gr']
 
 # Called by keyboard/__init__.py
 init = _setup_name_tables
@@ -434,6 +439,7 @@ keypad_keys = [
 ]
 
 shift_is_pressed = False
+shift_vks = set([0x10, 0xa0, 0xa1])
 def prepare_intercept(callback):
     """
     Registers a Windows low level keyboard hook. The provided callback will
@@ -455,15 +461,15 @@ def prepare_intercept(callback):
             return True
 
         entry = (scan_code, vk, is_extended, shift_is_pressed)
-        try:
-            name = to_name.get(entry) or to_name.setdefault(entry, next(get_event_names(*entry)))
-        except StopIteration:
-            name = None
+        if entry not in to_name:
+            to_name[entry] = list(get_event_names(*entry))
+        names = to_name[entry]
+        name = names[0] if names else None
             
         # TODO: inaccurate when holding multiple different shifts.
-        if event_type == KEY_DOWN and name and 'shift' in name:
+        if event_type == KEY_DOWN and vk in shift_vks:
             shift_is_pressed = True
-        elif event_type == KEY_UP and name and 'shift' in name:
+        elif event_type == KEY_UP and vk in shift_vks:
             shift_is_pressed = False
 
         is_keypad = (scan_code, vk, is_extended) in keypad_keys
@@ -504,7 +510,7 @@ def listen(callback):
 
 def map_char(name):
     _setup_name_tables()
-    if name in from_name:
+    if from_name.get(name):
         i, entry = sorted(from_name[name])[0]
         scan_code, vk, is_extended, shift = entry
         return scan_code or -vk, ['shift'] * shift
