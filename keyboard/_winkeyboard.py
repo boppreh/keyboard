@@ -9,7 +9,6 @@ well documented on Microsoft's webstie and scattered examples.
 # TODO:
 - Decimal point in keypad doesn't have a name.
 - Keypad numbers still print as numbers even when nunlock is off.
-- ALt-Gr + keys doesn't have a different name (harder, requires keeping track of alt-gr).
 - No way to specify if user wants a keypad key or not in `map_char`.
 """
 import atexit
@@ -328,11 +327,14 @@ vk_to_scan_code = {}
 name_buffer = ctypes.create_unicode_buffer(32)
 unicode_buffer = ctypes.create_unicode_buffer(32)
 keyboard_state = keyboard_state_type()
-def get_event_names(scan_code, vk, is_extended, shift_state):
-    keyboard_state[0x10] = shift_state * 0xFF
+def get_event_names(scan_code, vk, is_extended, shift_state, altgr_state):
+    keyboard_state[0x10] = shift_state * 0x80
+    keyboard_state[0x11] = altgr_state * 0x80
+    keyboard_state[0x12] = altgr_state * 0x80
     unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
     if unicode_ret and unicode_buffer.value:
-        yield str(unicode_buffer.value)
+        yield unicode_buffer.value
+        # unicode_ret == -1 -> is dead key
         # ToUnicode has the side effect of setting global flags for dead keys.
         # Therefore we need to call it twice to clear those flags.
         # If your 6 and 7 keys are named "^6" and "^7", this is the reason.
@@ -363,7 +365,7 @@ def _setup_name_tables():
         all_vks =        [(user32.MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, 0) & 0xFF, vk) for vk in range(0x100)]
         for scan_code, vk in all_scan_codes + all_vks:
             # `to_name` and `from_name` entries will be a tuple (scan_code, vk, extended, shift_state).
-            if (scan_code, vk, 0, 0) in to_name:
+            if (scan_code, vk, 0, 0, 0) in to_name:
                 continue
 
             if scan_code not in scan_code_to_vk:
@@ -374,15 +376,16 @@ def _setup_name_tables():
             # Brute force all combinations to find all possible names.
             for extended in [0, 1]:
                 for shift_state in [0, 1]:
-                    entry = (scan_code, vk, extended, shift_state)
-                    # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
-                    names = list(get_event_names(*entry))
-                    if names:
-                        to_name[entry] = names
-                        # Remember the "id" of the name, as the first techniques
-                        # have better results and therefore priority.
-                        for i, name in enumerate(map(normalize_name, names)):
-                            from_name.setdefault(name, set()).add((i, entry))
+                    for altgr_state in [0] if shift_state else [0, 1]:
+                        entry = (scan_code, vk, extended, shift_state, altgr_state)
+                        # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
+                        names = list(get_event_names(*entry))
+                        if names:
+                            to_name[entry] = names
+                            # Remember the "id" of the name, as the first techniques
+                            # have better results and therefore priority.
+                            for i, name in enumerate(map(normalize_name, names)):
+                                from_name.setdefault(name, set()).add((i, entry))
 
         # TODO: single quotes on US INTL is returning the dead key (?), and therefore
         # not typing properly.
@@ -390,9 +393,12 @@ def _setup_name_tables():
         # Alt gr is way outside the usual range of keys (0..127) and on my
         # computer is named as 'ctrl'. Therefore we add it manually and hope
         # Windows is consistent in its inconsistency.
+        from_name['alt gr'] = []
         for extended in [0, 1]:
             for shift_state in [0, 1]:
-                to_name[(541, 162, extended, shift_state)] = ['alt gr']
+                for altgr_state in [0, 1]:
+                    to_name[(541, 162, extended, shift_state, altgr_state)] = ['alt gr']
+                    from_name['alt gr'].append((541, 162, extended, shift_state, altgr_state))
 
 # Called by keyboard/__init__.py
 init = _setup_name_tables
@@ -439,6 +445,7 @@ keypad_keys = [
 ]
 
 shift_is_pressed = False
+altgr_is_pressed = False
 shift_vks = set([0x10, 0xa0, 0xa1])
 def prepare_intercept(callback):
     """
@@ -453,14 +460,14 @@ def prepare_intercept(callback):
     _setup_name_tables()
     
     def process_key(event_type, vk, scan_code, is_extended):
-        global shift_is_pressed
+        global shift_is_pressed, altgr_is_pressed
 
         # Pressing AltGr also triggers "right menu" quickly after. We
         # try to filter out this event.
         if vk == 165:
             return True
 
-        entry = (scan_code, vk, is_extended, shift_is_pressed)
+        entry = (scan_code, vk, is_extended, shift_is_pressed, altgr_is_pressed)
         if entry not in to_name:
             to_name[entry] = list(get_event_names(*entry))
         names = to_name[entry]
@@ -471,6 +478,11 @@ def prepare_intercept(callback):
             shift_is_pressed = True
         elif event_type == KEY_UP and vk in shift_vks:
             shift_is_pressed = False
+
+        if event_type == KEY_DOWN and scan_code == 541:
+            altgr_is_pressed = True
+        elif event_type == KEY_UP and scan_code == 541:
+            altgr_is_pressed = False
 
         is_keypad = (scan_code, vk, is_extended) in keypad_keys
         return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
@@ -512,8 +524,8 @@ def map_char(name):
     _setup_name_tables()
     if from_name.get(name):
         i, entry = sorted(from_name[name])[0]
-        scan_code, vk, is_extended, shift = entry
-        return scan_code or -vk, ['shift'] * shift
+        scan_code, vk, is_extended, shift, altgr = entry
+        return scan_code or -vk, (['shift'] * shift) + (['alt gr'] * altgr)
     else:
         raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
