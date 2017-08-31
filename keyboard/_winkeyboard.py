@@ -7,8 +7,7 @@ low level memory leaks. But it is also dependency-free, very performant
 well documented on Microsoft's webstie and scattered examples.
 
 # TODO:
-- Decimal point in keypad doesn't have a name.
-- Keypad numbers still print as numbers even when nunlock is off.
+- Keypad numbers still print as numbers even when numlock is off.
 - No way to specify if user wants a keypad key or not in `map_char`.
 """
 import atexit
@@ -324,13 +323,22 @@ from_name = {}
 scan_code_to_vk = {}
 vk_to_scan_code = {}
 
+distinct_modifiers = [
+    (),
+    ('shift',),
+    ('alt gr',),
+    #('num lock',),
+    #('shift', 'num lock')
+]
+
 name_buffer = ctypes.create_unicode_buffer(32)
 unicode_buffer = ctypes.create_unicode_buffer(32)
 keyboard_state = keyboard_state_type()
-def get_event_names(scan_code, vk, is_extended, shift_state, altgr_state):
-    keyboard_state[0x10] = shift_state * 0x80
-    keyboard_state[0x11] = altgr_state * 0x80
-    keyboard_state[0x12] = altgr_state * 0x80
+def get_event_names(scan_code, vk, is_extended, modifiers):
+    keyboard_state[0x10] = 0x80 * ('shift' in modifiers)
+    keyboard_state[0x11] = 0x80 * ('alt gr' in modifiers)
+    keyboard_state[0x12] = 0x80 * ('alt gr' in modifiers)
+    keyboard_state[0x90] = 0x01 * ('num lock' in modifiers)
     unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
     if unicode_ret and unicode_buffer.value:
         yield unicode_buffer.value
@@ -375,17 +383,16 @@ def _setup_name_tables():
 
             # Brute force all combinations to find all possible names.
             for extended in [0, 1]:
-                for shift_state in [0, 1]:
-                    for altgr_state in [0] if shift_state else [0, 1]:
-                        entry = (scan_code, vk, extended, shift_state, altgr_state)
-                        # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
-                        names = list(get_event_names(*entry))
-                        if names:
-                            to_name[entry] = names
-                            # Remember the "id" of the name, as the first techniques
-                            # have better results and therefore priority.
-                            for i, name in enumerate(map(normalize_name, names)):
-                                from_name.setdefault(name, set()).add((i, entry))
+                for modifiers in distinct_modifiers:
+                    entry = (scan_code, vk, extended, modifiers)
+                    # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
+                    names = list(get_event_names(*entry))
+                    if names:
+                        to_name[entry] = names
+                        # Remember the "id" of the name, as the first techniques
+                        # have better results and therefore priority.
+                        for i, name in enumerate(map(normalize_name, names)):
+                            from_name.setdefault(name, set()).add((i, entry))
 
         # TODO: single quotes on US INTL is returning the dead key (?), and therefore
         # not typing properly.
@@ -467,7 +474,8 @@ def prepare_intercept(callback):
         if vk == 165:
             return True
 
-        entry = (scan_code, vk, is_extended, shift_is_pressed, altgr_is_pressed)
+        modifiers = ('shift',) * shift_is_pressed + ('alt gr',) *  altgr_is_pressed# + ('num lock',) * (user32.GetKeyState(0x90) & 1)
+        entry = (scan_code, vk, is_extended, modifiers)
         if entry not in to_name:
             to_name[entry] = list(get_event_names(*entry))
         names = to_name[entry]
@@ -524,8 +532,8 @@ def map_char(name):
     _setup_name_tables()
     if from_name.get(name):
         i, entry = sorted(from_name[name])[0]
-        scan_code, vk, is_extended, shift, altgr = entry
-        return scan_code or -vk, (['shift'] * shift) + (['alt gr'] * altgr)
+        scan_code, vk, is_extended, modifiers = entry
+        return scan_code or -vk, modifiers
     else:
         raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
