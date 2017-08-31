@@ -300,7 +300,7 @@ official_virtual_keys = {
     0xbc: (',', False),
     0xbd: ('-', False),
     0xbe: ('.', False),
-    # 0xbe: ('/', False), # Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '/?' key.
+    #0xbe:('/', False), # Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '/?.
     0xe5: ('ime process', False),
     0xf6: ('attn', False),
     0xf7: ('crsel', False),
@@ -313,113 +313,122 @@ official_virtual_keys = {
     0xfe: ('clear', False),
 }
 
-# Exceptions to our logic. Still trying to figure out what is happening.
-possible_extended_keys = [0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0xc, 0x6b, 0x2e, 0x2d, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f]
-reversed_extended_keys = [0x6f, 0xd]
-
-scan_code_to_name = {}
-name_to_scan_code = {}
-vk_to_scan_code = {}
-scan_code_to_vk = {}
 tables_lock = Lock()
+to_name = {}
+from_name = {}
+scan_code_to_vk = {}
+vk_to_scan_code = {}
 
-keypad_keys = set()
+name_buffer = ctypes.create_unicode_buffer(32)
+unicode_buffer = ctypes.create_unicode_buffer(32)
+keyboard_state = keyboard_state_type()
+def get_event_names(scan_code, vk, is_extended, shift_state):
+    keyboard_state[0x10] = shift_state * 0xFF
+    unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
+    if unicode_ret and unicode_buffer.value:
+        yield unicode_buffer.value
 
-# Alt gr is way outside the usual range of keys (0..127) and on my
-# computer is named as 'ctrl'. Therefore we add it manually and hope
-# Windows is consistent in its inconsistency.
-alt_gr_scan_code = 541
+    name_ret = GetKeyNameText(scan_code << 16 | is_extended << 24, name_buffer, 1024)
+    if name_ret and name_buffer.value:
+        yield name_buffer.value
 
-# These tables are used as backup when a key name can not be found by virtual
-# key code.
-def _setup_tables():
+    char = chr(user32.MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) & 0xFF)
+    if char != '\x00' and char:
+        yield char
+
+    if vk in official_virtual_keys:
+        yield official_virtual_keys[vk][0]
+
+def _setup_name_tables():
     """
     Ensures the scan code/virtual key code/name translation tables are
     filled.
     """
-    tables_lock.acquire()
+    with tables_lock:
+        if to_name: return
 
-    try:
-        if scan_code_to_name and name_to_scan_code: return
+        # Go through every possible scan code, and map them to virtual key codes.
+        # Then vice-versa.
+        all_scan_codes = [(sc, user32.MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK_EX, 0) & 0xFF) for sc in range(0x100)]
+        all_vks =        [(user32.MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, 0) & 0xFF, vk) for vk in range(0x100)]
+        for scan_code, vk in all_scan_codes + all_vks:
+            # `to_name` and `from_name` entries will be a tuple (scan_code, vk, extended, shift_state).
+            if (scan_code, vk, 0, 0) in to_name:
+                continue
 
-        name_buffer = ctypes.create_unicode_buffer(32)
-        keyboard_state = keyboard_state_type()
+            if scan_code not in scan_code_to_vk:
+                scan_code_to_vk[scan_code] = vk
+            if vk not in vk_to_scan_code:
+                vk_to_scan_code[vk] = scan_code
 
-        # There are three ways to get names out of scan codes / virtual key codes:
-        # - MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR)
-        # - ToUnicode(vk, scan_code)
-        # - GetKeyNameText(scan_code)
+            # Brute force all combinations to find all possible names.
+            for extended in [0, 1]:
+                for shift_state in [0, 1]:
+                    entry = (scan_code, vk, extended, shift_state)
+                    # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
+                    names = [normalize_name(name) for name in get_event_names(*entry)]
+                    if names:
+                        to_name[entry] = names[0]
+                        # Remember the "id" of the name, as the first techniques
+                        # have better results and therefore priority.
+                        for i, name in enumerate(names):
+                            from_name.setdefault(name, set()).add((i, entry))
 
-        for scan_code in range(128):
-            scan_code_to_name[scan_code] = [None, None]
+        # TODO: single quotes on US INTL is returning the dead key (?), and therefore
+        # not typing properly.
 
-        # Get names and scan codes for every virtual key code.
-        for vk in range(0x01, 0x100):
-            scan_code = user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC)
-
-            if not scan_code:
-                # Some keys don't have a scan code. In this case we use -vk
-                # as pretend scan code, and remember this when sending events.
-                scan_code = -vk
-                scan_code_to_name[scan_code] = [None, None]
-
-            scan_code_to_vk[scan_code] = vk
-            vk_to_scan_code[vk] = scan_code
-
-            char = chr(user32.MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) & 0xFF)
-            if char != '\x00':
-                name_to_scan_code[char] = (scan_code, False)
-                scan_code_to_name[scan_code][False] = char
-
-            if vk in official_virtual_keys:
-                name, is_keypad = official_virtual_keys[vk]
-                # Overwrite with official name.
-                name_to_scan_code[name] = (scan_code, False)
-                scan_code_to_name[scan_code][False] = name
-                if is_keypad:
-                    keypad_keys.add(scan_code)
-
+        # Alt gr is way outside the usual range of keys (0..127) and on my
+        # computer is named as 'ctrl'. Therefore we add it manually and hope
+        # Windows is consistent in its inconsistency.
+        for extended in [0, 1]:
             for shift_state in [0, 1]:
-                # https://msdn.microsoft.com/en-us/library/windows/desktop/ms646320%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396
-                # "Typically, ToUnicode performs the translation based on the virtual-key code."
-                keyboard_state[0x10] = shift_state * 0xFF
-                ret = ToUnicode(vk, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
-                if not ret: continue
-                # Sometimes two characters are written before the char we want,
-                # usually an accented one such as Â. Couldn't figure out why.
-                char = name_buffer.value[-1]
-                name_to_scan_code[char] = (scan_code, bool(shift_state))
-                scan_code_to_name[scan_code][shift_state] = char
+                to_name[(541, 162, extended, shift_state)] = 'alt gr'
 
-        # Get names for every scan code, including the ones that don't have a virtual key code.
-        for scan_code in range(128):
-            # Get pure key name, such as "shift". This depends on locale and
-            # may return a translated name.
-            for enhanced in [1, 0]:
-                ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
-                if not ret: continue
-                name = normalize_name(name_buffer.value)
-                if len(name) == 1: name = name.lower()
-                name_to_scan_code[name] = (scan_code, False)
-                scan_code_to_name[scan_code][False] = name
-                if name == 'alt':
-                    # Windows only reports "right alt" and "alt", so we
-                    # manually add an extra entry.
-                    name_to_scan_code['left ' + name] = (scan_code, False)
+# Called by keyboard/__init__.py
+init = _setup_name_tables
 
-        scan_code_to_name[alt_gr_scan_code] = ['alt gr', 'alt gr']
-        name_to_scan_code['alt gr'] = (alt_gr_scan_code, False)
-
-        name_to_scan_code.update((normalize_name(name), pair) for name, pair in name_to_scan_code.items())
-        scan_code_to_name.update((scan_code, (normalize_name(pair[0]), normalize_name(pair[1] or pair[0]))) for scan_code, pair in scan_code_to_name.items())
-    finally:
-        tables_lock.release()
+# List created manually.
+keypad_keys = [
+    # (scan_code, virtual_key_code, is_extended)
+    (126, 194, 0),
+    (126, 194, 0),
+    (28, 13, 1),
+    (28, 13, 1),
+    (53, 111, 1),
+    (53, 111, 1),
+    (55, 106, 0),
+    (55, 106, 0),
+    (69, 144, 1),
+    (69, 144, 1),
+    (71, 103, 0),
+    (71, 36, 0),
+    (72, 104, 0),
+    (72, 38, 0),
+    (73, 105, 0),
+    (73, 33, 0),
+    (74, 109, 0),
+    (74, 109, 0),
+    (75, 100, 0),
+    (75, 37, 0),
+    (76, 101, 0),
+    (76, 12, 0),
+    (77, 102, 0),
+    (77, 39, 0),
+    (78, 107, 0),
+    (78, 107, 0),
+    (79, 35, 0),
+    (79, 97, 0),
+    (80, 40, 0),
+    (80, 98, 0),
+    (81, 34, 0),
+    (81, 99, 0),
+    (82, 45, 0),
+    (82, 96, 0),
+    (83, 110, 0),
+    (83, 46, 0),
+]
 
 shift_is_pressed = False
-alt_gr_is_pressed = False
-
-init = _setup_tables
-
 def prepare_intercept(callback):
     """
     Registers a Windows low level keyboard hook. The provided callback will
@@ -430,40 +439,28 @@ def prepare_intercept(callback):
     No event is processed until the Windows messages are pumped (see
     start_intercept).
     """
-    _setup_tables()
+    _setup_name_tables()
     
     def process_key(event_type, vk, scan_code, is_extended):
-        global alt_gr_is_pressed
         global shift_is_pressed
 
-        name = 'unknown'
-        is_keypad = False
-        if scan_code == alt_gr_scan_code:
-            alt_gr_is_pressed = event_type == KEY_DOWN
+        # Pressing AltGr also triggers "right menu" quickly after. We
+        # try to filter out this event. The `alt_gr_is_pressed` flag
+        # is to avoid messing with keyboards that don't even have an
+        # alt gr key.
+        if vk == 165:
+            return True
 
-        if vk in official_virtual_keys:
-            # Pressing AltGr also triggers "right menu" quickly after. We
-            # try to filter out this event. The `alt_gr_is_pressed` flag
-            # is to avoid messing with keyboards that don't even have an
-            # alt gr key.
-            if vk == 165:
-                return True
-
-            name, is_keypad = official_virtual_keys[vk]
-            if vk in possible_extended_keys and not is_extended:
-                is_keypad = True
-            # What the hell Windows?/
-            if vk in reversed_extended_keys and is_extended:
-                is_keypad = True                
-
-        if scan_code in scan_code_to_name:
-            name = scan_code_to_name[scan_code][shift_is_pressed]
+        entry = (scan_code, vk, is_extended, shift_is_pressed)
+        name = to_name.get(entry) or to_name.setdefault(entry, get_event_name(*entry))
             
+        # TODO: inaccurate when holding multiple different shifts.
         if event_type == KEY_DOWN and 'shift' in name:
             shift_is_pressed = True
         elif event_type == KEY_UP and 'shift' in name:
             shift_is_pressed = False
 
+        is_keypad = (scan_code, vk, is_extended) in keypad_keys
         return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
@@ -492,35 +489,19 @@ def prepare_intercept(callback):
     # try/finally block doesn't seem to work here.
     atexit.register(UnhookWindowsHookEx, keyboard_callback)
 
-def _start_intercept():
-    """
-    Starts pumping Windows messages, which invokes the registered low
-    level keyboard hook.
-    """
-    # TODO: why does this work, without the whole Translate/Dispatch dance?
-    GetMessage(LPMSG(), NULL, NULL, NULL)
-    #msg = LPMSG()
-    #while not GetMessage(msg, NULL, NULL, NULL):
-    #    TranslateMessage(msg)
-    #    DispatchMessage(msg)
-
 def listen(callback):
     prepare_intercept(callback)
-    _start_intercept()
+    msg = LPMSG()
+    while not GetMessage(msg, NULL, NULL, NULL):
+        TranslateMessage(msg)
+        DispatchMessage(msg)
 
 def map_char(name):
-    _setup_tables()
-
-    if name.startswith('keypad '):
-        name = name[len('keypad '):]
-        for vk in official_virtual_keys:
-            candidate_name, is_keypad = official_virtual_keys[vk]
-            if is_keypad and candidate_name in (name, 'left ' + name, 'right ' + name):
-                return vk_to_scan_code[vk], []
-
-    if name in name_to_scan_code:
-        scan_code, shift = name_to_scan_code[name]
-        return scan_code, ['shift'] if shift else []
+    _setup_name_tables()
+    if name in from_name:
+        i, entry = sorted(from_name[name])[0]
+        scan_code, vk, is_extended, shift = entry
+        return scan_code or -vk, ['shift'] * shift
     else:
         raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
@@ -555,9 +536,8 @@ def type_unicode(character):
     SendInput(nInputs, pInputs, cbSize)
 
 if __name__ == '__main__':
-    _setup_tables()
+    _setup_name_tables()
     import pprint
-    pprint.pprint(name_to_scan_code)
-    pprint.pprint(scan_code_to_name)
-    listen(lambda e: print(e.to_json()) or True)
-    input()
+    pprint.pprint(to_name)
+    pprint.pprint(from_name)
+    #listen(lambda e: print(e.to_json()) or True)
