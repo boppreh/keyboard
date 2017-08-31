@@ -66,7 +66,7 @@ keyboard.wait()
 - Events generated under Windows don't report device id (`event.device == None`). [#21](https://github.com/boppreh/keyboard/issues/21)
 - Media keys on Linux may appear nameless (scan-code only) or not at all. [#20](https://github.com/boppreh/keyboard/issues/20)
 - Key suppression/blocking only available on Windows. [#22](https://github.com/boppreh/keyboard/issues/22)
-- To avoid depending on X ,the Linux parts reads raw device files (`/dev/input/input*`)
+- To avoid depending on X, the Linux parts reads raw device files (`/dev/input/input*`)
 but this requries root.
 - Other applications, such as some games, may register hooks that swallow all 
 key events. In this case `keyboard` will be unable to report events.
@@ -90,6 +90,7 @@ except NameError:
     _is_str = lambda x: isinstance(x, str)
     _is_number = lambda x: isinstance(x, int)
     import queue as _queue
+_is_list = lambda x: isinstance(x, (list, tuple))
 
 # Just a dynamic object to store attributes for the closures.
 class _State(object): pass
@@ -179,24 +180,11 @@ class _KeyboardListener(_GenericListener):
         event should be blocked or not, and passes a copy of the event to
         other, non-blocking, listeners.
 
-        There are two ways to block events: killing keys, which behaves as if
-        the key was not present, by suppressing all its events; and blocked
-        hotkeys, which suppress specific key combinations.
-
-        Properly blocking all key combos requires time travel: if "a+b" is
-        blocked, accepting or not "a" depends if it'll be followed by "b".
-        Things get hairer with multi-steps, timeouts, multiple blocks, keys
-        held between presses, etc. So we don't. Only modifiers+key are
-        accepted.
-
-        This is possible because modifiers fall into two categories:
-        - `ctrl` and `shift` usually have no effect on their own.
-        - `alt` and `windows` have actions by themselves, but only when
-        released.
-        So we allow `ctrl` and `shift`, in case they are being used by a game
-        or similar, and suppress key presses of `alt` and `windows`, faking a
-        key press when they are released by themselves.
+        There are two ways to block events: remapped keys, which translate
+        events by suppressing and re-emitting; and blocked hotkeys, which
+        suppress specific key combinations.
         """
+
         # Pass through all fake key events, don't even report to other handlers.
         if self.is_replaying:
             return True
@@ -212,9 +200,8 @@ class _KeyboardListener(_GenericListener):
         event_type = event.event_type
 
         # Mappings based on individual keys instead of hotkeys.
-        if event.name in self.blocking_keys:
-            return self.blocking_keys[event.name](event)
-
+        if event.name in self.blocking_keys and not self.blocking_keys[event.name](event):
+            return False
 
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_DOWN:
@@ -240,10 +227,9 @@ class _KeyboardListener(_GenericListener):
             for key in modifiers_to_update:
                 transition_tuple = (self.modifier_states.get(key, 'free'), event_type, origin)
                 should_press, new_accept, new_state = self.transition_table[transition_tuple]
+                if should_press: press(key)
                 if new_accept is not None: accept = new_accept
                 self.modifier_states[key] = new_state
-                if should_press:
-                    press(key)
 
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_UP:
@@ -287,39 +273,38 @@ def is_pressed(key):
     """
     _listener.start_if_necessary()
     if _is_number(key):
+        # Optimization.
         return key in _pressed_events
-    elif len(key) > 1 and ('+' in key or ',' in key):
-        parts = canonicalize(key)
-        if len(parts) > 1:
-            raise ValueError('Cannot check status of multi-step combination ({}).'.format(key))
-        return all(is_pressed(part) for part in parts[0])
-    else:
+    parts = _parse_hotkey(key)
+    if len(parts) > 1:
+        raise ValueError('Cannot check status of multi-step combination ({}).'.format(key))
+    for key in parts[0]:
         for event in _pressed_events.values():
-            if matches(event, key):
-                return True
-        return False
+            if not matches(event, key):
+                return False
+    return True
 
-def canonicalize(hotkey):
+def _parse_hotkey(hotkey):
     """
     Splits a user provided hotkey into a list of steps, each one made of a list
     of scan codes or names. Used to normalize input at the API boundary. When a
     combo is given (e.g. 'ctrl + a, b') spaces are ignored.
 
-        canonicalize(57) -> [[57]]
-        canonicalize([[57]]) -> [[57]]
-        canonicalize('space') -> [['space']]
-        canonicalize('ctrl+space') -> [['ctrl', 'space']]
-        canonicalize('ctrl+space, space') -> [['ctrl', 'space'], ['space']]
+        _parse_hotkey(57) -> [[57]]
+        _parse_hotkey([[57]]) -> [[57]]
+        _parse_hotkey('space') -> [['space']]
+        _parse_hotkey('ctrl+space') -> [['ctrl', 'space']]
+        _parse_hotkey('ctrl+space, space') -> [['ctrl', 'space'], ['space']]
 
     Note we must not convert names into scan codes because a name may represent
     more than one physical key (e.g. two 'ctrl' keys).
     """
-    if isinstance(hotkey, list) and all(isinstance(step, list) for step in hotkey):
-        # Already canonicalized, nothing to do.
+    if _is_list(hotkey) and all(_is_list(step) for step in hotkey):
+        # Already _parse_hotkeyd, nothing to do.
         return hotkey
-    elif isinstance(hotkey, list) and all(isinstance(key, (str, int)) for key in hotkey):
+    elif _is_list(hotkey) and all(not _is_list(key) for key in hotkey):
         # Make list of names or scan codes into list of steps.
-        return canonicalize([hotkey])
+        return _parse_hotkey([hotkey])
     elif _is_number(hotkey):
         return [[hotkey]]
 
@@ -404,7 +389,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         # TODO: removal
         return hook_blocking_hotkey(hotkey, lambda e: (callback(args), False)[1])
 
-    steps = canonicalize(hotkey)
+    steps = _parse_hotkey(hotkey)
 
     state = _State()
     state.step = 0
@@ -665,7 +650,7 @@ def restore_state(scan_codes):
 
     _listener.is_replaying = False
 
-def write(text, delay=0, restore_state_after=True, exact=False):
+def write(text, delay=0, restore_state_after=True, exact=None):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Characters not available on the keyboard are typed as explicit unicode
@@ -679,35 +664,40 @@ def write(text, delay=0, restore_state_after=True, exact=False):
     - `restore_state_after` can be used to restore the state of pressed keys
     after the text is typed, i.e. presses the keys that were released at the
     beginning. Defaults to True.
-    - `exact` forces typing all characters as explicit unicode (e.g. alt+codepoint)
+    - `exact` forces typing all characters as explicit unicode (e.g.
+    alt+codepoint or special events). If None, uses platform-specific suggested
+    value.
     """
     state = stash_state()
     
-    if exact:
+    # Window's typing of unicode characters is quite efficient and should be preferred.
+    if exact or (exact is None and _platform.system() == 'Windows'):
         for letter in text:
             _os_keyboard.type_unicode(letter)
             if delay: _time.sleep(delay)
 
     else:
         for letter in text:
+            if letter in '\n\b\t ':
+                letter = _normalize_name(letter)
+                
             try:
-                if letter in '\n\b\t ':
-                    letter = _normalize_name(letter)
                 scan_code, modifiers = _os_keyboard.map_char(letter)
-
-                if is_pressed(scan_code):
-                    release(scan_code)
-
-                for modifier in modifiers:
-                    press(modifier)
-
-                _os_keyboard.press(scan_code)
-                _os_keyboard.release(scan_code)
-
-                for modifier in modifiers:
-                    release(modifier)
             except ValueError:
                 _os_keyboard.type_unicode(letter)
+                continue
+
+            if is_pressed(scan_code):
+                release(scan_code)
+
+            for modifier in modifiers:
+                press(modifier)
+
+            _os_keyboard.press(scan_code)
+            _os_keyboard.release(scan_code)
+
+            for modifier in modifiers:
+                release(modifier)
 
             if delay:
                 _time.sleep(delay)
@@ -745,7 +735,7 @@ def send(combination, do_press=True, do_release=True):
     """
     _listener.is_replaying = True
 
-    for keys in canonicalize(combination):
+    for keys in _parse_hotkey(combination):
         if do_press:
             for key in keys:
                 _os_keyboard.press(to_scan_code(key))
@@ -871,7 +861,7 @@ def get_typed_strings(events, allow_backspace=True):
     for event in events:
         name = event.name
 
-        # Space is the only key that we canonicalize to the spelled out name
+        # Space is the only key that we _parse_hotkey to the spelled out name
         # because of legibility. Now we have to undo that.
         if matches(event, 'space'):
             name = ' '
@@ -984,7 +974,7 @@ def _get_sided_keys(key):
 def _parse_blocking_hotkey(hotkey):
     _listener.start_if_necessary()
 
-    steps = canonicalize(hotkey)
+    steps = _parse_hotkey(hotkey)
     if len(steps) > 1:
         raise NotImplementedError('Cannot hook multi-step blocking hotkey (e.g. "alt+s, t"). Please see https://github.com/boppreh/keyboard/issues/22')
     names = set(steps[0])
@@ -1113,7 +1103,7 @@ def unhook_blocking():
 def add_multi_step_blocking_hotkey(hotkey, callback):
     # TODO: timeout
     # TODO: merge hotkeys instead of overwriting
-    parts = canonicalize(hotkey)
+    parts = _parse_hotkey(hotkey)
 
     state = _State()
     state.index = 0
