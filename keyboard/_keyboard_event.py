@@ -31,7 +31,7 @@ class KeyboardEvent(object):
             (attr, getattr(self, attr)) for attr in ['event_type', 'scan_code', 'name', 'time', 'device', 'is_keypad']
             if not attr.startswith('_') and getattr(self, attr) is not None
         )
-        return json.dumps(attrs)
+        return json.dumps(attrs, ensure_ascii=False)
 
     def __repr__(self):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
