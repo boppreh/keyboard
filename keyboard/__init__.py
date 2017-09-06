@@ -280,9 +280,9 @@ def is_pressed(key):
         raise ValueError('Cannot check status of multi-step combination ({}).'.format(key))
     for key in parts[0]:
         for event in _pressed_events.values():
-            if not matches(event, key):
-                return False
-    return True
+            if matches(event, key):
+                return True
+    return False
 
 def _parse_hotkey(hotkey):
     """
@@ -967,7 +967,9 @@ def _get_sided_keys(key):
     Generates key variations with 'left' and 'right' when the key is sided.
     """
     if key in sided_keys:
-        yield from (prefix + key for prefix in ['', 'left ', 'right '])
+        yield key
+        yield 'left ' + key
+        yield 'right ' + key
     else:
         yield key
 
