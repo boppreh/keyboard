@@ -6,6 +6,109 @@ import string
 import keyboard
 
 from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
+
+name_by_scan_code = dict(enumerate(['a', 'b', 'c', 'ctrl', 'shift', 'alt']))
+scan_code_by_name = dict((b, a) for a, b in name_by_scan_code.items())
+
+def event_for(event_type, value):
+    if keyboard._is_str(value):
+        name, scan_code = value, scan_code_by_name[value]
+    elif keyboard._is_number(value):
+        name, scan_code = name_by_scan_code[value], value
+    return KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name)
+
+input_events = []
+output_events = []
+
+keyboard._os_keyboard.init = lambda: None
+keyboard._listener.listen = lambda: None
+keyboard._os_keyboard.map_char = lambda name: (scan_code_by_name[name], [])
+def fake_event(event_type, scan_code):
+    event = event_for(event_type, scan_code)
+    if keyboard._listener.direct_callback(event):
+        output_events.append(event)
+keyboard._os_keyboard.press = lambda scan_code: fake_event(KEY_DOWN, scan_code)
+keyboard._os_keyboard.release = lambda scan_code: fake_event(KEY_UP, scan_code)
+
+d_a = [event_for(KEY_DOWN, 'a')]
+u_a = [event_for(KEY_UP, 'a')]
+d_b = [event_for(KEY_DOWN, 'b')]
+u_b = [event_for(KEY_UP, 'b')]
+d_c = [event_for(KEY_DOWN, 'c')]
+u_c = [event_for(KEY_UP, 'c')]
+d_ctrl = [event_for(KEY_DOWN, 'ctrl')]
+u_ctrl = [event_for(KEY_UP, 'ctrl')]
+d_shift = [event_for(KEY_DOWN, 'shift')]
+u_shift = [event_for(KEY_UP, 'shift')]
+d_alt = [event_for(KEY_DOWN, 'alt')]
+u_alt = [event_for(KEY_UP, 'alt')]
+
+class TestKeyboard(unittest.TestCase):
+    def setUp(self):
+        del input_events[:]
+        del output_events[:]
+        del keyboard._listener.handlers[:]
+        keyboard._pressed_events.clear()
+        keyboard._blocking_hook = None
+        keyboard._listener.active_modifiers.clear()
+        keyboard._listener.blocking_hotkeys.clear()
+        keyboard._listener.blocking_keys.clear()
+        keyboard._listener.filtered_modifiers.clear()
+        keyboard._listener.modifier_states.clear()
+        keyboard._listener.is_replaying = False
+
+    def do(self, manual_events, expected=None):
+        input_events.extend(manual_events)
+        while input_events:
+            event = input_events.pop(0)
+            if keyboard._listener.direct_callback(event):
+                output_events.append(event)
+        if expected:
+            self.assertEquals(output_events, expected)
+
+    def test_is_pressed_none(self):
+        self.assertFalse(keyboard.is_pressed('a'))
+    def test_is_pressed_true(self):
+        self.do(d_a)
+        self.assertTrue(keyboard.is_pressed('a'))
+    def test_is_pressed_true_scan_code(self):
+        self.do(d_a)
+        self.assertTrue(keyboard.is_pressed(scan_code_by_name['a']))
+    def test_is_pressed_false(self):
+        self.do(d_a+u_a+d_b)
+        self.assertFalse(keyboard.is_pressed('a'))
+        self.assertTrue(keyboard.is_pressed('b'))
+
+    def test_send_single_press_release(self):
+        keyboard.send('a', do_press=True, do_release=True)
+        self.do([], d_a+u_a)
+    def test_send_single_press(self):
+        keyboard.send('a', do_press=True, do_release=False)
+        self.do([], d_a)
+    def test_send_single_release(self):
+        keyboard.send('a', do_press=False, do_release=True)
+        self.do([], u_a)
+    def test_send_single_none(self):
+        keyboard.send('a', do_press=False, do_release=False)
+        self.do([], [])
+    def test_press(self):
+        keyboard.press('a')
+        self.do([], d_a)
+    def test_release(self):
+        keyboard.release('a')
+        self.do([], u_a)
+
+    def test_send_modifier_press_release(self):
+        keyboard.send('ctrl+a', do_press=True, do_release=True)
+        self.do([], d_ctrl+d_a+u_a+u_ctrl)
+    def test_send_modifiers_release(self):
+        keyboard.send('ctrl+shift+a', do_press=False, do_release=True)
+        self.do([], u_a+u_shift+u_ctrl)
+
+
+if __name__ == '__main__':
+    unittest.main()
+exit()
 from ._suppress import KeyTable
 
 # Fake events with fake scan codes for a totally deterministic test.
