@@ -37,6 +37,9 @@ class KeyboardEvent(object):
     def __repr__(self):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
 
+    def __eq__(self, other):
+        return isinstance(other, KeyboardEvent) and self.event_type == other.event_type and (self.scan_code == other.scan_code if self.scan_code else True) and (self.name == other.name if self.name else True)
+
 # TODO: add values from https://svn.apache.org/repos/asf/xmlgraphics/commons/tags/commons-1_0/src/java/org/apache/xmlgraphics/fonts/Glyphs.java
 canonical_names = {
     'escape': 'esc',
