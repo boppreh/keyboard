@@ -2,6 +2,7 @@
 import time
 import unittest
 import string
+from threading import Event
 
 import keyboard
 
@@ -15,14 +16,16 @@ def event_for(event_type, value):
         name, scan_code = value, scan_code_by_name[value]
     elif keyboard._is_number(value):
         name, scan_code = name_by_scan_code[value], value
+    else:
+        raise ValueError('Unexpected ' + repr(value))
     return KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name)
 
 input_events = []
 output_events = []
 
 keyboard._os_keyboard.init = lambda: None
-keyboard._listener.listen = lambda: None
-keyboard._os_keyboard.map_char = lambda name: (scan_code_by_name[name], [])
+keyboard._os_keyboard.listen = lambda callback: None
+keyboard._os_keyboard.map_name = lambda name: [(scan_code_by_name[name], [])]
 def fake_event(event_type, scan_code):
     event = event_for(event_type, scan_code)
     if keyboard._listener.direct_callback(event):
@@ -44,12 +47,13 @@ d_alt = [event_for(KEY_DOWN, 'alt')]
 u_alt = [event_for(KEY_UP, 'alt')]
 
 class TestKeyboard(unittest.TestCase):
-    def setUp(self):
+    def tearDown(self):
         del input_events[:]
         del output_events[:]
         del keyboard._listener.handlers[:]
+        del keyboard._listener.blocking_hooks[:]
         keyboard._pressed_events.clear()
-        keyboard._blocking_hook = None
+        keyboard._hooks.clear()
         keyboard._listener.active_modifiers.clear()
         keyboard._listener.blocking_hotkeys.clear()
         keyboard._listener.blocking_keys.clear()
@@ -64,7 +68,10 @@ class TestKeyboard(unittest.TestCase):
             if keyboard._listener.direct_callback(event):
                 output_events.append(event)
         if expected:
-            self.assertEquals(output_events, expected)
+            self.assertEqual(output_events, expected)
+        del output_events[:]
+
+        keyboard._listener.queue.join()
 
     def test_is_pressed_none(self):
         self.assertFalse(keyboard.is_pressed('a'))
@@ -78,6 +85,16 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_a+u_a+d_b)
         self.assertFalse(keyboard.is_pressed('a'))
         self.assertTrue(keyboard.is_pressed('b'))
+    def test_is_pressed_hotkey_true(self):
+        self.do(d_shift+d_a)
+        self.assertTrue(keyboard.is_pressed('shift+a'))
+    def test_is_pressed_hotkey_false(self):
+        self.do(d_shift+d_a+u_a)
+        self.assertFalse(keyboard.is_pressed('shift+a'))
+    def test_is_pressed_multi_step_fail(self):
+        self.do(u_a+d_a)
+        with self.assertRaises(ValueError):
+            keyboard.is_pressed('a, b')
 
     def test_send_single_press_release(self):
         keyboard.send('a', do_press=True, do_release=True)
@@ -105,205 +122,68 @@ class TestKeyboard(unittest.TestCase):
         keyboard.send('ctrl+shift+a', do_press=False, do_release=True)
         self.do([], u_a+u_shift+u_ctrl)
 
+    def test_call_later(self):
+        triggered = []
+        def trigger(arg1, arg2):
+            assert arg1 == 1 and arg2 == 2
+            triggered.append(True)
+        keyboard.call_later(trigger, (1, 2), 0.01)
+        self.assertFalse(triggered)
+        time.sleep(0.02)
+        self.assertTrue(triggered)
+
+    def test_hook_nonblocking(self):
+        self.i = 0
+        def count(e):
+            self.assertEqual(e.name, 'a')
+            self.i += 1
+        keyboard.hook(count, suppress=False)
+        self.do(d_a+u_a, d_a+u_a)
+        self.assertEqual(self.i, 2)
+        keyboard.unhook(count)
+        self.do(d_a+u_a, d_a+u_a)
+        self.assertEqual(self.i, 2)
+        keyboard.hook(count, suppress=False)
+        self.do(d_a+u_a, d_a+u_a)
+        self.assertEqual(self.i, 4)
+        keyboard.unhook_all()
+        self.do(d_a+u_a, d_a+u_a)
+        self.assertEqual(self.i, 4)
+
+    def test_hook_blocking(self):
+        self.i = 0
+        def count(e):
+            self.assertIn(e.name, ['a', 'b'])
+            self.i += 1
+            return e.name == 'b'
+        keyboard.hook(count, suppress=True)
+        self.do(d_a+d_b, d_b)
+        self.assertEqual(self.i, 2)
+        keyboard.unhook(count)
+        self.do(d_a+d_b, d_a+d_b)
+        self.assertEqual(self.i, 2)
+        keyboard.hook(count, suppress=True)
+        self.do(d_a+d_b, d_b)
+        self.assertEqual(self.i, 4)
+        keyboard.unhook_all()
+        self.do(d_a+d_b, d_a+d_b)
+        self.assertEqual(self.i, 4)
+
+    def test_on_press(self):
+        keyboard.on_press(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_DOWN))
+        self.do(d_a+u_a)
+
+    def test_on_release(self):
+        keyboard.on_release(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_UP))
+        self.do(d_a+u_a)
+
 
 if __name__ == '__main__':
     unittest.main()
+
 exit()
-from ._suppress import KeyTable
 
-# Fake events with fake scan codes for a totally deterministic test.
-all_names = set(canonical_names.values()) | set(string.ascii_lowercase) | set(string.ascii_uppercase) | {'shift'}
-scan_codes_by_name = {name: i for i, name in enumerate(sorted(all_names))}
-scan_codes_by_name.update({key: scan_codes_by_name[value]
-    for key, value in canonical_names.items()})
-
-scan_codes_by_name['shift2'] = scan_codes_by_name['shift']
-
-class FakeEvent(KeyboardEvent):
-    def __init__(self, event_type, name, scan_code=None):
-        KeyboardEvent.__init__(self, event_type, scan_code or scan_codes_by_name[name], name)
-
-class FakeOsKeyboard(object):
-    def __init__(self):
-        self.listening = False
-        self.append = None
-        self.queue = None
-        self.allowed_keys = KeyTable(keyboard.press, keyboard.release)
-        self.init = lambda: None
-        self.is_allowed = lambda *args: True
-
-    def listen(self, queue, is_allowed):
-        self.listening = True
-        self.queue = queue
-        self.is_allowed = is_allowed
-
-    def get_key_name(self, scan_code):
-        return next(name for name, i in sorted(scan_codes_by_name.items()) if i == scan_code and name not in canonical_names)
-
-    def press(self, key):
-        if not isinstance(key, str):
-            key = self.get_key_name(key)
-        self.append((KEY_DOWN, key))
-
-    def release(self, key):
-        if not isinstance(key, str):
-            key = self.get_key_name(key)
-        self.append((KEY_UP, key))
-
-    def map_char(self, char):
-        try:
-            return scan_codes_by_name[char.lower()], ('shift',) if char.isupper() else ()
-        except KeyError as e:
-            raise ValueError(e)
-
-    def type_unicode(self, letter):
-        event = FakeEvent('unicode', 'a')
-        event.name = letter
-        self.append(event)
-
-class TestKeyboard(unittest.TestCase):
-    # Without this attribute Python2 tests fail for some unknown reason.
-    __name__ = 'what'
-
-    @staticmethod
-    def setUpClass():
-        keyboard._os_keyboard = FakeOsKeyboard()
-        keyboard._listener.start_if_necessary()
-        assert keyboard._os_keyboard.listening
-        assert keyboard._listener.listening
-
-    def setUp(self):
-        self.events = []
-        keyboard._pressed_events.clear()
-        keyboard._os_keyboard.append = self.events.append
-
-    def tearDown(self):
-        keyboard.clear_all_hotkeys()
-        keyboard.unhook_all()
-        # Make sure there's no spill over between tests.
-        self.wait_for_events_queue()
-
-    def press(self, name, scan_code=None):
-        is_allowed = keyboard._os_keyboard.is_allowed(name, False)
-        keyboard._os_keyboard.queue.put(FakeEvent(KEY_DOWN, name, scan_code))
-        self.wait_for_events_queue()
-
-        return is_allowed
-
-    def release(self, name, scan_code=None):
-        is_allowed = keyboard._os_keyboard.is_allowed(name, True)
-        keyboard._os_keyboard.queue.put(FakeEvent(KEY_UP, name, scan_code))
-        self.wait_for_events_queue()
-
-        return is_allowed
-
-    def click(self, name, scan_code=None):
-        return self.press(name, scan_code) and self.release(name, scan_code)
-
-    def flush_events(self):
-        self.wait_for_events_queue()
-        events = list(self.events)
-        # Ugly, but requried to work in Python2. Python3 has list.clear
-        del self.events[:]
-        return events
-
-    def wait_for_events_queue(self):
-        keyboard._listener.queue.join()
-
-    def test_matches(self):
-        self.assertTrue(keyboard.matches(FakeEvent(KEY_DOWN, 'shift'), scan_codes_by_name['shift']))
-        self.assertTrue(keyboard.matches(FakeEvent(KEY_DOWN, 'shift'), 'shift'))
-        self.assertTrue(keyboard.matches(FakeEvent(KEY_DOWN, 'shift'), 'shift2'))
-        self.assertTrue(keyboard.matches(FakeEvent(KEY_DOWN, 'shift2'), 'shift'))
-
-    def test_listener(self):
-        empty_event = FakeEvent(KEY_DOWN, 'space')
-        empty_event.scan_code = None
-        keyboard._os_keyboard.queue.put(empty_event)
-        self.assertEqual(self.flush_events(), [])
-
-    def test_canonicalize(self):
-        space_scan_code = [[scan_codes_by_name['space']]]
-        space_name = [['space']]
-        self.assertEqual(keyboard.canonicalize(space_scan_code), space_scan_code)
-        self.assertEqual(keyboard.canonicalize(space_name), space_name)
-        self.assertEqual(keyboard.canonicalize(scan_codes_by_name['space']), space_scan_code)
-        self.assertEqual(keyboard.canonicalize('space'), space_name)
-        self.assertEqual(keyboard.canonicalize(' '), space_name)
-        self.assertEqual(keyboard.canonicalize('spacebar'), space_name)
-        self.assertEqual(keyboard.canonicalize('Space'), space_name)
-        self.assertEqual(keyboard.canonicalize('SPACE'), space_name)
-        
-        with self.assertRaises(ValueError):
-            keyboard.canonicalize(['space'])
-        with self.assertRaises(ValueError):
-            keyboard.canonicalize(keyboard)
-
-        self.assertEqual(keyboard.canonicalize('_'), [['_']])
-        self.assertEqual(keyboard.canonicalize('space_bar'), space_name)
-
-    def test_is_pressed(self):
-        self.assertFalse(keyboard.is_pressed('enter'))
-        self.assertFalse(keyboard.is_pressed(scan_codes_by_name['enter']))
-        self.press('enter')
-        self.assertTrue(keyboard.is_pressed('enter'))
-        self.assertTrue(keyboard.is_pressed(scan_codes_by_name['enter']))
-        self.release('enter')
-        self.release('enter')
-        self.assertFalse(keyboard.is_pressed('enter'))
-        self.click('enter')
-        self.assertFalse(keyboard.is_pressed('enter'))
-
-        self.press('enter')
-        self.assertFalse(keyboard.is_pressed('ctrl+enter'))
-        self.press('ctrl')
-        self.assertTrue(keyboard.is_pressed('ctrl+enter'))
-
-        self.press('space')
-        self.assertTrue(keyboard.is_pressed('space'))
-
-        with self.assertRaises(ValueError):
-            self.assertFalse(keyboard.is_pressed('invalid key'))
-
-        with self.assertRaises(ValueError):
-            keyboard.is_pressed('space, space')
-
-    def test_is_pressed_duplicated_key(self):
-        self.assertFalse(keyboard.is_pressed(100))
-        self.assertFalse(keyboard.is_pressed(101))
-        self.assertFalse(keyboard.is_pressed('ctrl'))
-
-        self.press('ctrl', 100)
-        self.assertTrue(keyboard.is_pressed(100))
-        self.assertFalse(keyboard.is_pressed(101))
-        self.assertTrue(keyboard.is_pressed('ctrl'))
-        self.release('ctrl', 100)
-
-        self.press('ctrl', 101)
-        self.assertFalse(keyboard.is_pressed(100))
-        self.assertTrue(keyboard.is_pressed(101))
-        self.assertTrue(keyboard.is_pressed('ctrl'))
-        self.release('ctrl', 101)
-
-    def triggers(self, combination, keys):
-        self.triggered = False
-        def on_triggered():
-            self.triggered = True
-
-        keyboard.add_hotkey(combination, on_triggered)
-        for group in keys:
-            for key in group:
-                self.assertFalse(self.triggered)
-                self.press(key)
-            for key in reversed(group):
-                self.release(key)
-
-        keyboard.remove_hotkey(combination)
-
-        self.wait_for_events_queue()
-
-        return self.triggered
-
+class OldTests(object):
     def test_hook(self):
         self.i = 0
         def count(e):

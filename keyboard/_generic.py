@@ -69,4 +69,5 @@ class GenericListener(object):
 
     def remove_handler(self, handler):
         """ Removes a previously added event handler. """
-        self.handlers.remove(handler)
+        while handler in self.handlers:
+            self.handlers.remove(handler)
