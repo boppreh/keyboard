@@ -1,8 +1,11 @@
 test: tests
 
 tests:
-	coverage2 run -m keyboard._keyboard_tests && coverage2 run -am keyboard._mouse_tests
-	coverage3 run -m keyboard._keyboard_tests && coverage3 run -am keyboard._mouse_tests && coverage3 report && coverage3 html
+	coverage2 run -m keyboard._keyboard_tests
+	coverage2 run -am keyboard._mouse_tests
+	coverage3 run -am keyboard._keyboard_tests
+	coverage3 run -am keyboard._mouse_tests
+	coverage3 report && coverage3 html
 
 release:
 	python3 make_release.py
