@@ -210,7 +210,7 @@ class _KeyboardListener(_GenericListener):
 
         There are two ways to block events: remapped keys, which translate
         events by suppressing and re-emitting; and blocked hotkeys, which
-        suppress specific key hotkeys.
+        suppress specific hotkeys.
         """
 
         # Pass through all fake key events, don't even report to other handlers.
@@ -355,11 +355,11 @@ def send(hotkey, do_press=True, do_release=True):
 press_and_release = send
 
 def press(hotkey):
-    """ Presses and holds down a key hotkey (see `send`). """
+    """ Presses and holds down a hotkey (see `send`). """
     send(hotkey, True, False)
 
 def release(hotkey):
-    """ Releases a key hotkey (see `send`). """
+    """ Releases a hotkey (see `send`). """
     send(hotkey, False, True)
 
 def is_pressed(hotkey):
@@ -584,7 +584,7 @@ def write(text, delay=0, exact=None):
 
 def wait(hotkey=None, suppress=False):
     """
-    Blocks the program execution until the given key hotkey is pressed or,
+    Blocks the program execution until the given hotkey is pressed or,
     if given no parameters, blocks forever.
     """
     if hotkey:
@@ -676,7 +676,7 @@ remove_all_hotkeys = clear_all_hotkeys
 
 def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
     """
-    Invokes a callback every time a key hotkey is pressed. The hotkey must
+    Invokes a callback every time a hotkey is pressed. The hotkey must
     be in the format "ctrl+shift+a, s". This would trigger when the user holds
     ctrl, shift and "a" at once, releases, and then presses "s". To represent
     literal commas, pluses and spaces use their names ('comma', 'plus',
