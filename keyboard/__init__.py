@@ -186,9 +186,10 @@ class _KeyboardListener(_GenericListener):
 
         self.active_modifiers = set()
         self.blocking_hooks = []
-        self.blocking_hotkeys = {}
         self.blocking_keys = defaultdict(list)
         self.nonblocking_keys = defaultdict(list)
+        self.blocking_hotkeys = defaultdict(list)
+        self.nonblocking_hotkeys = defaultdict(list)
         self.filtered_modifiers = Counter()
         self.is_replaying = False
 
@@ -199,6 +200,12 @@ class _KeyboardListener(_GenericListener):
     def pre_process_event(self, event):
         for key_hook in self.nonblocking_keys[event.scan_code]:
             key_hook(event)
+
+        # TODO: change to event.modifiers to avoid race conditions.
+        # Currently only Windows is filling this value
+        hotkey_pair = (event.scan_code, tuple(sorted(self.active_modifiers)))
+        for callback in self.nonblocking_hotkeys[hotkey_pair]:
+            callback(event)
 
         return event.scan_code or (event.name and event.name != 'unknown')
 
@@ -229,21 +236,22 @@ class _KeyboardListener(_GenericListener):
 
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_DOWN:
-            if event.name in all_modifiers: self.active_modifiers.add(event.name)
+            if is_modifier(event.scan_code): self.active_modifiers.add(event.scan_code)
             _pressed_events[event.scan_code] = event
 
         # Default accept.
         accept = True
 
         if self.blocking_hotkeys:
-            if self.filtered_modifiers[event.name]:
+            if self.filtered_modifiers[event.scan_code]:
                 origin = 'modifier'
-                modifiers_to_update = [event.name]
+                modifiers_to_update = [event.scan_code]
             else:
                 modifiers_to_update = self.active_modifiers
-                hotkey_pair = (tuple(sorted(self.active_modifiers)), event.name)
-                if hotkey_pair in self.blocking_hotkeys:
-                    accept = self.blocking_hotkeys[hotkey_pair](event)
+                hotkey_pair = (event.scan_code, tuple(sorted(self.active_modifiers)))
+                hotkey_callbacks = self.blocking_hotkeys[hotkey_pair]
+                if hotkey_callbacks:
+                    accept = all(callback(event) for callback in hotkey_callbacks)
                     origin = 'hotkey'
                 else:
                     origin = 'other'
@@ -257,7 +265,7 @@ class _KeyboardListener(_GenericListener):
 
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_UP:
-            if event.name in all_modifiers: self.active_modifiers.discard(event.name)
+            self.active_modifiers.discard(event.scan_code)
             if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
 
         # Queue for handlers that won't block the event.
@@ -372,6 +380,10 @@ def is_pressed(hotkey):
     """
     _listener.start_if_necessary()
 
+    if _is_number(hotkey):
+        # Shortcut.
+        return hotkey in _pressed_events
+
     steps = parse_hotkey(hotkey)
     if len(steps) > 1:
         raise ValueError("Impossible to check if multi-step hotkeys are pressed (`a+b` is ok, `a, b` isn't).")
@@ -479,6 +491,7 @@ def unhook_all():
     while _hooks:
         next(iter(_hooks.values()))()
     assert not _hooks
+    unhook_all_hotkeys()
 
 unhook_key = unhook
 
@@ -502,6 +515,72 @@ def remap_key(src, dst):
         return False
     return hook_key(src, handler, suppress=True)
 unremap_key = unhook_key
+
+_hotkeys = {}
+def _hook_hotkey_part(hotkey, callback, suppress=False):
+    """
+    Hooks a single-step hotkey (e.g. 'shift+a').
+    """
+    _listener.start_if_necessary()
+
+    # Where to register.
+    container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
+
+    steps = parse_hotkey(hotkey)
+    if len(steps) > 1:
+        raise NotImplementedError('Cannot hook multi-step blocking hotkey (e.g. "alt+s, t"). Please see https://github.com/boppreh/keyboard/issues/22')
+
+    # A single step may be composed of many keys, and each key can have
+    # multiple scan codes. To speed up hotkey matching and avoid introducing
+    # event delays, we list all possible combinations of scan codes for these
+    # keys. Hotkeys are usually small, and there are not many combinations, so
+    # this is not as insane as it sounds.
+    #
+    # The possible scan codes are then split into modifiers + main key. This is
+    # is a necessary restriction because processing hotkeys is surprisingly
+    # complicated.
+    possible_pairs = []
+    for possible_scan_codes in itertools.product(*steps[0]):
+        part_modifiers = tuple(sorted(filter(is_modifier, possible_scan_codes)))
+        try:
+            part_main_key, = (scan_code for scan_code in possible_scan_codes if scan_code not in part_modifiers)
+        except ValueError:
+            raise NotImplementedError('Can only hook hotkeys of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
+        possible_pairs.append((part_main_key, part_modifiers))
+
+    def remove():
+        for pair in possible_pairs:
+            for modifier in pair[1]:
+                _listener.filtered_modifiers[modifier] -= 1
+            container[pair].remove(callback)
+        del _hotkeys[hotkey]
+        del  _hotkeys[callback]
+
+    # Register the scan codes of every possible combination of
+    # modfiier + main key. Modifiers have to be registered in 
+    # filtered_modifiers too, so suppression and replaying can work.
+    for pair in possible_pairs:
+        for modifier in pair[1]:
+            _listener.filtered_modifiers[modifier] += 1
+        container[pair].append(callback)
+    _hotkeys[hotkey] = _hotkeys[callback] = remove
+    return hotkey
+
+def unhook_hotkey(hotkey):
+    """ Removes a previously hooked hotkey. """
+    _hotkeys[hotkey]()
+
+def unhook_all_hotkeys():
+    """
+    Removes all keyboard hotkeys in use, including abbreviations, word listeners,
+    `record`ers and `wait`s.
+    """
+    # Because of "alises" some hooks may have more than one entry, all of which
+    # are removed together.
+    while _hotkeys:
+        next(iter(_hotkeys.values()))()
+    assert not _hotkeys
+
 
 def stash_state():
     """
@@ -594,7 +673,102 @@ def wait(hotkey=None, suppress=False):
         remove_hotkey(hotkey_handler)
     else:
         while True:
-            _time.sleep(1e9)
+            _time.sleep(1e6)
+
+def get_hotkey_name(names=None):
+    """
+    Returns a string representation of hotkey from the given key names, or
+    the currently pressed keys if not given.  This function:
+
+    - normalizes names;
+    - removes "left" and "right" prefixes;
+    - replaces the "+" key name with "plus" to avoid ambiguity;
+    - puts modifier keys first, in a standardized order;
+    - sort remaining keys;
+    - finally, joins everything with "+".
+
+    Example:
+
+        get_hotkey_name(['+', 'left ctrl', 'shift'])
+        # "ctrl+shift+plus"
+    """
+    if names is None:
+        _listener.start_if_necessary()
+        names = [e.name for e in _pressed_events.values()]
+    else:
+        names = [_normalize_name(name) for name in names]
+    clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
+    # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
+    # > List modifier keys in the correct order. If you use more than one modifier key in a
+    # > hotkey, always list them in this order: Control, Option, Shift, Command.
+    modifiers = ['ctrl', 'alt', 'shift', 'windows']
+    sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
+    return '+'.join(sorted(clean_names, key=sorting_key))
+
+def read_hotkey(suppress=True):
+    """
+    Similar to `read_key()`, but blocks until the user presses and releases a key
+    hotkey (or single key), then returns a string representing the hotkey
+    pressed.
+
+    Example:
+
+        read_hotkey()
+        # "ctrl+shift+p"
+    """
+    queue = _queue.Queue()
+    fn = lambda e: queue.put(e) or e.event_type == KEY_DOWN
+    hook(fn, suppress=suppress)
+    while True:
+        event = queue.get()
+        if event.event_type == KEY_UP:
+            unhook(fn)
+            names = [e.name for e in _pressed_events.values()] + [event.name]
+            return get_hotkey_name(names)
+
+def get_typed_strings(events, allow_backspace=True):
+    """
+    Given a sequence of events, tries to deduce what strings were typed.
+    Strings are separated when a non-textual key is pressed (such as tab or
+    enter). Characters are converted to uppercase according to shift and
+    capslock status. If `allow_backspace` is True, backspaces remove the last
+    character typed.
+
+    This function is a generator, so you can pass an infinite stream of events
+    and convert them to strings in real time.
+
+    Note this functions is merely an heuristic. Windows for example keeps per-
+    process keyboard state such as keyboard layout, and this information is not
+    available for our hooks.
+
+        get_type_strings(record()) -> ['This is what', 'I recorded', '']
+    """
+    shift_pressed = False
+    capslock_pressed = False
+    string = ''
+    for event in events:
+        name = event.name
+
+        # Space is the only key that we _parse_hotkey to the spelled out name
+        # because of legibility. Now we have to undo that.
+        if event.name == 'space':
+            name = ' '
+
+        if 'shift' in event.name:
+            shift_pressed = event.event_type == 'down'
+        elif event.name == 'caps lock' and event.event_type == 'down':
+            capslock_pressed = not capslock_pressed
+        elif allow_backspace and event.name == 'backspace' and event.event_type == 'down':
+            string = string[:-1]
+        elif event.event_type == 'down':
+            if len(name) == 1:
+                if shift_pressed ^ capslock_pressed:
+                    name = name.upper()
+                string = string + name
+            else:
+                yield string
+                string = ''
+    yield string
 
 _recording = None
 def start_recording(recorded_events_queue=None):
@@ -658,7 +832,6 @@ def play(events, speed_factor=1.0):
     restore_modifiers(state)
 replay = play
 
-_hotkeys = {}
 def clear_all_hotkeys():
     """
     Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
@@ -864,103 +1037,6 @@ def read_key(filter=lambda e: True):
     hook(test)
     return wait()
 
-def get_typed_strings(events, allow_backspace=True):
-    """
-    Given a sequence of events, tries to deduce what strings were typed.
-    Strings are separated when a non-textual key is pressed (such as tab or
-    enter). Characters are converted to uppercase according to shift and
-    capslock status. If `allow_backspace` is True, backspaces remove the last
-    character typed.
-
-    This function is a generator, so you can pass an infinite stream of events
-    and convert them to strings in real time.
-
-    Note this functions is merely an heuristic. Windows for example keeps per-
-    process keyboard state such as keyboard layout, and this information is not
-    available for our hooks.
-
-        get_type_strings(record()) -> ['This is what', 'I recorded', '']
-    """
-    shift_pressed = False
-    capslock_pressed = False
-    string = ''
-    for event in events:
-        name = event.name
-
-        # Space is the only key that we _parse_hotkey to the spelled out name
-        # because of legibility. Now we have to undo that.
-        if event.name == 'space':
-            name = ' '
-
-        if 'shift' in event.name:
-            shift_pressed = event.event_type == 'down'
-        elif event.name == 'caps lock' and event.event_type == 'down':
-            capslock_pressed = not capslock_pressed
-        elif allow_backspace and event.name == 'backspace' and event.event_type == 'down':
-            string = string[:-1]
-        elif event.event_type == 'down':
-            if len(name) == 1:
-                if shift_pressed ^ capslock_pressed:
-                    name = name.upper()
-                string = string + name
-            else:
-                yield string
-                string = ''
-    yield string
-
-
-def get_hotkey_name(names=None):
-    """
-    Returns a string representation of hotkey from the given key names, or
-    the currently pressed keys if not given.  This function:
-
-    - normalizes names;
-    - removes "left" and "right" prefixes;
-    - replaces the "+" key name with "plus" to avoid ambiguity;
-    - puts modifier keys first, in a standardized order;
-    - sort remaining keys;
-    - finally, joins everything with "+".
-
-    Example:
-
-        get_hotkey_name(['+', 'left ctrl', 'shift'])
-        # "ctrl+shift+plus"
-    """
-    if names is None:
-        _listener.start_if_necessary()
-        names = [e.name for e in _pressed_events.values()]
-    else:
-        names = [_normalize_name(name) for name in names]
-    clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
-    # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
-    # > List modifier keys in the correct order. If you use more than one modifier key in a
-    # > hotkey, always list them in this order: Control, Option, Shift, Command.
-    modifiers = ['ctrl', 'alt', 'shift', 'windows']
-    sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
-    return '+'.join(sorted(clean_names, key=sorting_key))
-
-def read_hotkey():
-    """
-    Similar to `read_key()`, but blocks until the user presses and releases a key
-    hotkey (or single key), then returns a string representing the hotkey
-    pressed.
-
-    Example:
-
-        read_hotkey()
-        # "ctrl+shift+p"
-    """
-    wait, unlock = _make_wait_and_unlock()
-    def test(event):
-        if event.event_type == KEY_UP:
-            unhook(test)
-            names = [e.name for e in _pressed_events.values()] + [event.name]
-            unlock(get_hotkey_name(names))
-    hook(test)
-    return wait()
-read_hotkey = read_hotkey
-
-
 def _get_sided_modifiers(key):
     """
     Generates key variations with 'left' and 'right' when the key is sided.
@@ -988,10 +1064,10 @@ def _parse_blocking_hotkey(hotkey):
     main_key = rest.pop()
     return main_key, itertools.product(*(_get_sided_modifiers(m) for m in modifiers))
 
-def hook_blocking_hotkey(hotkey, handler):
+def hook_blocking_hotkey(hotkey, callback):
     """
-    Sets an event handler to be called whenever the given hotkey is triggered.
-    This event will be blcoking (the OS will wait for this handler to finish),
+    Sets an event callback to be called whenever the given hotkey is triggered.
+    This event will be blcoking (the OS will wait for this callback to finish),
     and may return True or False if the hotkey should be suppressed or not.
     """
     main_key, hotkeys = _parse_blocking_hotkey(hotkey)
@@ -999,7 +1075,7 @@ def hook_blocking_hotkey(hotkey, handler):
         for modifier in possible_hotkey:
             _listener.filtered_modifiers[modifier] += 1
         pair = (tuple(sorted(possible_hotkey)), main_key)
-        _listener.blocking_hotkeys[pair] = handler
+        _listener.blocking_hotkeys[pair] = callback
 
     return hotkey
 
@@ -1037,15 +1113,15 @@ def remap_hotkey(src, dst):
     return hook_blocking_hotkey(src, handler)
 unremap_hotkey = unhook_blocking_hotkey
 
-def add_multi_step_blocking_hotkey(hotkey, callback):
+def add_multi_step_blocking_hotkey(hotkey, callback, suppress=True):
     # TODO: timeout
-    # TODO: merge hotkeys instead of overwriting
     parts = _parse_hotkey(hotkey)
 
     state = _State()
     state.index = 0
     def set_index(new_index):
         if len(parts) == 1 and new_index == 1:
+            # Simplified case.
             return callback()
 
         unhook_blocking_hotkey(parts[state.index])

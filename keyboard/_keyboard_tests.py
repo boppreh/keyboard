@@ -413,9 +413,89 @@ class TestKeyboard(unittest.TestCase):
         self.do([], d_a+u_a)
         self.assertGreater(time.time() - last_time, 0.005)
 
-    def test_get_typed_strings(self):
+    def test_get_typed_strings_simple(self):
         events = du_a+du_b+du_backspace+d_shift+du_a+u_shift+du_space+du_ctrl+du_a
         self.assertEqual(list(keyboard.get_typed_strings(events)), ['aA ', 'a'])
+    def test_get_typed_strings_backspace(self):
+        events = du_a+du_b+du_backspace
+        self.assertEqual(list(keyboard.get_typed_strings(events)), ['a'])
+        events = du_backspace+du_a+du_b
+        self.assertEqual(list(keyboard.get_typed_strings(events)), ['ab'])
+    def test_get_typed_strings_shift(self):
+        events = d_shift+du_a+du_b+u_shift+du_space+du_ctrl+du_a
+        self.assertEqual(list(keyboard.get_typed_strings(events)), ['AB ', 'a'])
+    def test_get_typed_strings_all(self):
+        events = du_a+du_b+du_backspace+d_shift+du_a+du_capslock+du_b+u_shift+du_space+du_ctrl+du_a
+        self.assertEqual(list(keyboard.get_typed_strings(events)), ['aAb ', 'A'])
+
+    def test_get_hotkey_name_simple(self):
+        self.assertEqual(keyboard.get_hotkey_name(['a']), 'a')
+    def test_get_hotkey_name_modifiers(self):
+        self.assertEqual(keyboard.get_hotkey_name(['a', 'shift', 'ctrl']), 'ctrl+shift+a')
+    def test_get_hotkey_name_normalize(self):
+        self.assertEqual(keyboard.get_hotkey_name(['SHIFT', 'left ctrl']), 'ctrl+shift')
+    def test_get_hotkey_name_plus(self):
+        self.assertEqual(keyboard.get_hotkey_name(['+']), 'plus')
+    def test_get_hotkey_name_duplicated(self):
+        self.assertEqual(keyboard.get_hotkey_name(['+', 'plus']), 'plus')
+    def test_get_hotkey_name_full(self):
+        self.assertEqual(keyboard.get_hotkey_name(['+', 'left ctrl', 'shift', 'WIN', 'right alt']), 'ctrl+alt+shift+windows+plus')
+    def test_get_hotkey_name_multiple(self):
+        self.assertEqual(keyboard.get_hotkey_name(['ctrl', 'b', '!', 'a']), 'ctrl+!+a+b')
+    def test_get_hotkey_name_from_pressed(self):
+        self.do(du_c+d_ctrl+d_a+d_b)
+        self.assertEqual(keyboard.get_hotkey_name(), 'ctrl+a+b')
+
+    def test_read_hotkey(self):
+        queue = keyboard._queue.Queue()
+        def process():
+            queue.put(keyboard.read_hotkey())
+        from threading import Thread
+        Thread(target=process).start()
+        time.sleep(0.01)
+        self.do(d_ctrl+d_a+d_b+u_ctrl)
+        self.assertEqual(queue.get(0.5), 'ctrl+a+b')
+
+    def test_wait_infinite(self):
+        self.triggered = False
+        def process():
+            keyboard.wait()
+            self.triggered = True
+        from threading import Thread
+        t = Thread(target=process)
+        t.daemon = True # Yep, we are letting this thread loose.
+        t.start()
+        time.sleep(0.01)
+        self.assertFalse(self.triggered)
+        
+    def test_hook_hotkey_part_suppress_single(self):
+        keyboard._hook_hotkey_part('a', lambda e: keyboard.press(999), suppress=True)
+        self.do(d_a, [KeyboardEvent(KEY_DOWN, scan_code=999)])
+    def test_hook_hotkey_part_suppress_with_modifiers(self):
+        keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
+        self.do(d_ctrl+d_shift+d_a, [KeyboardEvent(KEY_DOWN, scan_code=999)])
+    def test_hook_hotkey_part_suppress_with_modifiers_fail(self):
+        keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
+        self.do(d_ctrl+d_shift+u_shift+d_a, d_ctrl+d_shift+u_shift+d_a)
+    def test_hook_hotkey_part_suppress_with_modifiers_fail(self):
+        keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
+        self.do(d_ctrl+d_shift+u_shift+d_a, d_ctrl+d_shift+u_shift+d_a)
+    #def test_hook_hotkey_part_suppress_with_modifiers_out_of_order(self):
+    #    keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
+    #    self.do(d_shift+d_ctrl+d_a, [KeyboardEvent(KEY_DOWN, scan_code=999)])
+    #def test_hook_hotkey_part_nosuppress_single(self):
+    #    keyboard._hook_hotkey_part('a', lambda e: keyboard.press(999), suppress=False)
+    #    self.do(d_a, d_a+[KeyboardEvent(KEY_DOWN, scan_code=999)])
+
+    def test_add_hotkey_single(self):
+        return True
+        self.triggered = False
+        def trigger(event):
+            self.assertEqual(event, d_a)
+            self.triggered = True
+        keyboard.add_multi_step_blocking_hotkey('a', trigger)
+        self.do(d_a)
+        self.assertTrue(self.triggered)
 
 if __name__ == '__main__':
     unittest.main()
