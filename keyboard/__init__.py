@@ -245,7 +245,7 @@ class _KeyboardListener(_GenericListener):
         if self.blocking_hotkeys:
             if self.filtered_modifiers[event.scan_code]:
                 origin = 'modifier'
-                modifiers_to_update = [event.scan_code]
+                modifiers_to_update = set([event.scan_code])
             else:
                 modifiers_to_update = self.active_modifiers
                 hotkey_pair = (event.scan_code, tuple(sorted(self.active_modifiers)))
@@ -256,7 +256,7 @@ class _KeyboardListener(_GenericListener):
                 else:
                     origin = 'other'
 
-            for key in modifiers_to_update:
+            for key in sorted(modifiers_to_update):
                 transition_tuple = (self.modifier_states.get(key, 'free'), event_type, origin)
                 should_press, new_accept, new_state = self.transition_table[transition_tuple]
                 if should_press: press(key)
@@ -517,7 +517,7 @@ def remap_key(src, dst):
 unremap_key = unhook_key
 
 _hotkeys = {}
-def _hook_hotkey_part(hotkey, callback, suppress=False):
+def _hook_hotkey_part(hotkey, callback, suppress):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
@@ -561,6 +561,7 @@ def _hook_hotkey_part(hotkey, callback, suppress=False):
     # filtered_modifiers too, so suppression and replaying can work.
     for pair in possible_pairs:
         for modifier in pair[1]:
+            #print(hotkey, modifier)
             _listener.filtered_modifiers[modifier] += 1
         container[pair].append(callback)
     _hotkeys[hotkey] = _hotkeys[callback] = remove

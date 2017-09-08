@@ -42,9 +42,9 @@ class KeyboardEvent(object):
             isinstance(other, KeyboardEvent)
             and self.event_type == other.event_type
             and (
-                self.scan_code == other.scan_code if self.scan_code and other.scan_code else True
+                not self.scan_code or not other.scan_code or self.scan_code == other.scan_code
             ) and (
-                self.name == other.name if self.name and other.name else True
+                not self.name or not other.name or self.name == other.name
             )
         )
 
