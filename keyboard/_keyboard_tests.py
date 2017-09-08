@@ -155,7 +155,6 @@ class TestKeyboard(unittest.TestCase):
             keyboard.key_to_scan_codes({})
     def test_key_to_scan_code_list(self):
         self.assertEqual(keyboard.key_to_scan_codes([10, 5, 'a']), (10, 5, 1))
-            
 
     def test_parse_hotkey_simple(self):
         self.assertEqual(keyboard.parse_hotkey('a'), (((1,),),))
@@ -171,6 +170,13 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(keyboard.parse_hotkey('a, b'), (((1,),),((2,),)))
     def test_parse_hotkey_steps(self):
         self.assertEqual(keyboard.parse_hotkey('a+b, b+c'), (((1,),(2,)),((2,),(3,))))
+    def test_parse_hotkey_example(self):
+        alt_codes = keyboard.key_to_scan_codes('alt')
+        shift_codes = keyboard.key_to_scan_codes('shift')
+        a_codes = keyboard.key_to_scan_codes('a')
+        b_codes = keyboard.key_to_scan_codes('b')
+        c_codes = keyboard.key_to_scan_codes('c')
+        self.assertEqual(keyboard.parse_hotkey("alt+shift+a, alt+b, c"), ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,)))
 
     def test_is_pressed_none(self):
         self.assertFalse(keyboard.is_pressed('a'))

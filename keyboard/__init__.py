@@ -311,11 +311,11 @@ def parse_hotkey(hotkey):
 
     Example:
 
-        parse_hotkey("alt+shift+a, alt+b, d")
+        parse_hotkey("alt+shift+a, alt+b, c")
         #    Keys:    ^~^ ^~~~^ ^  ^~^ ^  ^
         #    Steps:   ^~~~~~~~~~^  ^~~~^  ^
 
-        # ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (d_codes))
+        # ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,))
     """
     if _is_number(hotkey) or len(hotkey) == 1:
         scan_codes = key_to_scan_codes(hotkey)
@@ -480,6 +480,7 @@ def on_release_key(key, callback, suppress=False):
 def unhook(callback):
     """ Removes a previously hooked callback. """
     _hooks[callback]()
+unhook_key = unhook
 
 def unhook_all():
     """
@@ -493,7 +494,7 @@ def unhook_all():
     assert not _hooks
     unhook_all_hotkeys()
 
-unhook_key = unhook
+
 
 def block_key(key):
     """
@@ -570,6 +571,7 @@ def _hook_hotkey_part(hotkey, callback, suppress):
 def unhook_hotkey(hotkey):
     """ Removes a previously hooked hotkey. """
     _hotkeys[hotkey]()
+unregister_hotkey = remove_hotkey = clear_hotkey = unhook_hotkey
 
 def unhook_all_hotkeys():
     """
@@ -581,7 +583,7 @@ def unhook_all_hotkeys():
     while _hotkeys:
         next(iter(_hotkeys.values()))()
     assert not _hotkeys
-
+unregister_all_hotkeys = remove_all_hotkeys = clear_all_hotkeys = unhook_all_hotkeys
 
 def stash_state():
     """
@@ -851,21 +853,6 @@ def play(events, speed_factor=1.0):
 
     restore_modifiers(state)
 replay = play
-
-def clear_all_hotkeys():
-    """
-    Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
-    internally use hotkeys and will be affected by this call.
-
-    Abbreviations and word listeners are not hotkeys and therefore not affected.  
-    To remove all hooks use `unhook_all()`.
-    """
-    for remove in _hotkeys.values():
-        remove()
-    _hotkeys.clear()
-
-# Alias.
-remove_all_hotkeys = clear_all_hotkeys
 
 def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
     """
