@@ -12,6 +12,8 @@ keyboard,_listener.direct_callback, then, if accepted, appended to
 `output_events`. Fake OS events (keyboard.press) are processed
 and added to `output_events` immediately, mimicking real functionality.
 """
+from __future__ import print_function
+
 import unittest
 import time
 
@@ -87,7 +89,7 @@ du_backspace = [make_event(KEY_DOWN, 'backspace'), make_event(KEY_UP, 'backspace
 du_capslock = [make_event(KEY_DOWN, 'caps lock'), make_event(KEY_UP, 'caps lock')]
 du_space = [make_event(KEY_DOWN, 'space'), make_event(KEY_UP, 'space')]
 
-triggered = [KeyboardEvent(KEY_DOWN, scan_code=999)]
+triggered_event = [KeyboardEvent(KEY_DOWN, scan_code=999)]
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
@@ -472,10 +474,14 @@ class TestKeyboard(unittest.TestCase):
         
     def test_hook_hotkey_part_suppress_single(self):
         keyboard._hook_hotkey_part('a', lambda e: keyboard.press(999), suppress=True)
-        self.do(d_a, triggered)
+        self.do(d_a, triggered_event)
+    def test_hook_hotkey_part_suppress_removed(self):
+        keyboard._hook_hotkey_part('a', lambda e: keyboard.press(999), suppress=True)
+        keyboard.unhook_hotkey('a')
+        self.do(d_a, d_a)
     def test_hook_hotkey_part_suppress_with_modifiers(self):
         keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
-        self.do(d_ctrl+d_shift+d_a, triggered)
+        self.do(d_ctrl+d_shift+d_a, triggered_event)
     def test_hook_hotkey_part_suppress_with_modifiers_fail_unrelated_modifier(self):
         keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
         self.do(d_ctrl+d_shift+u_shift+d_a, d_shift+u_shift+d_ctrl+d_a)
@@ -484,16 +490,19 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_ctrl+d_shift+du_b, d_shift+d_ctrl+du_b)
     def test_hook_hotkey_part_suppress_with_modifiers_unrelated_key(self):
         keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
-        self.do(d_ctrl+d_shift+du_b+d_a, d_shift+d_ctrl+du_b+triggered)
+        self.do(d_ctrl+d_shift+du_b+d_a, d_shift+d_ctrl+du_b+triggered_event)
     def test_hook_hotkey_part_suppress_with_modifiers_release(self):
         keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
-        self.do(d_ctrl+d_shift+du_b+d_a+u_ctrl+u_shift, d_shift+d_ctrl+du_b+triggered+u_ctrl+u_shift)
+        self.do(d_ctrl+d_shift+du_b+d_a+u_ctrl+u_shift, d_shift+d_ctrl+du_b+triggered_event+u_ctrl+u_shift)
     def test_hook_hotkey_part_suppress_with_modifiers_out_of_order(self):
         keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
-        self.do(d_shift+d_ctrl+d_a, triggered)
-    #def test_hook_hotkey_part_nosuppress_single(self):
-    #    keyboard._hook_hotkey_part('a', lambda e: keyboard.press(999), suppress=False)
-    #    self.do(d_a, d_a+[KeyboardEvent(KEY_DOWN, scan_code=999)])
+        self.do(d_shift+d_ctrl+d_a, triggered_event)
+
+    def test_hook_hotkey_part_suppress_with_modifiers_out_of_order(self):
+        queue = keyboard._queue.Queue()
+        keyboard._hook_hotkey_part('ctrl+shift+a', queue.put, suppress=True)
+        self.do(d_shift+d_ctrl+d_a)
+        self.assertTrue(queue.get(0.5))
 
     def test_hook_hotkey_part_fail_multistep(self):
         with self.assertRaises(NotImplementedError):
