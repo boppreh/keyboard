@@ -95,7 +95,7 @@ class TestKeyboard(unittest.TestCase):
         keyboard._listener.queue.join()
 
     def test_event_json(self):
-        event = make_event(KEY_DOWN, 'á \'"', 999)
+        event = make_event(KEY_DOWN, u'á \'"', 999)
         import json
         self.assertEqual(event, KeyboardEvent(**json.loads(event.to_json())))
 
@@ -374,8 +374,8 @@ class TestKeyboard(unittest.TestCase):
         keyboard.write('ab', exact=True)
         self.do([], [KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='a'), KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='b')])
     def test_write_unicode_fallback(self):
-        keyboard.write('áb', exact=False)
-        self.do([], [KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='á')]+d_b+u_b)
+        keyboard.write(u'áb', exact=False)
+        self.do([], [KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name=u'á')]+d_b+u_b)
 
     def test_start_stop_recording(self):
         keyboard.start_recording()

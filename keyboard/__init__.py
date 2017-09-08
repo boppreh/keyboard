@@ -86,15 +86,27 @@ try:
     _is_str = lambda x: isinstance(x, basestring)
     _is_number = lambda x: isinstance(x, (int, long))
     import Queue as _queue
+    # threading.Event is a function in Python2 wrappin _Event (?!).
+    from threading import _Event as _UninterruptibleEvent
 except NameError:
     # Python3
     _is_str = lambda x: isinstance(x, str)
     _is_number = lambda x: isinstance(x, int)
     import queue as _queue
+    from threading import Event as _UninterruptibleEvent
 _is_list = lambda x: isinstance(x, (list, tuple))
 
 # Just a dynamic object to store attributes for the closures.
 class _State(object): pass
+
+# The "Event" class from `threading` ignores signals when waiting and is
+# impossible to interrupt with Ctrl+C. So we rewrite `wait` to wait in small,
+# interruptible intervals.
+class _Event(_UninterruptibleEvent):
+    def wait(self):
+        while True:
+            if _UninterruptibleEvent.wait(self, 0.5):
+                break
 
 import platform as _platform
 if _platform.system() == 'Windows':
@@ -569,16 +581,6 @@ def write(text, delay=0, exact=None):
                 _time.sleep(delay)
 
     restore_modifiers(state)
-
-# The "Event" class from `threading` ignores signals when waiting and is
-# impossible to interrupt with Ctrl+C. So we rewrite `wait` to wait in small,
-# interruptible intervals.
-from threading import Event as _UninterruptibleEvent
-class _Event(_UninterruptibleEvent):
-    def wait(self):
-        while True:
-            if _UninterruptibleEvent.wait(self, 0.5):
-                break
 
 def wait(hotkey=None, suppress=False):
     """
