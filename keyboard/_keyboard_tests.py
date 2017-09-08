@@ -107,7 +107,8 @@ class TestKeyboard(unittest.TestCase):
             if keyboard._listener.direct_callback(event):
                 output_events.append(event)
         if expected:
-            self.assertListEqual(output_events, expected)
+            to_names = lambda es: '+'.join(('d' if e.event_type == KEY_DOWN else 'u') + '_' + str(e.scan_code) for e in es)
+            self.assertEqual(to_names(output_events), to_names(expected))
         del output_events[:]
 
         keyboard._listener.queue.join()
@@ -552,6 +553,22 @@ class TestKeyboard(unittest.TestCase):
         keyboard.add_multi_step_blocking_hotkey('a', trigger)
         self.do(d_a)
         self.assertTrue(self.triggered)
+
+    def test_remap_hotkey_single(self):
+        keyboard.remap_hotkey('a', 'b')
+        self.do(d_a+u_a, d_b+u_b)
+    def test_remap_hotkey_complex_dst(self):
+        keyboard.remap_hotkey('a', 'ctrl+b, c')
+        self.do(d_a+u_a, d_ctrl+du_b+u_ctrl+du_c)
+    def test_remap_hotkey_modifiers(self):
+        keyboard.remap_hotkey('ctrl+shift+a', 'b')
+        self.do(d_ctrl+d_shift+d_a+u_a, du_b)
+    def test_remap_hotkey_modifiers_repeat(self):
+        keyboard.remap_hotkey('ctrl+shift+a', 'b')
+        self.do(d_ctrl+d_shift+du_a+du_a, du_b+du_b)
+    def test_remap_hotkey_modifiers_state(self):
+        keyboard.remap_hotkey('ctrl+shift+a', 'b')
+        self.do(d_ctrl+d_shift+du_c+du_a+du_a, d_shift+d_ctrl+du_c+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_shift+u_ctrl+du_b+d_ctrl+d_shift)
 
 if __name__ == '__main__':
     unittest.main()

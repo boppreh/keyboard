@@ -585,6 +585,28 @@ def unhook_all_hotkeys():
     assert not _hotkeys
 unregister_all_hotkeys = remove_all_hotkeys = clear_all_hotkeys = unhook_all_hotkeys
 
+def remap_hotkey(src, dst):
+    """
+    Whenever the hotkey `src` is pressed, suppress it and send
+    `dst` instead.
+
+    Example:
+
+        remap('alt+w', 'up')
+        remap('capslock', 'esc')
+    """
+    def handler(event):
+        if event.event_type == KEY_UP: return False
+        active_modifiers = sorted(modifier for modifier, state in _listener.modifier_states.items() if state == 'allowed')
+        for modifier in active_modifiers:
+            release(modifier)
+        send(dst)
+        for modifier in reversed(active_modifiers):
+            press(modifier)
+        return False
+    return _hook_hotkey_part(src, handler, suppress=True)
+unremap_hotkey = unhook_hotkey
+
 def stash_state():
     """
     Builds a list of all currently pressed scan codes, releases them and returns
@@ -938,14 +960,6 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
 # Alias.
 register_hotkey = add_hotkey
 
-def remove_hotkey(hotkey_or_handler):
-    """
-    Removes a previously registered hotkey. Accepts either the hotkey used
-    during registration (exact string) or the event handler returned by the
-    `add_hotkey` or `hook_key` functions.
-    """
-    _remove_named_hook(hotkey_or_handler, _hotkeys)
-
 _word_listeners = {}
 def add_word_listener(word, callback, triggers=['space'], match_suffix=False, timeout=2):
     """
@@ -1031,28 +1045,6 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
 register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
 remove_abbreviation = remove_word_listener
-
-def remap_hotkey(src, dst):
-    """
-    Whenever the hotkey `src` is pressed, suppress it and send
-    `dst` instead.
-
-    Example:
-
-        remap('alt+w', 'up')
-        remap('capslock', 'esc')
-    """
-    def handler(event):
-        if event.event_type == KEY_UP: return False
-        for state, modifier in _listener.modifier_states.items():
-            if state == 'allowed':
-                release(modifier)
-        send(dst)
-        for state, modifier in _listener.modifier_states.items():
-            if state == 'allowed':
-                press(modifier)
-        return False
-    return hook_blocking_hotkey(src, handler)
 
 def add_multi_step_blocking_hotkey(hotkey, callback, suppress=True):
     # TODO: timeout
