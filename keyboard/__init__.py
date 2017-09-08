@@ -889,14 +889,14 @@ def get_typed_strings(events, allow_backspace=True):
 
         # Space is the only key that we _parse_hotkey to the spelled out name
         # because of legibility. Now we have to undo that.
-        if matches(event, 'space'):
+        if event.name == 'space':
             name = ' '
 
-        if matches(event, 'shift'):
+        if 'shift' in event.name:
             shift_pressed = event.event_type == 'down'
-        elif matches(event, 'caps lock') and event.event_type == 'down':
+        elif event.name == 'caps lock' and event.event_type == 'down':
             capslock_pressed = not capslock_pressed
-        elif allow_backspace and matches(event, 'backspace') and event.event_type == 'down':
+        elif allow_backspace and event.name == 'backspace' and event.event_type == 'down':
             string = string[:-1]
         elif event.event_type == 'down':
             if len(name) == 1:

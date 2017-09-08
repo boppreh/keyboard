@@ -19,6 +19,8 @@ import keyboard
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 
 dummy_keys = {
+    'space': [(0, [])],
+
     'a': [(1, [])],
     'b': [(2, [])],
     'c': [(3, [])],
@@ -34,13 +36,16 @@ dummy_keys = {
 
     'left ctrl': [(7, [])],
 
+    'backspace': [(8, [])],
+    'caps lock': [(9, [])],
+
     '+': [(10, [])],
     ',': [(11, [])],
     '_': [(12, [])],
 }
 
-def make_event(event_type, name, scan_code=None):
-    return KeyboardEvent(event_type=event_type, scan_code=scan_code or dummy_keys[name][0][0], name=name)
+def make_event(event_type, name, scan_code=None, time=0):
+    return KeyboardEvent(event_type=event_type, scan_code=scan_code or dummy_keys[name][0][0], name=name, time=time)
 
 # Used when manually pumping events.
 input_events = []
@@ -62,16 +67,25 @@ keyboard._os_keyboard.type_unicode = lambda char: output_events.append(KeyboardE
 # Usage: d_shift + d_a + u_a + u_shift
 d_a = [make_event(KEY_DOWN, 'a')]
 u_a = [make_event(KEY_UP, 'a')]
+du_a = d_a+u_a
 d_b = [make_event(KEY_DOWN, 'b')]
 u_b = [make_event(KEY_UP, 'b')]
+du_b = d_b+u_b
 d_c = [make_event(KEY_DOWN, 'c')]
 u_c = [make_event(KEY_UP, 'c')]
+du_c = d_c+u_c
 d_ctrl = [make_event(KEY_DOWN, 'left ctrl')]
 u_ctrl = [make_event(KEY_UP, 'left ctrl')]
+du_ctrl = d_ctrl+u_ctrl
 d_shift = [make_event(KEY_DOWN, 'left shift')]
 u_shift = [make_event(KEY_UP, 'left shift')]
+du_shift = d_shift+u_shift
 d_alt = [make_event(KEY_DOWN, 'alt')]
 u_alt = [make_event(KEY_UP, 'alt')]
+du_alt = d_alt+u_alt
+du_backspace = [make_event(KEY_DOWN, 'backspace'), make_event(KEY_UP, 'backspace')]
+du_capslock = [make_event(KEY_DOWN, 'caps lock'), make_event(KEY_UP, 'caps lock')]
+du_space = [make_event(KEY_DOWN, 'space'), make_event(KEY_UP, 'space')]
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
@@ -369,7 +383,7 @@ class TestKeyboard(unittest.TestCase):
         last_time = time.time()
         keyboard.write('ab', delay=0.01, exact=False)
         self.do([], d_a+u_a+d_b+u_b)
-        self.assertGreater(time.time() - last_time, 0.015 )
+        self.assertGreater(time.time() - last_time, 0.015)
     def test_write_unicode_explicit(self):
         keyboard.write('ab', exact=True)
         self.do([], [KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='a'), KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='b')])
@@ -393,8 +407,15 @@ class TestKeyboard(unittest.TestCase):
         keyboard.play(d_a+u_a, 0)
         self.do([], u_ctrl+d_a+u_a+d_ctrl)
     def test_play_delay(self):
-        keyboard.play(d_a+u_a, 0)
+        last_time = time.time()
+        events = [make_event(KEY_DOWN, 'a', 1, 100), make_event(KEY_UP, 'a', 1, 100.01)]
+        keyboard.play(events, 1)
         self.do([], d_a+u_a)
+        self.assertGreater(time.time() - last_time, 0.005)
+
+    def test_get_typed_strings(self):
+        events = du_a+du_b+du_backspace+d_shift+du_a+u_shift+du_space+du_ctrl+du_a
+        self.assertEqual(list(keyboard.get_typed_strings(events)), ['aA ', 'a'])
 
 if __name__ == '__main__':
     unittest.main()
@@ -617,36 +638,6 @@ class OldTests(object):
             (KEY_DOWN, 'a'),
             (KEY_UP, 'a'),
             (KEY_UP, 'shift'),])
-
-    def test_stash_restore_state(self):
-        self.press('a')
-        self.press('b')
-        state = keyboard.stash_state()
-        self.assertEqual(sorted(self.flush_events()), [(KEY_UP, 'a'), (KEY_UP, 'b')])
-        keyboard._pressed_events.clear()
-        assert len(state) == 2
-        self.press('c')
-        keyboard.restore_state(state)
-        self.assertEqual(sorted(self.flush_events()), [(KEY_DOWN, 'a'), (KEY_DOWN, 'b'), (KEY_UP, 'c')])
-
-    def test_get_typed_strings(self):
-        keyboard.hook(self.events.append)
-        self.click('b')
-        self.click('i')
-        self.press('shift')
-        self.click('r')
-        self.click('caps lock')
-        self.click('d')
-        self.click('caps lock')
-        self.release('shift')
-        self.click(' ')
-        self.click('backspace')
-        self.click('.')
-        self.click('enter')
-        self.click('n')
-        self.click('e')
-        self.click('w')
-        self.assertEqual(list(keyboard.get_typed_strings(self.events)), ['biRd.', 'new'])
 
     def test_suppression(self):
         def dummy():
