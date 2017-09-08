@@ -113,6 +113,19 @@ from ._generic import GenericListener as _GenericListener
 sided_modifiers = {'ctrl', 'alt', 'shift', 'windows'}
 all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'} | set('left ' + n for n in sided_modifiers) | set('right ' + n for n in sided_modifiers)
 
+_modifier_scan_codes = set()
+def is_modifier(key):
+    """
+    Returns True if `key` is a scan code or name of a modifier key.
+    """
+    if _is_str(key):
+        return key in all_modifiers
+    else:
+        if not _modifier_scan_codes:
+            scan_codes = (key_to_scan_codes(name, False) for name in all_modifiers) 
+            _modifier_scan_codes.update(*scan_codes)
+        return key in _modifier_scan_codes
+
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
     transition_table = {
@@ -251,8 +264,10 @@ def key_to_scan_codes(key, error_if_missing=True):
     """
     if _is_number(key):
         return (key,)
-
-    assert _is_str(key)
+    elif _is_list(key):
+        return sum((key_to_scan_codes(i) for i in key), ())
+    elif not _is_str(key):
+        raise ValueError('Unexpected key type: ' + repr(key))
 
     normalized = _normalize_name(key)
     if normalized in sided_modifiers:
@@ -476,7 +491,40 @@ def remap_key(src, dst):
     return hook_key(src, handler, suppress=True)
 unremap_key = unhook_key
 
-def write(text, delay=0, restore_state_after=True, exact=None):
+def stash_state():
+    """
+    Builds a list of all currently pressed scan codes, releases them and returns
+    the list. Pairs well with `restore_state` and `restore_modifiers`.
+    """
+    # TODO: stash caps lock state.
+    state = sorted(_pressed_events)
+    for scan_code in state:
+        _os_keyboard.release(scan_code)
+    return state
+
+def restore_state(scan_codes):
+    """
+    Given a list of scan_codes ensures these keys, and only these keys, are
+    pressed. Pairs well with `stash_state`, alternative to `restore_modifiers`.
+    """
+    _listener.is_replaying = True
+
+    current = set(_pressed_events)
+    target = set(scan_codes)
+    for scan_code in current - target:
+        _os_keyboard.release(scan_code)
+    for scan_code in target - current:
+        _os_keyboard.press(scan_code)
+
+    _listener.is_replaying = False
+
+def restore_modifiers(scan_codes):
+    """
+    Like `restore_state`, but only restores modifier keys.
+    """
+    restore_state((scan_code for scan_code in scan_codes if is_modifier(scan_code)))
+
+def write(text, delay=0, exact=None):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Characters not available on the keyboard are typed as explicit unicode
@@ -487,9 +535,6 @@ def write(text, delay=0, restore_state_after=True, exact=None):
 
     - `delay` is the number of seconds to wait between keypresses, defaults to
     no delay.
-    - `restore_state_after` can be used to restore the state of pressed keys
-    after the text is typed, i.e. presses the keys that were released at the
-    beginning. Defaults to True.
     - `exact` forces typing all characters as explicit unicode (e.g.
     alt+codepoint or special events). If None, uses platform-specific suggested
     value.
@@ -523,8 +568,93 @@ def write(text, delay=0, restore_state_after=True, exact=None):
             if delay:
                 _time.sleep(delay)
 
-    if restore_state_after:
-        restore_state(state)
+    restore_modifiers(state)
+
+# The "Event" class from `threading` ignores signals when waiting and is
+# impossible to interrupt with Ctrl+C. So we rewrite `wait` to wait in small,
+# interruptible intervals.
+from threading import Event as _UninterruptibleEvent
+class _Event(_UninterruptibleEvent):
+    def wait(self):
+        while True:
+            if _UninterruptibleEvent.wait(self, 0.5):
+                break
+
+def wait(hotkey=None, suppress=False):
+    """
+    Blocks the program execution until the given key hotkey is pressed or,
+    if given no parameters, blocks forever.
+    """
+    if hotkey:
+        event = _Event()
+        hotkey_handler = add_hotkey(hotkey, event.notify, suppress=suppress)
+        event.wait()
+        remove_hotkey(hotkey_handler)
+    else:
+        while True:
+            _time.sleep(1e9)
+
+_recording = None
+def start_recording(recorded_events_queue=None):
+    """
+    Starts recording all keyboard events into a global variable, or the given
+    queue if any. Returns the queue of events and the hooked function.
+
+    Use `stop_recording()` or `unhook(hooked_function)` to stop.
+    """
+    recorded_events_queue = recorded_events_queue or _queue.Queue()
+    global _recording
+    _recording = (recorded_events_queue, hook(recorded_events_queue.put))
+    return _recording
+
+def stop_recording():
+    """
+    Stops the global recording of events and returns a list of the events
+    captured.
+    """
+    global _recording
+    if not _recording:
+        raise ValueError('Must call "start_recording" before.')
+    recorded_events_queue, hooked = _recording
+    unhook(hooked)
+    return list(recorded_events_queue.queue)
+
+def record(until='escape'):
+    """
+    Records all keyboard events from all keyboards until the user presses the
+    given hotkey. Then returns the list of events recorded, of type
+    `keyboard.KeyboardEvent`. Pairs well with
+    `play(events)`.
+
+    Note: this is a blocking function.
+    Note: for more details on the keyboard hook and events see `hook`.
+    """
+    start_recording()
+    wait(until)
+    return stop_recording()
+
+def play(events, speed_factor=1.0):
+    """
+    Plays a sequence of recorded events, maintaining the relative time
+    intervals. If speed_factor is <= 0 then the actions are replayed as fast
+    as the OS allows. Pairs well with `record()`.
+
+    Note: the current keyboard state is cleared at the beginning and restored at
+    the end of the function.
+    """
+    state = stash_state()
+
+    last_time = None
+    for event in events:
+        if speed_factor > 0 and last_time is not None:
+            _time.sleep((event.time - last_time) / speed_factor)
+        last_time = event.time
+
+        key = event.scan_code or event.name
+        press(key) if event.event_type == KEY_DOWN else release(key)
+
+    restore_modifiers(state)
+replay = play
 
 _hotkeys = {}
 def clear_all_hotkeys():
@@ -712,65 +842,13 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
     For more details see `add_word_listener`.
     """
     replacement = '\b'*(len(source_text)+1) + replacement_text
-    callback = lambda: write(replacement, restore_state_after=False)
+    callback = lambda: write(replacement)
     return add_word_listener(source_text, callback, match_suffix=match_suffix, timeout=timeout)
 
 # Aliases.
 register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
 remove_abbreviation = remove_word_listener
-
-def stash_state():
-    """
-    Builds a list of all currently pressed scan codes, releases them and returns
-    the list. Pairs well with `restore_state`.
-    """
-    # TODO: stash caps lock state.
-    state = sorted(_pressed_events)
-    for scan_code in state:
-        _os_keyboard.release(scan_code)
-    return state
-
-def restore_state(scan_codes):
-    """
-    Given a list of scan_codes ensures these keys, and only these keys, are
-    pressed. Pairs well with `stash_state`.
-    """
-    _listener.is_replaying = True
-
-    current = set(_pressed_events)
-    target = set(scan_codes)
-    for scan_code in current - target:
-        _os_keyboard.release(scan_code)
-    for scan_code in target - current:
-        _os_keyboard.press(scan_code)
-
-    _listener.is_replaying = False
-
-def _make_wait_and_unlock():
-    """
-    Method to work around CPython's inability to interrupt Lock.join with
-    signals. Without this Ctrl+C doesn't close the program.
-    """
-    q = _queue.Queue(maxsize=1)
-    def wait():
-        while True:
-            try:
-                return q.get(timeout=1)
-            except _queue.Empty:
-                pass
-    return (wait, lambda v=None: q.put(v))
-
-def wait(hotkey=None):
-    """
-    Blocks the program execution until the given key hotkey is pressed or,
-    if given no parameters, blocks forever.
-    """
-    wait, unlock = _make_wait_and_unlock()
-    if hotkey is not None:
-        hotkey_handler = add_hotkey(hotkey, unlock)
-    wait()
-    remove_hotkey(hotkey_handler)
 
 def read_key(filter=lambda e: True):
     """
@@ -783,50 +861,6 @@ def read_key(filter=lambda e: True):
             unlock(event)
     hook(test)
     return wait()
-
-def record(until='escape'):
-    """
-    Records all keyboard events from all keyboards until the user presses the
-    given key hotkey. Then returns the list of events recorded, of type
-    `keyboard.KeyboardEvent`. Pairs well with
-    `play(events)`.
-
-    Note: this is a blocking function.
-    Note: for more details on the keyboard hook and events see `hook`.
-    """
-    recorded = []
-    hook(recorded.append)
-    wait(until)
-    unhook(recorded.append)
-    return recorded
-
-def play(events, speed_factor=1.0):
-    """
-    Plays a sequence of recorded events, maintaining the relative time
-    intervals. If speed_factor is <= 0 then the actions are replayed as fast
-    as the OS allows. Pairs well with `record()`.
-
-    Note: the current keyboard state is cleared at the beginning and restored at
-    the end of the function.
-    """
-    state = stash_state()
-
-    last_time = None
-    for event in events:
-        if speed_factor > 0 and last_time is not None:
-            _time.sleep((event.time - last_time) / speed_factor)
-        last_time = event.time
-
-        key = event.scan_code or event.name
-        if event.event_type == KEY_DOWN:
-            press(key)
-        elif event.event_type == KEY_UP:
-            release(key)
-        # Ignore other types of events.
-
-    restore_state(state)
-
-replay = play
 
 def get_typed_strings(events, allow_backspace=True):
     """
@@ -871,33 +905,6 @@ def get_typed_strings(events, allow_backspace=True):
                 yield string
                 string = ''
     yield string
-
-
-_recording = None
-def start_recording(recorded_events_queue=None):
-    """
-    Starts recording all keyboard events into a global variable, or the given
-    queue if any. Returns the queue of events and the hooked function.
-
-    Use `stop_recording()` or `unhook(hooked_function)` to stop.
-    """
-    global _recording
-    recorded_events_queue = recorded_events_queue or _queue.Queue()
-    _recording = recorded_events_queue, hook(recorded_events_queue.put)
-    return _recording
-
-def stop_recording():
-    """
-    Stops the global recording of events and returns a list of the events
-    captured.
-    """
-    global _recording
-    if not _recording:
-        raise ValueError('Must call "start_recording" before.')
-    recorded_events_queue, hooked = _recording
-    unhook(hooked)
-    _recording = None
-    return list(recorded_events_queue.queue)
 
 
 def get_hotkey_name(names=None):

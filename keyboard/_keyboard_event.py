@@ -38,7 +38,15 @@ class KeyboardEvent(object):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
 
     def __eq__(self, other):
-        return isinstance(other, KeyboardEvent) and self.event_type == other.event_type and (self.scan_code == other.scan_code if self.scan_code else True) and (self.name == other.name if self.name else True)
+        return (
+            isinstance(other, KeyboardEvent)
+            and self.event_type == other.event_type
+            and (
+                self.scan_code == other.scan_code if self.scan_code and other.scan_code else True
+            ) and (
+                self.name == other.name if self.name and other.name else True
+            )
+        )
 
 # TODO: add values from https://svn.apache.org/repos/asf/xmlgraphics/commons/tags/commons-1_0/src/java/org/apache/xmlgraphics/fonts/Glyphs.java
 canonical_names = {
@@ -231,10 +239,8 @@ canonical_names = {
 }
 
 def normalize_name(name):
-    if not name:
-        return 'unknown'
-    if not isinstance(name, basestring):
-        raise ValueError('Can only normalize string names. Unexpected '+ repr(name))
+    if not name or not isinstance(name, basestring):
+        raise ValueError('Can only normalize non-empty string names. Unexpected '+ repr(name))
 
     if len(name) > 1:
         name = name.lower()

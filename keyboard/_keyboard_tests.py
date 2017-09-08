@@ -36,6 +36,7 @@ dummy_keys = {
 
     '+': [(10, [])],
     ',': [(11, [])],
+    '_': [(12, [])],
 }
 
 def make_event(event_type, name, scan_code=None):
@@ -76,6 +77,7 @@ class TestKeyboard(unittest.TestCase):
     def tearDown(self):
         del input_events[:]
         del output_events[:]
+        keyboard._recording = None
         keyboard._pressed_events.clear()
         keyboard._listener.init()
         keyboard.unhook_all()
@@ -91,6 +93,18 @@ class TestKeyboard(unittest.TestCase):
         del output_events[:]
 
         keyboard._listener.queue.join()
+
+    def test_event_json(self):
+        event = make_event(KEY_DOWN, 'á \'"', 999)
+        import json
+        self.assertEqual(event, KeyboardEvent(**json.loads(event.to_json())))
+
+    def test_is_modifier_name(self):
+        for name in keyboard.all_modifiers:
+            self.assertTrue(keyboard.is_modifier(name))
+    def test_is_modifier_scan_code(self):
+        for i in range(10):
+            self.assertEqual(keyboard.is_modifier(i), i in [4, 5, 6, 7])
 
     def test_key_to_scan_codes_brute(self):
         for name, entries in dummy_keys.items():
@@ -109,6 +123,21 @@ class TestKeyboard(unittest.TestCase):
     def test_key_to_scan_code_from_sided_modifier(self):
         self.assertEqual(keyboard.key_to_scan_codes('left shift'), (5,))
         self.assertEqual(keyboard.key_to_scan_codes('right shift'), (6,))
+    def test_key_to_scan_code_underscores(self):
+        self.assertEqual(keyboard.key_to_scan_codes('_'), (12,))
+        self.assertEqual(keyboard.key_to_scan_codes('right_shift'), (6,))
+    def test_key_to_scan_code_error_none(self):
+        with self.assertRaises(ValueError):
+            keyboard.key_to_scan_codes(None)
+    def test_key_to_scan_code_error_empty(self):
+        with self.assertRaises(ValueError):
+            keyboard.key_to_scan_codes('')
+    def test_key_to_scan_code_error_other(self):
+        with self.assertRaises(ValueError):
+            keyboard.key_to_scan_codes({})
+    def test_key_to_scan_code_list(self):
+        self.assertEqual(keyboard.key_to_scan_codes([10, 5, 'a']), (10, 5, 1))
+            
 
     def test_parse_hotkey_simple(self):
         self.assertEqual(keyboard.parse_hotkey('a'), (((1,),),))
@@ -306,6 +335,19 @@ class TestKeyboard(unittest.TestCase):
         keyboard.unremap_key('a')
         self.do(d_a+d_c+u_a, d_a+d_c+u_a)
 
+    def test_stash_state(self):
+        self.do(d_a+d_shift)
+        self.assertEqual(sorted(keyboard.stash_state()), [1, 5])
+        self.do([], u_a+u_shift)
+    def test_restore_state(self):
+        self.do(d_b)
+        keyboard.restore_state([1, 5])
+        self.do([], u_b+d_a+d_shift)
+    def test_restore_modifieres(self):
+        self.do(d_b)
+        keyboard.restore_modifiers([1, 5])
+        self.do([], u_b+d_shift)
+
     def test_write_simple(self):
         keyboard.write('a', exact=False)
         self.do([], d_a+u_a)
@@ -315,13 +357,13 @@ class TestKeyboard(unittest.TestCase):
     def test_write_modifiers(self):
         keyboard.write('Ab', exact=False)
         self.do([], d_shift+d_a+u_a+u_shift+d_b+u_b)
-    def test_write_stash_not_restore(self):
-        self.do(d_shift)
-        keyboard.write('a', restore_state_after=False, exact=False)
-        self.do([], u_shift+d_a+u_a)
+    #def test_write_stash_not_restore(self):
+    #    self.do(d_shift)
+    #    keyboard.write('a', restore_state_after=False, exact=False)
+    #    self.do([], u_shift+d_a+u_a)
     def test_write_stash_restore(self):
         self.do(d_shift)
-        keyboard.write('a', restore_state_after=True, exact=False)
+        keyboard.write('a', exact=False)
         self.do([], u_shift+d_a+u_a+d_shift)
     def test_write_multiple(self):
         last_time = time.time()
@@ -335,48 +377,31 @@ class TestKeyboard(unittest.TestCase):
         keyboard.write('áb', exact=False)
         self.do([], [KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='á')]+d_b+u_b)
 
+    def test_start_stop_recording(self):
+        keyboard.start_recording()
+        self.do(d_a+u_a)
+        self.assertEqual(keyboard.stop_recording(), d_a+u_a)
+    def test_stop_recording_error(self):
+        with self.assertRaises(ValueError):
+            keyboard.stop_recording()
+
+    def test_play_nodelay(self):
+        keyboard.play(d_a+u_a, 0)
+        self.do([], d_a+u_a)
+    def test_play_stash(self):
+        self.do(d_ctrl)
+        keyboard.play(d_a+u_a, 0)
+        self.do([], u_ctrl+d_a+u_a+d_ctrl)
+    def test_play_delay(self):
+        keyboard.play(d_a+u_a, 0)
+        self.do([], d_a+u_a)
+
 if __name__ == '__main__':
     unittest.main()
 
 exit()
 
 class OldTests(object):
-    def test_hook(self):
-        self.i = 0
-        def count(e):
-            self.assertEqual(e.name, 'a')
-            self.i += 1
-        keyboard.hook(count)
-        self.click('a')
-        self.assertEqual(self.i, 2)
-        keyboard.hook(count)
-        self.click('a')
-        self.assertEqual(self.i, 6)
-        keyboard.unhook(count)
-        self.click('a')
-        self.assertEqual(self.i, 8)
-        keyboard.unhook(count)
-        self.click('a')
-        self.assertEqual(self.i, 8)
-
-    def test_hook_key(self):
-        self.i = 0
-        def count():
-            self.i += 1
-        keyboard.hook_key('a', keyup_callback=count)
-        self.press('a')
-        self.assertEqual(self.i, 0)
-        self.release('a')
-        self.click('b')
-        self.assertEqual(self.i, 1)
-        keyboard.hook_key('b', keydown_callback=count)
-        self.press('b')
-        self.assertEqual(self.i, 2)
-        keyboard.unhook_key('a')
-        keyboard.unhook_key('b')
-        self.click('a')
-        self.assertEqual(self.i, 2)
-
     def test_register_hotkey(self):
         self.assertFalse(self.triggers('a', [['b']]))
         self.assertTrue(self.triggers('a', [['a']]))
@@ -403,68 +428,6 @@ class OldTests(object):
         with self.assertRaises(ValueError):
             keyboard.remove_hotkey('b')
         keyboard.remove_hotkey('a')
-
-    def test_write(self):
-        keyboard.write('a')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a')])
-
-        keyboard.write('ab')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'b'), (KEY_UP, 'b')])
-
-        keyboard.write('Ab')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift'), (KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_UP, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b')])
-
-        keyboard.write('\n')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'enter'), (KEY_UP, 'enter')])
-
-    def test_send(self):
-        keyboard.send('shift', True, False)
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift')])
-
-        keyboard.send('a')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a')])
-
-        keyboard.send('a, b')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'b'), (KEY_UP, 'b')])
-
-        keyboard.send('shift+a, b')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift'), (KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_UP, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b')])
-
-        self.press('a')
-        keyboard.write('a', restore_state_after=False, delay=0.001)
-        # TODO: two KEY_UP 'a' because the tests are not clearing the pressed
-        # keys correctly, it's not a bug in the keyboard module itself.
-        self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'a'), (KEY_UP, 'a')])
-
-        shift_scan_code = scan_codes_by_name['shift']
-
-        keyboard.send(shift_scan_code, True, False)
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift')])
-        keyboard.send([[shift_scan_code]], True, False)
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift')])
-        keyboard.send([['shift']], True, False)
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift')])
-
-    def test_type_unicode(self):
-        keyboard.write(u'û')
-        events = self.flush_events()
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].event_type, 'unicode')
-        self.assertEqual(events[0].name, u'û')
-
-    def test_press_release(self):
-        keyboard.press('a')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a')])
-        keyboard.release('a')
-        self.assertEqual(self.flush_events(), [(KEY_UP, 'a')])
-
-        keyboard.press('shift+a')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'shift'), (KEY_DOWN, 'a')])
-        keyboard.release('shift+a')
-        self.assertEqual(self.flush_events(), [(KEY_UP, 'a'), (KEY_UP, 'shift')])
-
-        keyboard.press_and_release('a')
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a')])
 
     def test_wait(self):
         # If this fails it blocks. Unfortunately, but I see no other way of testing.
@@ -684,24 +647,6 @@ class OldTests(object):
         self.click('e')
         self.click('w')
         self.assertEqual(list(keyboard.get_typed_strings(self.events)), ['biRd.', 'new'])
-
-    def test_on_press(self):
-        keyboard.on_press(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_DOWN))
-        self.release('a')
-        self.press('a')
-
-    def test_on_release(self):
-        keyboard.on_release(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_UP))
-        self.press('a')
-        self.release('a')
-
-    def test_call_later(self):
-        self.triggered = False
-        def trigger(): self.triggered = True
-        keyboard.call_later(trigger, delay=0.1)
-        self.assertFalse(self.triggered)
-        time.sleep(0.2)
-        self.assertTrue(self.triggered)
 
     def test_suppression(self):
         def dummy():
