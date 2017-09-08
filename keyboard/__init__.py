@@ -76,7 +76,7 @@ key events. In this case `keyboard` will be unable to report events.
 import re
 import itertools
 import time as _time
-from collections import Counter
+from collections import Counter, defaultdict
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
 
@@ -118,7 +118,8 @@ class _KeyboardListener(_GenericListener):
     active_modifiers = set()
     blocking_hooks = []
     blocking_hotkeys = {}
-    blocking_keys = {}
+    blocking_keys = defaultdict(list)
+    nonblocking_keys = defaultdict(list)
     filtered_modifiers = Counter()
     is_replaying = False
 
@@ -170,6 +171,9 @@ class _KeyboardListener(_GenericListener):
         _os_keyboard.init()
         
     def pre_process_event(self, event):
+        for key_hook in self.nonblocking_keys[event.scan_code]:
+            key_hook(event)
+
         return event.scan_code or (event.name and event.name != 'unknown')
 
     def direct_callback(self, event):
@@ -193,8 +197,9 @@ class _KeyboardListener(_GenericListener):
         event_type = event.event_type
 
         # Mappings based on individual keys instead of hotkeys.
-        if event.name in self.blocking_keys and not self.blocking_keys[event.name](event):
-            return False
+        for key_hook in self.blocking_keys[event.scan_code]:
+            if not key_hook(event):
+                return False
 
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_DOWN:
@@ -244,8 +249,11 @@ def key_to_scan_codes(key):
         return (key,)
 
     assert _is_str(key)
-    return tuple(scan_code for scan_code, modifier in _os_keyboard.map_name(key))
-    
+    try:
+        return tuple(scan_code for scan_code, modifier in _os_keyboard.map_name(key))
+    except KeyError:
+        raise ValueError('Key {} is not mapped to any known key.'.format(repr(key)))
+
 def parse_hotkey(hotkey):
     if _is_number(hotkey) or re.match(r'[^,+]+$', hotkey):
         scan_codes = key_to_scan_codes(hotkey)
@@ -286,6 +294,102 @@ def call_later(fn, args=(), delay=0.001):
     """
     _Thread(target=lambda: (_time.sleep(delay), fn(*args))).start()
 
+_hooks = {}
+def hook(callback, suppress=False, on_remove=lambda: None):
+    """
+    Installs a global listener on all available keyboards, invoking `callback`
+    each time a key is pressed or released.
+    
+    The event passed to the callback is of type `keyboard.KeyboardEvent`,
+    with the following attributes:
+
+    - `name`: an Unicode representation of the character (e.g. "&") or
+    description (e.g.  "space"). The name is always lower-case.
+    - `scan_code`: number representing the physical key, e.g. 55.
+    - `time`: timestamp of the time the event occurred, with as much precision
+    as given by the OS.
+
+    Returns the given callback for easier development.
+    """
+    if suppress:
+        _listener.start_if_necessary()
+        append, remove = _listener.blocking_hooks.append, _listener.blocking_hooks.remove
+    else:
+        append, remove = _listener.add_handler, _listener.remove_handler
+
+    append(callback)
+    def removal_wrapper():
+        remove(callback)
+        del _hooks[callback]
+        on_remove()
+    _hooks[callback] = removal_wrapper
+    return callback
+
+def on_press(callback, suppress=False):
+    """
+    Invokes `callback` for every KEY_DOWN event. For details see `hook`.
+    """
+    return hook(lambda e: e.event_type == KEY_UP or callback(e), suppress=suppress)
+
+def on_release(callback, suppress=False):
+    """
+    Invokes `callback` for every KEY_UP event. For details see `hook`.
+    """
+    return hook(lambda e: e.event_type == KEY_DOWN or callback(e), suppress=suppress)
+
+def hook_key(key, callback, suppress=False):
+    """
+    Hooks key up and key down events for a single key. Returns the event handler
+    created. To remove a hooked key use `unhook_key(key)` or
+    `unhook_key(handler)`.
+
+    Note: this function shares state with hotkeys, so `clear_all_hotkeys`
+    affects it aswell.
+    """
+    _listener.start_if_necessary()
+    store = _listener.blocking_keys if suppress else _listener.nonblocking_keys
+    scan_codes = key_to_scan_codes(key)
+    for scan_code in scan_codes:
+        store[scan_code].append(callback)
+    def removal_wrapper():
+        for scan_code in scan_codes:
+            store[scan_code].remove(callback)
+        del _hooks[key]
+        del _hooks[callback]
+    _hooks[key] = _hooks[callback] = removal_wrapper
+
+def on_press_key(key, callback, suppress=False):
+    """
+    Invokes `callback` for KEY_DOWN event related to the given key. For details see `hook`.
+    """
+    return hook_key(key, lambda e: e.event_type == KEY_UP or callback(e), suppress=suppress)
+
+def on_release_key(key, callback, suppress=False):
+    """
+    Invokes `callback` for KEY_UP event related to the given key. For details see `hook`.
+    """
+    return hook_key(key, lambda e: e.event_type == KEY_DOWN or callback(e), suppress=suppress)
+
+def unhook(callback):
+    """ Removes a previously hooked callback. """
+    _hooks[callback]()
+
+unhook_key = unhook
+
+def block_key(key):
+    """
+    Suppresses all key events of the given key, regardless of modifiers.
+    """
+    return hook_key(key, lambda e: False, supperss=True)
+unblock_key = unhook_key
+
+def unhook_all():
+    """
+    Removes all keyboard hooks in use, including hotkeys, abbreviations, word
+    listeners, `record`ers and `wait`s.
+    """
+    for remove in list(_hooks.values()):
+        remove()
 
 _hotkeys = {}
 def clear_all_hotkeys():
@@ -387,108 +491,6 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
 # Alias.
 register_hotkey = add_hotkey
 
-_hooks = {}
-def hook(callback, suppress=False, on_remove=lambda: None):
-    """
-    Installs a global listener on all available keyboards, invoking `callback`
-    each time a key is pressed or released.
-    
-    The event passed to the callback is of type `keyboard.KeyboardEvent`,
-    with the following attributes:
-
-    - `name`: an Unicode representation of the character (e.g. "&") or
-    description (e.g.  "space"). The name is always lower-case.
-    - `scan_code`: number representing the physical key, e.g. 55.
-    - `time`: timestamp of the time the event occurred, with as much precision
-    as given by the OS.
-
-    Returns the given callback for easier development.
-    """
-    if suppress:
-        _listener.start_if_necessary()
-        append, remove = _listener.blocking_hooks.append, _listener.blocking_hooks.remove
-    else:
-        append, remove = _listener.add_handler, _listener.remove_handler
-
-    append(callback)
-    def removal_wrapper():
-        remove(callback)
-        del _hooks[callback]
-        on_remove()
-    _hooks[callback] = removal_wrapper
-
-def on_press(callback, suppress=False):
-    """
-    Invokes `callback` for every KEY_DOWN event. For details see `hook`.
-    """
-    fn = lambda e: e.event_type == KEY_DOWN and callback(e)
-    hook(fn, suppress=suppress)
-    return fn
-
-def on_release(callback, suppress=False):
-    """
-    Invokes `callback` for every KEY_UP event. For details see `hook`.
-    """
-    fn = lambda e: e.event_type == KEY_UP and callback(e)
-    hook(fn, suppress=suppress)
-    return fn
-
-def unhook(callback):
-    """ Removes a previously hooked callback. """
-    _hooks[callback]()
-
-def unhook_all():
-    """
-    Removes all keyboard hooks in use, including hotkeys, abbreviations, word
-    listeners, `record`ers and `wait`s.
-    """
-    for remove in list(_hooks.values()):
-        remove()
-
-def hook_key(key, keydown_callback=lambda: None, keyup_callback=lambda: None):
-    """
-    Hooks key up and key down events for a single key. Returns the event handler
-    created. To remove a hooked key use `unhook_key(key)` or
-    `unhook_key(handler)`.
-
-    Note: this function shares state with hotkeys, so `clear_all_hotkeys`
-    affects it aswell.
-    """
-    def handler(event):
-        if not matches(event, key):
-            return
-
-        if event.event_type == KEY_DOWN:
-            keydown_callback()
-        if event.event_type == KEY_UP:
-            keyup_callback()
-
-    _hotkeys[key] = handler
-    return hook(handler)
-
-def _remove_named_hook(name_or_handler, names):
-    """
-    Removes a hook that was registered with a given name in a dictionary.
-    """
-    if callable(name_or_handler):
-        handler = name_or_handler
-        try:
-            name = next(n for n, h in names.items() if h == handler)
-        except StopIteration:
-            raise ValueError('This handler is not associated with any name.')
-        unhook(handler)
-        del names[name]
-    else:
-        name = name_or_handler
-        try:
-            handler = names[name]
-        except KeyError as e:
-            raise ValueError('No such named listener: ' + repr(name), e)
-        unhook(names[name])
-        del names[name]
-
-    return name
-
 def remove_hotkey(hotkey_or_handler):
     """
     Removes a previously registered hotkey. Accepts either the hotkey used
@@ -496,9 +498,6 @@ def remove_hotkey(hotkey_or_handler):
     `add_hotkey` or `hook_key` functions.
     """
     _remove_named_hook(hotkey_or_handler, _hotkeys)
-
-# Alias.
-unhook_key = remove_hotkey
 
 _word_listeners = {}
 def add_word_listener(word, callback, triggers=['space'], match_suffix=False, timeout=2):
@@ -974,27 +973,6 @@ def unhook_blocking_hotkey(hotkey):
         pair = (tuple(sorted(possible_hotkey)), main_key)
         del _listener.blocking_hotkeys[pair]
 
-
-def hook_blocking_key(key, handler):
-    """
-    Sets an event handler to be called for all events regarding the given key,
-    regardless of modifiers.
-    This event will be blcoking (the OS will wait for this handler to finish),
-    and may return True or False if the hotkey should be suppressed or not.
-    """
-    _listener.start_if_necessary()
-    for sided_key in _get_sided_modifiers(_normalize_name(key)):
-        _listener.blocking_keys[sided_key] = handler
-    return key
-
-def unhook_blocking_key(key, handler):
-    """
-    Removes a hook added via `hook_blocking_key`.
-    """
-    for sided_key in _get_sided_modifiers(_normalize_name(key)):
-        del _listener.blocking_keys[sided_key]
-    return key
-
 def remap_hotkey(src, dst):
     """
     Whenever the hotkey `src` is pressed, suppress it and send
@@ -1030,36 +1008,6 @@ def remap_key(src, dst):
             release(dst)
         return False
     return hook_blocking_key(src, handler)
-unremap_key = unhook_blocking_key
-
-def block_key(key):
-    """
-    Suppresses all key events of the given key, regardless of modifiers.
-    """
-    return hook_blocking_key(key, lambda e: False)
-unblock_key = unhook_blocking_key
-
-
-def hook_blocking(handler):
-    """
-    Sets a global, blocking hook. The given `handler` will be invoked for every
-    keyboard event, and if `handler` returns False, the event will be
-    suppressed. Because this is a blocking hook, if `handler` takes too long to
-    return a noticeable delay will be added to every key event.
-
-    Only one such hook may be active.
-    """
-    global _blocking_hook
-    _blocking_hook = handler
-    _listener.start_if_necessary()
-    return handler
-
-def unhook_blocking():
-    """
-    Removes a hook added via `hook_blocking`.
-    """
-    global _blocking_hook
-    _blocking_hook = None
 
 def add_multi_step_blocking_hotkey(hotkey, callback):
     # TODO: timeout

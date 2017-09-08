@@ -530,11 +530,11 @@ def listen(callback):
 
 def map_name(name):
     _setup_name_tables()
-    if not from_name.get(name):
-        # Use `get` instead of `in` because it may map to an empty list.
-        raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
 
-    for i, entry in sorted(from_name[name]):
+    entries = from_name.get(name)
+    if not entries:
+        raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
+    for i, entry in sorted(entries):
         scan_code, vk, is_extended, modifiers = entry
         yield scan_code or -vk, modifiers
 

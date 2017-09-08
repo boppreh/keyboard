@@ -8,26 +8,36 @@ import keyboard
 
 from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
 
-name_by_scan_code = dict(enumerate(['a', 'b', 'c', 'ctrl', 'shift', 'alt']))
-scan_code_by_name = dict((b, a) for a, b in name_by_scan_code.items())
+by_names = {
+    'a': [(1, [])],
+    'b': [(2, [])],
+    'c': [(3, [])],
+    'A': [(1, ['shift']), (-1, [])],
+    'B': [(2, ['shift']), (-1, [])],
+    'C': [(3, ['shift']), (-1, [])],
 
-def event_for(event_type, value):
-    if keyboard._is_str(value):
-        name, scan_code = value, scan_code_by_name[value]
-    elif keyboard._is_number(value):
-        name, scan_code = name_by_scan_code[value], value
-    else:
-        raise ValueError('Unexpected ' + repr(value))
-    return KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name)
+    'alt': [(4, [])],
+    'left alt': [(4, [])],
+
+    'left shift': [(5, [])],
+    'shift': [(5, []), (6, [])],
+    'right shift': [(6, [])],
+
+    'left ctrl': [(7, [])],
+    'ctrl': [(8, []), (7, [])],
+}
+
+def event_for(event_type, name, scan_code=None):
+    return KeyboardEvent(event_type=event_type, scan_code=scan_code or by_names[name][0][0], name=name)
 
 input_events = []
 output_events = []
 
 keyboard._os_keyboard.init = lambda: None
 keyboard._os_keyboard.listen = lambda callback: None
-keyboard._os_keyboard.map_name = lambda name: [(scan_code_by_name[name], [])]
+keyboard._os_keyboard.map_name = by_names.__getitem__
 def fake_event(event_type, scan_code):
-    event = event_for(event_type, scan_code)
+    event = KeyboardEvent(event_type=event_type, scan_code=scan_code)
     if keyboard._listener.direct_callback(event):
         output_events.append(event)
 keyboard._os_keyboard.press = lambda scan_code: fake_event(KEY_DOWN, scan_code)
@@ -41,8 +51,8 @@ d_c = [event_for(KEY_DOWN, 'c')]
 u_c = [event_for(KEY_UP, 'c')]
 d_ctrl = [event_for(KEY_DOWN, 'ctrl')]
 u_ctrl = [event_for(KEY_UP, 'ctrl')]
-d_shift = [event_for(KEY_DOWN, 'shift')]
-u_shift = [event_for(KEY_UP, 'shift')]
+d_shift = [event_for(KEY_DOWN, 'left shift')]
+u_shift = [event_for(KEY_UP, 'left shift')]
 d_alt = [event_for(KEY_DOWN, 'alt')]
 u_alt = [event_for(KEY_UP, 'alt')]
 
@@ -78,9 +88,15 @@ class TestKeyboard(unittest.TestCase):
     def test_is_pressed_true(self):
         self.do(d_a)
         self.assertTrue(keyboard.is_pressed('a'))
-    def test_is_pressed_true_scan_code(self):
+    def test_is_pressed_true_scan_code_true(self):
         self.do(d_a)
-        self.assertTrue(keyboard.is_pressed(scan_code_by_name['a']))
+        self.assertTrue(keyboard.is_pressed(1))
+    def test_is_pressed_true_scan_code_false(self):
+        self.do(d_a)
+        self.assertFalse(keyboard.is_pressed(2))
+    def test_is_pressed_true_scan_code_invalid(self):
+        self.do(d_a)
+        self.assertFalse(keyboard.is_pressed(-1))
     def test_is_pressed_false(self):
         self.do(d_a+u_a+d_b)
         self.assertFalse(keyboard.is_pressed('a'))
@@ -149,7 +165,6 @@ class TestKeyboard(unittest.TestCase):
         keyboard.unhook_all()
         self.do(d_a+u_a, d_a+u_a)
         self.assertEqual(self.i, 4)
-
     def test_hook_blocking(self):
         self.i = 0
         def count(e):
@@ -168,14 +183,58 @@ class TestKeyboard(unittest.TestCase):
         keyboard.unhook_all()
         self.do(d_a+d_b, d_a+d_b)
         self.assertEqual(self.i, 4)
-
-    def test_on_press(self):
+    def test_on_press_nonblocking(self):
         keyboard.on_press(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_DOWN))
         self.do(d_a+u_a)
-
+    def test_on_press_blocking(self):
+        keyboard.on_press(lambda e: e.scan_code == 1, suppress=True)
+        self.do([event_for(KEY_DOWN, 'A', -1)] + d_a, d_a)
     def test_on_release(self):
         keyboard.on_release(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_UP))
         self.do(d_a+u_a)
+
+    def test_hook_key_invalid(self):
+        with self.assertRaises(ValueError):
+            keyboard.hook_key('invalid', lambda e: None)
+    def test_hook_key_nonblocking(self):
+        self.i = 0
+        def count(event):
+            self.i += 1
+        keyboard.hook_key('A', count)
+        self.do(d_a)
+        self.assertEqual(self.i, 1)
+        self.do(u_a+d_b)
+        self.assertEqual(self.i, 2)
+        self.do([event_for(KEY_DOWN, 'A', -1)])
+        self.assertEqual(self.i, 3)
+        keyboard.unhook_key('A')
+        self.do(d_a)
+        self.assertEqual(self.i, 3)
+    def test_hook_key_blocking(self):
+        self.i = 0
+        def count(event):
+            self.i += 1
+            return event.scan_code == 1
+        keyboard.hook_key('A', count, suppress=True)
+        self.do(d_a, d_a)
+        self.assertEqual(self.i, 1)
+        self.do(u_a+d_b, u_a+d_b)
+        self.assertEqual(self.i, 2)
+        self.do([event_for(KEY_DOWN, 'A', -1)], [])
+        self.assertEqual(self.i, 3)
+        keyboard.unhook_key('A')
+        self.do([event_for(KEY_DOWN, 'A', -1)], [event_for(KEY_DOWN, 'A', -1)])
+        self.assertEqual(self.i, 3)
+    def test_on_press_key_nonblocking(self):
+        keyboard.on_press_key('A', lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_DOWN))
+        self.do(d_a+u_a+d_b+u_b)
+    def test_on_press_key_blocking(self):
+        keyboard.on_press_key('A', lambda e: e.scan_code == 1, suppress=True)
+        self.do([event_for(KEY_DOWN, 'A', -1)] + d_a, d_a)
+    def test_on_release_key(self):
+        keyboard.on_release_key('a', lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_UP))
+        self.do(d_a+u_a)
+
 
 
 if __name__ == '__main__':
