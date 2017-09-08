@@ -62,8 +62,8 @@ class TestKeyboard(unittest.TestCase):
         del input_events[:]
         del output_events[:]
         keyboard._pressed_events.clear()
-        keyboard._hooks.clear()
         keyboard._listener.init()
+        keyboard.unhook_all()
 
     def do(self, manual_events, expected=None):
         input_events.extend(manual_events)
@@ -172,7 +172,7 @@ class TestKeyboard(unittest.TestCase):
             triggered.append(True)
         keyboard.call_later(trigger, (1, 2), 0.01)
         self.assertFalse(triggered)
-        time.sleep(0.02)
+        time.sleep(0.05)
         self.assertTrue(triggered)
 
     def test_hook_nonblocking(self):
@@ -273,6 +273,20 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_a+d_b, d_b)
         self.do([event_for(KEY_DOWN, 'A', -1)], [])
 
+    def test_remap_key_simple(self):
+        keyboard.remap_key('a', 'b')
+        self.do(d_a+d_c+u_a, d_b+d_c+u_b)
+        keyboard.unremap_key('a')
+        self.do(d_a+d_c+u_a, d_a+d_c+u_a)
+    def test_remap_key_ambiguous(self):
+        keyboard.remap_key('A', 'b')
+        self.do(d_a+d_b, d_b+d_b)
+        self.do([event_for(KEY_DOWN, 'A', -1)], d_b)
+    def test_remap_key_multiple(self):
+        keyboard.remap_key('a', 'shift+b')
+        self.do(d_a+d_c+u_a, d_shift+d_b+d_c+u_b+u_shift)
+        keyboard.unremap_key('a')
+        self.do(d_a+d_c+u_a, d_a+d_c+u_a)
 
 if __name__ == '__main__':
     unittest.main()

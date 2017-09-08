@@ -294,6 +294,47 @@ def parse_hotkey(hotkey):
         steps.append(tuple(key_to_scan_codes(key) for key in keys))
     return tuple(steps)
 
+def send(hotkey, do_press=True, do_release=True):
+    """
+    Sends OS events that perform the given *hotkey* hotkey.
+
+    - `hotkey` can be either a scan code (e.g. 57 for space), single key
+    (e.g. 'space') or multi-key, multi-step hotkey (e.g. 'alt+F4, enter').
+    - `do_press` if true then press events are sent. Defaults to True.
+    - `do_release` if true then release events are sent. Defaults to True.
+
+        send(57)
+        send('ctrl+alt+del')
+        send('alt+F4, enter')
+        send('shift+s')
+
+    Note: keys are released in the opposite order they were pressed.
+    """
+    _listener.is_replaying = True
+
+    parsed = parse_hotkey(hotkey)
+    for step in parsed:
+        if do_press:
+            for scan_codes in step:
+                _os_keyboard.press(scan_codes[0])
+
+        if do_release:
+            for scan_codes in reversed(step):
+                _os_keyboard.release(scan_codes[0])
+
+    _listener.is_replaying = False
+
+# Alias.
+press_and_release = send
+
+def press(hotkey):
+    """ Presses and holds down a key hotkey (see `send`). """
+    send(hotkey, True, False)
+
+def release(hotkey):
+    """ Releases a key hotkey (see `send`). """
+    send(hotkey, False, True)
+
 def is_pressed(hotkey):
     """
     Returns True if the key is pressed.
@@ -401,6 +442,17 @@ def unhook(callback):
     """ Removes a previously hooked callback. """
     _hooks[callback]()
 
+def unhook_all():
+    """
+    Removes all keyboard hooks in use, including hotkeys, abbreviations, word
+    listeners, `record`ers and `wait`s.
+    """
+    # Because of "alises" some hooks may have more than one entry, all of which
+    # are removed together.
+    while _hooks:
+        next(iter(_hooks.values()))()
+    assert not _hooks
+
 unhook_key = unhook
 
 def block_key(key):
@@ -410,13 +462,19 @@ def block_key(key):
     return hook_key(key, lambda e: False, suppress=True)
 unblock_key = unhook_key
 
-def unhook_all():
+def remap_key(src, dst):
     """
-    Removes all keyboard hooks in use, including hotkeys, abbreviations, word
-    listeners, `record`ers and `wait`s.
+    Whenever the key `src` is pressed or released, regardless of modifiers,
+    press or release the hotkey `dst` instead.
     """
-    for remove in list(_hooks.values()):
-        remove()
+    def handler(event):
+        if event.event_type == KEY_DOWN:
+            press(dst)
+        else:
+            release(dst)
+        return False
+    return hook_key(src, handler, suppress=True)
+unremap_key = unhook_key
 
 _hotkeys = {}
 def clear_all_hotkeys():
@@ -693,50 +751,6 @@ def write(text, delay=0, restore_state_after=True, exact=None):
 
     if restore_state_after:
         restore_state(state)
-
-def from_name(name):
-    return _os_keyboard.from_name(_normalize_name(name))
-
-def send(hotkey, do_press=True, do_release=True):
-    """
-    Sends OS events that perform the given *hotkey* hotkey.
-
-    - `hotkey` can be either a scan code (e.g. 57 for space), single key
-    (e.g. 'space') or multi-key, multi-step hotkey (e.g. 'alt+F4, enter').
-    - `do_press` if true then press events are sent. Defaults to True.
-    - `do_release` if true then release events are sent. Defaults to True.
-
-        send(57)
-        send('ctrl+alt+del')
-        send('alt+F4, enter')
-        send('shift+s')
-
-    Note: keys are released in the opposite order they were pressed.
-    """
-    _listener.is_replaying = True
-
-    parsed = parse_hotkey(hotkey)
-    for step in parsed:
-        if do_press:
-            for scan_codes in step:
-                _os_keyboard.press(scan_codes[0])
-
-        if do_release:
-            for scan_codes in reversed(step):
-                _os_keyboard.release(scan_codes[0])
-
-    _listener.is_replaying = False
-
-# Alias.
-press_and_release = send
-
-def press(hotkey):
-    """ Presses and holds down a key hotkey (see `send`). """
-    send(hotkey, True, False)
-
-def release(hotkey):
-    """ Releases a key hotkey (see `send`). """
-    send(hotkey, False, True)
 
 def _make_wait_and_unlock():
     """
@@ -1018,19 +1032,6 @@ def remap_hotkey(src, dst):
         return False
     return hook_blocking_hotkey(src, handler)
 unremap_hotkey = unhook_blocking_hotkey
-
-def remap_key(src, dst):
-    """
-    Whenever the key `src` is pressed or released, regardless of modifiers,
-    press or release `dst` instead.
-    """
-    def handler(event):
-        if event.event_type == KEY_DOWN:
-            press(dst)
-        else:
-            release(dst)
-        return False
-    return hook_blocking_key(src, handler)
 
 def add_multi_step_blocking_hotkey(hotkey, callback):
     # TODO: timeout
