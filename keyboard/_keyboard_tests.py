@@ -460,6 +460,26 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_ctrl+d_a+d_b+u_ctrl)
         self.assertEqual(queue.get(0.5), 'ctrl+a+b')
 
+    def test_read_event(self):
+        queue = keyboard._queue.Queue()
+        def process():
+            queue.put(keyboard.read_event(suppress=True))
+        from threading import Thread
+        Thread(target=process).start()
+        time.sleep(0.01)
+        self.do(d_a, [])
+        self.assertEqual(queue.get(0.5), d_a[0])
+
+    def test_read_key(self):
+        queue = keyboard._queue.Queue()
+        def process():
+            queue.put(keyboard.read_key(suppress=True))
+        from threading import Thread
+        Thread(target=process).start()
+        time.sleep(0.01)
+        self.do(d_a, [])
+        self.assertEqual(queue.get(0.5), 'a')
+
     def test_wait_infinite(self):
         self.triggered = False
         def process():
@@ -497,6 +517,9 @@ class TestKeyboard(unittest.TestCase):
     def test_hook_hotkey_part_suppress_with_modifiers_out_of_order(self):
         keyboard._hook_hotkey_part('ctrl+shift+a', lambda e: keyboard.press(999), suppress=True)
         self.do(d_shift+d_ctrl+d_a, triggered_event)
+    def test_hook_hotkey_part_suppress_with_modifiers_repeated(self):
+        keyboard._hook_hotkey_part('ctrl+a', lambda e: keyboard.press(999), suppress=True)
+        self.do(d_ctrl+d_a+d_b+d_a, triggered_event+d_ctrl+d_b+triggered_event)
 
     def test_hook_hotkey_part_suppress_with_modifiers_out_of_order(self):
         queue = keyboard._queue.Queue()

@@ -706,6 +706,25 @@ def get_hotkey_name(names=None):
     sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
     return '+'.join(sorted(clean_names, key=sorting_key))
 
+def read_event(suppress=False):
+    """
+    Blocks until a keyboard event happens, then returns that event.
+    """
+    queue = _queue.Queue(maxsize=1)
+    hook(queue.put, suppress=suppress)
+    while True:
+        event = queue.get()
+        unhook(queue.put)
+        return event
+
+def read_key(suppress=False):
+    """
+    Blocks until a keyboard event happens, then returns that event's name or,
+    if missing, its scan code.
+    """
+    event = read_event(suppress)
+    return event.name or event.scan_code
+
 def read_hotkey(suppress=True):
     """
     Similar to `read_key()`, but blocks until the user presses and releases a key
@@ -1026,71 +1045,6 @@ register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
 remove_abbreviation = remove_word_listener
 
-def read_key(filter=lambda e: True):
-    """
-    Blocks until a keyboard event happens, then returns that event.
-    """
-    wait, unlock = _make_wait_and_unlock()
-    def test(event):
-        if filter(event):
-            unhook(test)
-            unlock(event)
-    hook(test)
-    return wait()
-
-def _get_sided_modifiers(key):
-    """
-    Generates key variations with 'left' and 'right' when the key is sided.
-    """
-    if key in sided_modifiers:
-        yield key
-        yield 'left ' + key
-        yield 'right ' + key
-    else:
-        yield key
-
-def _parse_blocking_hotkey(hotkey):
-    _listener.start_if_necessary()
-
-    steps = _parse_hotkey(hotkey)
-    if len(steps) > 1:
-        raise NotImplementedError('Cannot hook multi-step blocking hotkey (e.g. "alt+s, t"). Please see https://github.com/boppreh/keyboard/issues/22')
-    names = set(steps[0])
-
-    modifiers = names & all_modifiers
-    rest = names - modifiers
-    if len(rest) != 1:
-        raise NotImplementedError('Can only hook hotkeys of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
-
-    main_key = rest.pop()
-    return main_key, itertools.product(*(_get_sided_modifiers(m) for m in modifiers))
-
-def hook_blocking_hotkey(hotkey, callback):
-    """
-    Sets an event callback to be called whenever the given hotkey is triggered.
-    This event will be blcoking (the OS will wait for this callback to finish),
-    and may return True or False if the hotkey should be suppressed or not.
-    """
-    main_key, hotkeys = _parse_blocking_hotkey(hotkey)
-    for possible_hotkey in hotkeys:
-        for modifier in possible_hotkey:
-            _listener.filtered_modifiers[modifier] += 1
-        pair = (tuple(sorted(possible_hotkey)), main_key)
-        _listener.blocking_hotkeys[pair] = callback
-
-    return hotkey
-
-def unhook_blocking_hotkey(hotkey):
-    """
-    Removes a hotkey hook added via `hook_blocking_hotkey`.
-    """
-    main_key, hotkeys = _parse_blocking_hotkey(hotkey)
-    for possible_hotkey in hotkeys:
-        for modifier in possible_hotkey:
-            _listener.filtered_modifiers[modifier] -= 1
-        pair = (tuple(sorted(possible_hotkey)), main_key)
-        del _listener.blocking_hotkeys[pair]
-
 def remap_hotkey(src, dst):
     """
     Whenever the hotkey `src` is pressed, suppress it and send
@@ -1112,7 +1066,6 @@ def remap_hotkey(src, dst):
                 press(modifier)
         return False
     return hook_blocking_hotkey(src, handler)
-unremap_hotkey = unhook_blocking_hotkey
 
 def add_multi_step_blocking_hotkey(hotkey, callback, suppress=True):
     # TODO: timeout
