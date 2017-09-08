@@ -115,17 +115,6 @@ all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'} | set('left ' + n 
 
 _pressed_events = {}
 class _KeyboardListener(_GenericListener):
-    active_modifiers = set()
-    blocking_hooks = []
-    blocking_hotkeys = {}
-    blocking_keys = defaultdict(list)
-    nonblocking_keys = defaultdict(list)
-    filtered_modifiers = Counter()
-    is_replaying = False
-
-    # Supporting hotkey suppression is harder than it looks. See
-    # https://github.com/boppreh/keyboard/issues/22
-    modifier_states = {} # "alt" -> "allowed"
     transition_table = {
         #Current state of the modifier, per `modifier_states`.
         #|
@@ -169,6 +158,18 @@ class _KeyboardListener(_GenericListener):
 
     def init(self):
         _os_keyboard.init()
+
+        self.active_modifiers = set()
+        self.blocking_hooks = []
+        self.blocking_hotkeys = {}
+        self.blocking_keys = defaultdict(list)
+        self.nonblocking_keys = defaultdict(list)
+        self.filtered_modifiers = Counter()
+        self.is_replaying = False
+
+        # Supporting hotkey suppression is harder than it looks. See
+        # https://github.com/boppreh/keyboard/issues/22
+        self.modifier_states = {} # "alt" -> "allowed"
         
     def pre_process_event(self, event):
         for key_hook in self.nonblocking_keys[event.scan_code]:

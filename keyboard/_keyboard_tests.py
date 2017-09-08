@@ -60,16 +60,9 @@ class TestKeyboard(unittest.TestCase):
     def tearDown(self):
         del input_events[:]
         del output_events[:]
-        del keyboard._listener.handlers[:]
-        del keyboard._listener.blocking_hooks[:]
         keyboard._pressed_events.clear()
         keyboard._hooks.clear()
-        keyboard._listener.active_modifiers.clear()
-        keyboard._listener.blocking_hotkeys.clear()
-        keyboard._listener.blocking_keys.clear()
-        keyboard._listener.filtered_modifiers.clear()
-        keyboard._listener.modifier_states.clear()
-        keyboard._listener.is_replaying = False
+        keyboard._listener.init()
 
     def do(self, manual_events, expected=None):
         input_events.extend(manual_events)
