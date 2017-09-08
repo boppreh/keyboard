@@ -476,6 +476,56 @@ def remap_key(src, dst):
     return hook_key(src, handler, suppress=True)
 unremap_key = unhook_key
 
+def write(text, delay=0, restore_state_after=True, exact=None):
+    """
+    Sends artificial keyboard events to the OS, simulating the typing of a given
+    text. Characters not available on the keyboard are typed as explicit unicode
+    characters using OS-specific functionality, such as alt+codepoint.
+
+    To ensure text integrity all currently pressed keys are released before
+    the text is typed.
+
+    - `delay` is the number of seconds to wait between keypresses, defaults to
+    no delay.
+    - `restore_state_after` can be used to restore the state of pressed keys
+    after the text is typed, i.e. presses the keys that were released at the
+    beginning. Defaults to True.
+    - `exact` forces typing all characters as explicit unicode (e.g.
+    alt+codepoint or special events). If None, uses platform-specific suggested
+    value.
+    """
+    state = stash_state()
+    
+    # Window's typing of unicode characters is quite efficient and should be preferred.
+    if exact or (exact is None and _platform.system() == 'Windows'):
+        for letter in text:
+            _os_keyboard.type_unicode(letter)
+            if delay: _time.sleep(delay)
+
+    else:
+        for letter in text:
+            try:
+                entries = _os_keyboard.map_name(_normalize_name(letter))
+                scan_code, modifiers = next(iter(entries))
+            except (KeyError, ValueError):
+                _os_keyboard.type_unicode(letter)
+                continue
+
+            for modifier in modifiers:
+                press(modifier)
+
+            _os_keyboard.press(scan_code)
+            _os_keyboard.release(scan_code)
+
+            for modifier in modifiers:
+                release(modifier)
+
+            if delay:
+                _time.sleep(delay)
+
+    if restore_state_after:
+        restore_state(state)
+
 _hotkeys = {}
 def clear_all_hotkeys():
     """
@@ -696,61 +746,6 @@ def restore_state(scan_codes):
         _os_keyboard.press(scan_code)
 
     _listener.is_replaying = False
-
-def write(text, delay=0, restore_state_after=True, exact=None):
-    """
-    Sends artificial keyboard events to the OS, simulating the typing of a given
-    text. Characters not available on the keyboard are typed as explicit unicode
-    characters using OS-specific functionality, such as alt+codepoint.
-
-    To ensure text integrity all currently pressed keys are released before
-    the text is typed.
-
-    - `delay` is the number of seconds to wait between keypresses, defaults to
-    no delay.
-    - `restore_state_after` can be used to restore the state of pressed keys
-    after the text is typed, i.e. presses the keys that were released at the
-    beginning. Defaults to True.
-    - `exact` forces typing all characters as explicit unicode (e.g.
-    alt+codepoint or special events). If None, uses platform-specific suggested
-    value.
-    """
-    state = stash_state()
-    
-    # Window's typing of unicode characters is quite efficient and should be preferred.
-    if exact or (exact is None and _platform.system() == 'Windows'):
-        for letter in text:
-            _os_keyboard.type_unicode(letter)
-            if delay: _time.sleep(delay)
-
-    else:
-        for letter in text:
-            if letter in '\n\b\t ':
-                letter = _normalize_name(letter)
-                
-            try:
-                scan_code, modifiers = _os_keyboard.map_char(letter)
-            except ValueError:
-                _os_keyboard.type_unicode(letter)
-                continue
-
-            if is_pressed(scan_code):
-                release(scan_code)
-
-            for modifier in modifiers:
-                press(modifier)
-
-            _os_keyboard.press(scan_code)
-            _os_keyboard.release(scan_code)
-
-            for modifier in modifiers:
-                release(modifier)
-
-            if delay:
-                _time.sleep(delay)
-
-    if restore_state_after:
-        restore_state(state)
 
 def _make_wait_and_unlock():
     """

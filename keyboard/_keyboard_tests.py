@@ -43,6 +43,7 @@ def fake_event(event_type, scan_code):
         output_events.append(event)
 keyboard._os_keyboard.press = lambda scan_code: fake_event(KEY_DOWN, scan_code)
 keyboard._os_keyboard.release = lambda scan_code: fake_event(KEY_UP, scan_code)
+keyboard._os_keyboard.type_unicode = lambda char: output_events.append(KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name=char))
 
 d_a = [event_for(KEY_DOWN, 'a')]
 u_a = [event_for(KEY_UP, 'a')]
@@ -287,6 +288,35 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_a+d_c+u_a, d_shift+d_b+d_c+u_b+u_shift)
         keyboard.unremap_key('a')
         self.do(d_a+d_c+u_a, d_a+d_c+u_a)
+
+    def test_write_simple(self):
+        keyboard.write('a', exact=False)
+        self.do([], d_a+u_a)
+    def test_write_multiple(self):
+        keyboard.write('ab', exact=False)
+        self.do([], d_a+u_a+d_b+u_b)
+    def test_write_modifiers(self):
+        keyboard.write('Ab', exact=False)
+        self.do([], d_shift+d_a+u_a+u_shift+d_b+u_b)
+    def test_write_stash_not_restore(self):
+        self.do(d_shift)
+        keyboard.write('a', restore_state_after=False, exact=False)
+        self.do([], u_shift+d_a+u_a)
+    def test_write_stash_restore(self):
+        self.do(d_shift)
+        keyboard.write('a', restore_state_after=True, exact=False)
+        self.do([], u_shift+d_a+u_a+d_shift)
+    def test_write_multiple(self):
+        last_time = time.time()
+        keyboard.write('ab', delay=0.01, exact=False)
+        self.do([], d_a+u_a+d_b+u_b)
+        self.assertGreater(time.time() - last_time, 0.015 )
+    def test_write_unicode_explicit(self):
+        keyboard.write('ab', exact=True)
+        self.do([], [KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='a'), KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='b')])
+    def test_write_unicode_fallback(self):
+        keyboard.write('áb', exact=False)
+        self.do([], [KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name='á')]+d_b+u_b)
 
 if __name__ == '__main__':
     unittest.main()
