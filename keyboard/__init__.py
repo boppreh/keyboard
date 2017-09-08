@@ -407,7 +407,7 @@ def block_key(key):
     """
     Suppresses all key events of the given key, regardless of modifiers.
     """
-    return hook_key(key, lambda e: False, supperss=True)
+    return hook_key(key, lambda e: False, suppress=True)
 unblock_key = unhook_key
 
 def unhook_all():

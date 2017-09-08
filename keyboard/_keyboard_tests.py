@@ -262,6 +262,16 @@ class TestKeyboard(unittest.TestCase):
         keyboard.on_release_key('a', lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_UP))
         self.do(d_a+u_a)
 
+    def test_block_key(self):
+        keyboard.block_key('a')
+        self.do(d_a+d_b, d_b)
+        self.do([event_for(KEY_DOWN, 'A', -1)], [event_for(KEY_DOWN, 'A', -1)])
+        keyboard.unblock_key('a')
+        self.do(d_a+d_b, d_a+d_b)
+    def test_block_key_ambiguous(self):
+        keyboard.block_key('A')
+        self.do(d_a+d_b, d_b)
+        self.do([event_for(KEY_DOWN, 'A', -1)], [])
 
 
 if __name__ == '__main__':
