@@ -1,20 +1,30 @@
 # -*- coding: utf-8 -*-
-import time
+"""
+Side effects are avoided using two techniques:
+
+- Low level OS requests (keyboard._os_keyboard) are mocked out by rewriting
+the functions at that namespace. This includes a list of dummy keys.
+- Events are pumped manually by the main test class, and accepted events
+are tested against expected values.
+
+Fake user events are appended to `input_events`, passed through
+keyboard,_listener.direct_callback, then, if accepted, appended to
+`output_events`. Fake OS events (keyboard.press) are processed
+and added to `output_events` immediately, mimicking real functionality.
+"""
 import unittest
-import string
-from threading import Event
+import time
 
 import keyboard
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 
-from ._keyboard_event import KeyboardEvent, canonical_names, KEY_DOWN, KEY_UP
-
-by_names = {
+dummy_keys = {
     'a': [(1, [])],
     'b': [(2, [])],
     'c': [(3, [])],
     'A': [(1, ['shift']), (-1, [])],
-    'B': [(2, ['shift']), (-1, [])],
-    'C': [(3, ['shift']), (-1, [])],
+    'B': [(2, ['shift']), (-2, [])],
+    'C': [(3, ['shift']), (-3, [])],
 
     'alt': [(4, [])],
     'left alt': [(4, [])],
@@ -25,38 +35,42 @@ by_names = {
     'left ctrl': [(7, [])],
 
     '+': [(10, [])],
-    ',': [(10, [])],
+    ',': [(11, [])],
 }
 
-def event_for(event_type, name, scan_code=None):
-    return KeyboardEvent(event_type=event_type, scan_code=scan_code or by_names[name][0][0], name=name)
+def make_event(event_type, name, scan_code=None):
+    return KeyboardEvent(event_type=event_type, scan_code=scan_code or dummy_keys[name][0][0], name=name)
 
+# Used when manually pumping events.
 input_events = []
 output_events = []
 
-keyboard._os_keyboard.init = lambda: None
-keyboard._os_keyboard.listen = lambda callback: None
-keyboard._os_keyboard.map_name = by_names.__getitem__
-def fake_event(event_type, scan_code):
-    event = KeyboardEvent(event_type=event_type, scan_code=scan_code)
+def send_instant_event(event):
     if keyboard._listener.direct_callback(event):
         output_events.append(event)
-keyboard._os_keyboard.press = lambda scan_code: fake_event(KEY_DOWN, scan_code)
-keyboard._os_keyboard.release = lambda scan_code: fake_event(KEY_UP, scan_code)
+
+# Mock out side effects.
+keyboard._os_keyboard.init = lambda: None
+keyboard._os_keyboard.listen = lambda callback: None
+keyboard._os_keyboard.map_name = dummy_keys.__getitem__
+keyboard._os_keyboard.press = lambda scan_code: send_instant_event(make_event(KEY_DOWN, None, scan_code))
+keyboard._os_keyboard.release = lambda scan_code: send_instant_event(make_event(KEY_UP, None, scan_code))
 keyboard._os_keyboard.type_unicode = lambda char: output_events.append(KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name=char))
 
-d_a = [event_for(KEY_DOWN, 'a')]
-u_a = [event_for(KEY_UP, 'a')]
-d_b = [event_for(KEY_DOWN, 'b')]
-u_b = [event_for(KEY_UP, 'b')]
-d_c = [event_for(KEY_DOWN, 'c')]
-u_c = [event_for(KEY_UP, 'c')]
-d_ctrl = [event_for(KEY_DOWN, 'left ctrl')]
-u_ctrl = [event_for(KEY_UP, 'left ctrl')]
-d_shift = [event_for(KEY_DOWN, 'left shift')]
-u_shift = [event_for(KEY_UP, 'left shift')]
-d_alt = [event_for(KEY_DOWN, 'alt')]
-u_alt = [event_for(KEY_UP, 'alt')]
+# Shortcuts for defining test inputs and expected outputs.
+# Usage: d_shift + d_a + u_a + u_shift
+d_a = [make_event(KEY_DOWN, 'a')]
+u_a = [make_event(KEY_UP, 'a')]
+d_b = [make_event(KEY_DOWN, 'b')]
+u_b = [make_event(KEY_UP, 'b')]
+d_c = [make_event(KEY_DOWN, 'c')]
+u_c = [make_event(KEY_UP, 'c')]
+d_ctrl = [make_event(KEY_DOWN, 'left ctrl')]
+u_ctrl = [make_event(KEY_UP, 'left ctrl')]
+d_shift = [make_event(KEY_DOWN, 'left shift')]
+u_shift = [make_event(KEY_UP, 'left shift')]
+d_alt = [make_event(KEY_DOWN, 'alt')]
+u_alt = [make_event(KEY_UP, 'alt')]
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
@@ -79,7 +93,7 @@ class TestKeyboard(unittest.TestCase):
         keyboard._listener.queue.join()
 
     def test_key_to_scan_codes_brute(self):
-        for name, entries in by_names.items():
+        for name, entries in dummy_keys.items():
             expected = tuple(scan_code for scan_code, modifiers in entries)
             self.assertEqual(keyboard.key_to_scan_codes(name), expected)
     def test_key_to_scan_code_from_scan_code(self):
@@ -158,6 +172,9 @@ class TestKeyboard(unittest.TestCase):
     def test_release(self):
         keyboard.release('a')
         self.do([], u_a)
+    def test_press_and_release(self):
+        keyboard.press_and_release('a')
+        self.do([], d_a+u_a)
 
     def test_send_modifier_press_release(self):
         keyboard.send('ctrl+a', do_press=True, do_release=True)
@@ -216,7 +233,7 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_a+u_a)
     def test_on_press_blocking(self):
         keyboard.on_press(lambda e: e.scan_code == 1, suppress=True)
-        self.do([event_for(KEY_DOWN, 'A', -1)] + d_a, d_a)
+        self.do([make_event(KEY_DOWN, 'A', -1)] + d_a, d_a)
     def test_on_release(self):
         keyboard.on_release(lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_UP))
         self.do(d_a+u_a)
@@ -233,7 +250,7 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(self.i, 1)
         self.do(u_a+d_b)
         self.assertEqual(self.i, 2)
-        self.do([event_for(KEY_DOWN, 'A', -1)])
+        self.do([make_event(KEY_DOWN, 'A', -1)])
         self.assertEqual(self.i, 3)
         keyboard.unhook_key('A')
         self.do(d_a)
@@ -248,17 +265,17 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(self.i, 1)
         self.do(u_a+d_b, u_a+d_b)
         self.assertEqual(self.i, 2)
-        self.do([event_for(KEY_DOWN, 'A', -1)], [])
+        self.do([make_event(KEY_DOWN, 'A', -1)], [])
         self.assertEqual(self.i, 3)
         keyboard.unhook_key('A')
-        self.do([event_for(KEY_DOWN, 'A', -1)], [event_for(KEY_DOWN, 'A', -1)])
+        self.do([make_event(KEY_DOWN, 'A', -1)], [make_event(KEY_DOWN, 'A', -1)])
         self.assertEqual(self.i, 3)
     def test_on_press_key_nonblocking(self):
         keyboard.on_press_key('A', lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_DOWN))
         self.do(d_a+u_a+d_b+u_b)
     def test_on_press_key_blocking(self):
         keyboard.on_press_key('A', lambda e: e.scan_code == 1, suppress=True)
-        self.do([event_for(KEY_DOWN, 'A', -1)] + d_a, d_a)
+        self.do([make_event(KEY_DOWN, 'A', -1)] + d_a, d_a)
     def test_on_release_key(self):
         keyboard.on_release_key('a', lambda e: self.assertEqual(e.name, 'a') and self.assertEqual(e.event_type, KEY_UP))
         self.do(d_a+u_a)
@@ -266,13 +283,13 @@ class TestKeyboard(unittest.TestCase):
     def test_block_key(self):
         keyboard.block_key('a')
         self.do(d_a+d_b, d_b)
-        self.do([event_for(KEY_DOWN, 'A', -1)], [event_for(KEY_DOWN, 'A', -1)])
+        self.do([make_event(KEY_DOWN, 'A', -1)], [make_event(KEY_DOWN, 'A', -1)])
         keyboard.unblock_key('a')
         self.do(d_a+d_b, d_a+d_b)
     def test_block_key_ambiguous(self):
         keyboard.block_key('A')
         self.do(d_a+d_b, d_b)
-        self.do([event_for(KEY_DOWN, 'A', -1)], [])
+        self.do([make_event(KEY_DOWN, 'A', -1)], [])
 
     def test_remap_key_simple(self):
         keyboard.remap_key('a', 'b')
@@ -282,7 +299,7 @@ class TestKeyboard(unittest.TestCase):
     def test_remap_key_ambiguous(self):
         keyboard.remap_key('A', 'b')
         self.do(d_a+d_b, d_b+d_b)
-        self.do([event_for(KEY_DOWN, 'A', -1)], d_b)
+        self.do([make_event(KEY_DOWN, 'A', -1)], d_b)
     def test_remap_key_multiple(self):
         keyboard.remap_key('a', 'shift+b')
         self.do(d_a+d_c+u_a, d_shift+d_b+d_c+u_b+u_shift)
