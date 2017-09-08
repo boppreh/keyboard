@@ -20,11 +20,12 @@ by_names = {
     'left alt': [(4, [])],
 
     'left shift': [(5, [])],
-    'shift': [(5, []), (6, [])],
     'right shift': [(6, [])],
 
     'left ctrl': [(7, [])],
-    'ctrl': [(8, []), (7, [])],
+
+    '+': [(10, [])],
+    ',': [(10, [])],
 }
 
 def event_for(event_type, name, scan_code=None):
@@ -49,8 +50,8 @@ d_b = [event_for(KEY_DOWN, 'b')]
 u_b = [event_for(KEY_UP, 'b')]
 d_c = [event_for(KEY_DOWN, 'c')]
 u_c = [event_for(KEY_UP, 'c')]
-d_ctrl = [event_for(KEY_DOWN, 'ctrl')]
-u_ctrl = [event_for(KEY_UP, 'ctrl')]
+d_ctrl = [event_for(KEY_DOWN, 'left ctrl')]
+u_ctrl = [event_for(KEY_UP, 'left ctrl')]
 d_shift = [event_for(KEY_DOWN, 'left shift')]
 u_shift = [event_for(KEY_UP, 'left shift')]
 d_alt = [event_for(KEY_DOWN, 'alt')]
@@ -75,6 +76,39 @@ class TestKeyboard(unittest.TestCase):
         del output_events[:]
 
         keyboard._listener.queue.join()
+
+    def test_key_to_scan_codes_brute(self):
+        for name, entries in by_names.items():
+            expected = tuple(scan_code for scan_code, modifiers in entries)
+            self.assertEqual(keyboard.key_to_scan_codes(name), expected)
+    def test_key_to_scan_code_from_scan_code(self):
+        for i in range(10):
+            self.assertEqual(keyboard.key_to_scan_codes(i), (i,))
+    def test_key_to_scan_code_from_letter(self):
+        self.assertEqual(keyboard.key_to_scan_codes('a'), (1,))
+        self.assertEqual(keyboard.key_to_scan_codes('A'), (1,-1))
+    def test_key_to_scan_code_from_normalized(self):
+        self.assertEqual(keyboard.key_to_scan_codes('shift'), (5,6))
+        self.assertEqual(keyboard.key_to_scan_codes('SHIFT'), (5,6))
+        self.assertEqual(keyboard.key_to_scan_codes('ctrl'), keyboard.key_to_scan_codes('CONTROL'))
+    def test_key_to_scan_code_from_sided_modifier(self):
+        self.assertEqual(keyboard.key_to_scan_codes('left shift'), (5,))
+        self.assertEqual(keyboard.key_to_scan_codes('right shift'), (6,))
+
+    def test_parse_hotkey_simple(self):
+        self.assertEqual(keyboard.parse_hotkey('a'), (((1,),),))
+        self.assertEqual(keyboard.parse_hotkey('A'), (((1,-1),),))
+    def test_parse_hotkey_separators(self):
+        self.assertEqual(keyboard.parse_hotkey('+'), keyboard.parse_hotkey('plus'))
+        self.assertEqual(keyboard.parse_hotkey(','), keyboard.parse_hotkey('comma'))
+    def test_parse_hotkey_keys(self):
+        self.assertEqual(keyboard.parse_hotkey('left shift + a'), (((5,), (1,),),))
+        self.assertEqual(keyboard.parse_hotkey('left shift+a'), (((5,), (1,),),))
+    def test_parse_hotkey_simple_steps(self):
+        self.assertEqual(keyboard.parse_hotkey('a,b'), (((1,),),((2,),)))
+        self.assertEqual(keyboard.parse_hotkey('a, b'), (((1,),),((2,),)))
+    def test_parse_hotkey_steps(self):
+        self.assertEqual(keyboard.parse_hotkey('a+b, b+c'), (((1,),(2,)),((2,),(3,))))
 
     def test_is_pressed_none(self):
         self.assertFalse(keyboard.is_pressed('a'))

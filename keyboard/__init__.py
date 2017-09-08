@@ -245,18 +245,44 @@ class _KeyboardListener(_GenericListener):
 
 _listener = _KeyboardListener()
 
-def key_to_scan_codes(key):
+def key_to_scan_codes(key, error_if_missing=True):
+    """
+    Returns a list of scan codes associated with this key (name or scan code).
+    """
     if _is_number(key):
         return (key,)
 
     assert _is_str(key)
+
+    normalized = _normalize_name(key)
+    if normalized in sided_modifiers:
+        left_scan_codes = key_to_scan_codes('left ' + normalized, False)
+        right_scan_codes = key_to_scan_codes('right ' + normalized, False)
+        return left_scan_codes + right_scan_codes
+
     try:
-        return tuple(scan_code for scan_code, modifier in _os_keyboard.map_name(key))
-    except KeyError:
-        raise ValueError('Key {} is not mapped to any known key.'.format(repr(key)))
+        return tuple(scan_code for scan_code, modifier in _os_keyboard.map_name(normalized))
+    except (KeyError, ValueError) as e:
+        if error_if_missing:
+            raise ValueError('Key {} is not mapped to any known key.'.format(repr(key)), e)
+    return ()
 
 def parse_hotkey(hotkey):
-    if _is_number(hotkey) or re.match(r'[^,+]+$', hotkey):
+    """
+    Parses a user-provided hotkey into nested tuples representing the
+    parsed structure, with the bottom values being lists of scan codes.
+    Also accepts raw scan codes, which are then wrapped in the required
+    number of nestings.
+
+    Example:
+
+        parse_hotkey("alt+shift+a, alt+b, d")
+        #    Keys:    ^~^ ^~~~^ ^  ^~^ ^  ^
+        #    Steps:   ^~~~~~~~~~^  ^~~~^  ^
+
+        # ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (d_codes))
+    """
+    if _is_number(hotkey) or len(hotkey) == 1:
         scan_codes = key_to_scan_codes(hotkey)
         step = (scan_codes,)
         steps = (step,)
@@ -264,7 +290,7 @@ def parse_hotkey(hotkey):
 
     steps = []
     for step in re.split(r',\s?', hotkey):
-        keys = step.split('+')
+        keys = re.split(r'\s?\+\s?', step)
         steps.append(tuple(key_to_scan_codes(key) for key in keys))
     return tuple(steps)
 
@@ -689,19 +715,15 @@ def send(hotkey, do_press=True, do_release=True):
     """
     _listener.is_replaying = True
 
-    for step in hotkey.split(', '):
-        scan_codes = []
-        for name in step.split('+'):
-            scan_code, modifiers = next(iter(_os_keyboard.map_name(name)))
-            scan_codes.append(scan_code)
-
+    parsed = parse_hotkey(hotkey)
+    for step in parsed:
         if do_press:
-            for scan_code in scan_codes:
-                _os_keyboard.press(scan_code)
+            for scan_codes in step:
+                _os_keyboard.press(scan_codes[0])
 
         if do_release:
-            for scan_code in reversed(scan_codes):
-                _os_keyboard.release(scan_code)
+            for scan_codes in reversed(step):
+                _os_keyboard.release(scan_codes[0])
 
     _listener.is_replaying = False
 
