@@ -296,12 +296,18 @@ def key_to_scan_codes(key, error_if_missing=True):
         right_scan_codes = key_to_scan_codes('right ' + normalized, False)
         return left_scan_codes + right_scan_codes
 
+    e = None
     try:
-        return tuple(scan_code for scan_code, modifier in _os_keyboard.map_name(normalized))
-    except (KeyError, ValueError) as e:
-        if error_if_missing:
-            raise ValueError('Key {} is not mapped to any known key.'.format(repr(key)), e)
-    return ()
+        t = tuple(scan_code for scan_code, modifier in _os_keyboard.map_name(normalized))
+        if t:
+            return t
+    except (KeyError, ValueError) as exception:
+        t = ()
+        e = exception
+    if error_if_missing:
+        raise ValueError('Key {} is not mapped to any known key.'.format(repr(key)), e)
+    else:
+        return ()
 
 def parse_hotkey(hotkey):
     """
@@ -402,7 +408,6 @@ def call_later(fn, args=(), delay=0.001):
     """
     _Thread(target=lambda: (_time.sleep(delay), fn(*args))).start()
 
-_hooks = {}
 def hook(callback, suppress=False, on_remove=lambda: None):
     """
     Installs a global listener on all available keyboards, invoking `callback`
@@ -426,12 +431,7 @@ def hook(callback, suppress=False, on_remove=lambda: None):
         append, remove = _listener.add_handler, _listener.remove_handler
 
     append(callback)
-    def removal_wrapper():
-        remove(callback)
-        del _hooks[callback]
-        on_remove()
-    _hooks[callback] = removal_wrapper
-    return callback
+    return lambda: (remove(callback), on_remove())
 
 def on_press(callback, suppress=False):
     """
@@ -459,12 +459,7 @@ def hook_key(key, callback, suppress=False):
     scan_codes = key_to_scan_codes(key)
     for scan_code in scan_codes:
         store[scan_code].append(callback)
-    def removal_wrapper():
-        for scan_code in scan_codes:
-            store[scan_code].remove(callback)
-        del _hooks[key]
-        del _hooks[callback]
-    _hooks[key] = _hooks[callback] = removal_wrapper
+    return lambda: [store[scan_code].remove(callback) for scan_code in scan_codes]
 
 def on_press_key(key, callback, suppress=False):
     """
@@ -478,9 +473,12 @@ def on_release_key(key, callback, suppress=False):
     """
     return hook_key(key, lambda e: e.event_type == KEY_DOWN or callback(e), suppress=suppress)
 
-def unhook(callback):
-    """ Removes a previously hooked callback. """
-    _hooks[callback]()
+def unhook(remove):
+    """
+    Removes a previously added hook. Must be called with the value returned by
+    the hook.
+    """
+    remove()
 unhook_key = unhook
 
 def unhook_all():
@@ -488,14 +486,11 @@ def unhook_all():
     Removes all keyboard hooks in use, including hotkeys, abbreviations, word
     listeners, `record`ers and `wait`s.
     """
-    # Because of "alises" some hooks may have more than one entry, all of which
-    # are removed together.
-    while _hooks:
-        next(iter(_hooks.values()))()
-    assert not _hooks
+    _listener.blocking_keys.clear()
+    _listener.nonblocking_keys.clear()
+    del _listener.blocking_hooks[:]
+    del _listener.handlers[:]
     unhook_all_hotkeys()
-
-
 
 def block_key(key):
     """
@@ -548,7 +543,6 @@ def _parse_hotkey_combinations(hotkey):
         possible_pairs_steps.append(tuple(possible_pairs))
     return tuple(possible_pairs_steps)
 
-_hotkeys = {}
 def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
@@ -557,15 +551,6 @@ def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
 
     fn = lambda e: e.event_type == event_type and callback(e)
 
-    def remove():
-        for pair in possible_pairs:
-            for modifier in pair[1]:
-                _listener.filtered_modifiers[modifier] -= 1
-            container[pair].remove(fn)
-        del _hotkeys[possible_pairs]
-        del _hotkeys[fn]
-        on_remove()
-
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in 
     # filtered_modifiers too, so suppression and replaying can work.
@@ -573,7 +558,13 @@ def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
         for modifier in pair[1]:
             _listener.filtered_modifiers[modifier] += 1
         container[pair].append(fn)
-    _hotkeys[possible_pairs] = _hotkeys[fn] = remove
+
+    def remove():
+        for pair in possible_pairs:
+            for modifier in pair[1]:
+                _listener.filtered_modifiers[modifier] -= 1
+            container[pair].remove(fn)
+        on_remove()
     return remove
 
 def add_hotkey(hotkey, callback, suppress=True, trigger_on_release=False):
@@ -583,10 +574,7 @@ def add_hotkey(hotkey, callback, suppress=True, trigger_on_release=False):
     steps = _parse_hotkey_combinations(hotkey)
     event_type = KEY_UP if trigger_on_release else KEY_DOWN
     if len(steps) == 1:
-        def on_remove():
-            del _hotkeys[hotkey]
-        _hotkeys[hotkey] = _add_hotkey_step(event_type, steps[0], callback, suppress, on_remove=on_remove)
-        return _hotkeys[hotkey]
+        return _add_hotkey_step(event_type, steps[0], callback, suppress, on_remove=lambda: None)
 
     state = _State()
     state.index = 0
@@ -619,9 +607,12 @@ def add_hotkey(hotkey, callback, suppress=True, trigger_on_release=False):
     return
 register_hotkey = add_hotkey
 
-def remove_hotkey(hotkey):
-    """ Removes a previously hooked hotkey. """
-    _hotkeys[hotkey]()
+def remove_hotkey(remove):
+    """
+    Removes a previously hooked hotkey. Must be called wtih the value returned
+    by `add_hotkey`.
+    """
+    remove()
 unregister_hotkey = clear_hotkey = remove_hotkey
 
 def unhook_all_hotkeys():
@@ -631,9 +622,8 @@ def unhook_all_hotkeys():
     """
     # Because of "alises" some hooks may have more than one entry, all of which
     # are removed together.
-    while _hotkeys:
-        next(iter(_hotkeys.values()))()
-    assert not _hotkeys
+    _listener.blocking_hotkeys.clear()
+    _listener.nonblocking_hotkeys.clear()
 unregister_all_hotkeys = remove_all_hotkeys = clear_all_hotkeys = unhook_all_hotkeys
 
 def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
@@ -735,16 +725,16 @@ def write(text, delay=0, exact=None):
 
     restore_modifiers(state)
 
-def wait(hotkey=None, suppress=False):
+def wait(hotkey=None, suppress=False, trigger_on_release=False):
     """
     Blocks the program execution until the given hotkey is pressed or,
     if given no parameters, blocks forever.
     """
     if hotkey:
-        event = _Event()
-        hotkey_handler = add_hotkey(hotkey, event.notify, suppress=suppress)
-        event.wait()
-        remove_hotkey(hotkey_handler)
+        lock = _Event()
+        remove = add_hotkey(hotkey, lambda e: lock.set(), suppress=suppress, trigger_on_release=trigger_on_release)
+        lock.wait()
+        remove_hotkey(remove)
     else:
         while True:
             _time.sleep(1e6)
@@ -784,10 +774,10 @@ def read_event(suppress=False):
     Blocks until a keyboard event happens, then returns that event.
     """
     queue = _queue.Queue(maxsize=1)
-    hook(queue.put, suppress=suppress)
+    hooked = hook(queue.put, suppress=suppress)
     while True:
         event = queue.get()
-        unhook(queue.put)
+        unhook(hooked)
         return event
 
 def read_key(suppress=False):
@@ -811,11 +801,11 @@ def read_hotkey(suppress=True):
     """
     queue = _queue.Queue()
     fn = lambda e: queue.put(e) or e.event_type == KEY_DOWN
-    hook(fn, suppress=suppress)
+    hooked = hook(fn, suppress=suppress)
     while True:
         event = queue.get()
         if event.event_type == KEY_UP:
-            unhook(fn)
+            unhook(hooked)
             names = [e.name for e in _pressed_events.values()] + [event.name]
             return get_hotkey_name(names)
 

@@ -95,12 +95,12 @@ triggered_event = [KeyboardEvent(KEY_DOWN, scan_code=999)]
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
         keyboard.unhook_all()
-        self.assertEquals(keyboard._hooks, {})
-        self.assertEquals(keyboard._hotkeys, {})
+        #self.assertEquals(keyboard._hooks, {})
+        #self.assertEquals(keyboard._hotkeys, {})
 
     def setUp(self):
-        keyboard._hooks.clear()
-        keyboard._hotkeys.clear()
+        #keyboard._hooks.clear()
+        #keyboard._hotkeys.clear()
         del input_events[:]
         del output_events[:]
         keyboard._recording = None
@@ -259,10 +259,10 @@ class TestKeyboard(unittest.TestCase):
         def count(e):
             self.assertEqual(e.name, 'a')
             self.i += 1
-        keyboard.hook(count, suppress=False)
+        hook = keyboard.hook(count, suppress=False)
         self.do(d_a+u_a, d_a+u_a)
         self.assertEqual(self.i, 2)
-        keyboard.unhook(count)
+        keyboard.unhook(hook)
         self.do(d_a+u_a, d_a+u_a)
         self.assertEqual(self.i, 2)
         keyboard.hook(count, suppress=False)
@@ -277,10 +277,10 @@ class TestKeyboard(unittest.TestCase):
             self.assertIn(e.name, ['a', 'b'])
             self.i += 1
             return e.name == 'b'
-        keyboard.hook(count, suppress=True)
+        hook = keyboard.hook(count, suppress=True)
         self.do(d_a+d_b, d_b)
         self.assertEqual(self.i, 2)
-        keyboard.unhook(count)
+        keyboard.unhook(hook)
         self.do(d_a+d_b, d_a+d_b)
         self.assertEqual(self.i, 2)
         keyboard.hook(count, suppress=True)
@@ -306,14 +306,14 @@ class TestKeyboard(unittest.TestCase):
         self.i = 0
         def count(event):
             self.i += 1
-        keyboard.hook_key('A', count)
+        hook = keyboard.hook_key('A', count)
         self.do(d_a)
         self.assertEqual(self.i, 1)
         self.do(u_a+d_b)
         self.assertEqual(self.i, 2)
         self.do([make_event(KEY_DOWN, 'A', -1)])
         self.assertEqual(self.i, 3)
-        keyboard.unhook_key('A')
+        keyboard.unhook_key(hook)
         self.do(d_a)
         self.assertEqual(self.i, 3)
     def test_hook_key_blocking(self):
@@ -321,14 +321,14 @@ class TestKeyboard(unittest.TestCase):
         def count(event):
             self.i += 1
             return event.scan_code == 1
-        keyboard.hook_key('A', count, suppress=True)
+        hook = keyboard.hook_key('A', count, suppress=True)
         self.do(d_a, d_a)
         self.assertEqual(self.i, 1)
         self.do(u_a+d_b, u_a+d_b)
         self.assertEqual(self.i, 2)
         self.do([make_event(KEY_DOWN, 'A', -1)], [])
         self.assertEqual(self.i, 3)
-        keyboard.unhook_key('A')
+        keyboard.unhook_key(hook)
         self.do([make_event(KEY_DOWN, 'A', -1)], [make_event(KEY_DOWN, 'A', -1)])
         self.assertEqual(self.i, 3)
     def test_on_press_key_nonblocking(self):
@@ -342,10 +342,10 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_a+u_a)
 
     def test_block_key(self):
-        keyboard.block_key('a')
+        blocked = keyboard.block_key('a')
         self.do(d_a+d_b, d_b)
         self.do([make_event(KEY_DOWN, 'A', -1)], [make_event(KEY_DOWN, 'A', -1)])
-        keyboard.unblock_key('a')
+        keyboard.unblock_key(blocked)
         self.do(d_a+d_b, d_a+d_b)
     def test_block_key_ambiguous(self):
         keyboard.block_key('A')
@@ -353,18 +353,18 @@ class TestKeyboard(unittest.TestCase):
         self.do([make_event(KEY_DOWN, 'A', -1)], [])
 
     def test_remap_key_simple(self):
-        keyboard.remap_key('a', 'b')
+        mapped = keyboard.remap_key('a', 'b')
         self.do(d_a+d_c+u_a, d_b+d_c+u_b)
-        keyboard.unremap_key('a')
+        keyboard.unremap_key(mapped)
         self.do(d_a+d_c+u_a, d_a+d_c+u_a)
     def test_remap_key_ambiguous(self):
         keyboard.remap_key('A', 'b')
         self.do(d_a+d_b, d_b+d_b)
         self.do([make_event(KEY_DOWN, 'A', -1)], d_b)
     def test_remap_key_multiple(self):
-        keyboard.remap_key('a', 'shift+b')
+        mapped = keyboard.remap_key('a', 'shift+b')
         self.do(d_a+d_c+u_a, d_shift+d_b+d_c+u_b+u_shift)
-        keyboard.unremap_key('a')
+        keyboard.unremap_key(mapped)
         self.do(d_a+d_c+u_a, d_a+d_c+u_a)
 
     def test_stash_state(self):
@@ -469,7 +469,9 @@ class TestKeyboard(unittest.TestCase):
         def process():
             queue.put(keyboard.read_hotkey())
         from threading import Thread
-        Thread(target=process).start()
+        t = Thread(target=process)
+        t.daemon = True
+        t.start()
         time.sleep(0.01)
         self.do(d_ctrl+d_a+d_b+u_ctrl)
         self.assertEqual(queue.get(0.5), 'ctrl+a+b')
@@ -479,7 +481,9 @@ class TestKeyboard(unittest.TestCase):
         def process():
             queue.put(keyboard.read_event(suppress=True))
         from threading import Thread
-        Thread(target=process).start()
+        t = Thread(target=process)
+        t.daemon = True
+        t.start()
         time.sleep(0.01)
         self.do(d_a, [])
         self.assertEqual(queue.get(0.5), d_a[0])
@@ -489,7 +493,9 @@ class TestKeyboard(unittest.TestCase):
         def process():
             queue.put(keyboard.read_key(suppress=True))
         from threading import Thread
-        Thread(target=process).start()
+        t = Thread(target=process)
+        t.daemon = True
+        t.start()
         time.sleep(0.01)
         self.do(d_a, [])
         self.assertEqual(queue.get(0.5), 'a')
@@ -505,13 +511,35 @@ class TestKeyboard(unittest.TestCase):
         t.start()
         time.sleep(0.01)
         self.assertFalse(self.triggered)
+
+    def test_wait_until_success(self):
+        queue = keyboard._queue.Queue()
+        def process():
+            queue.put(keyboard.wait(queue.get(0.5), suppress=True) or True)
+        from threading import Thread
+        t = Thread(target=process)
+        t.daemon = True
+        t.start()
+        queue.put('a')
+        time.sleep(0.01)
+        self.do(d_a, [])
+        self.assertTrue(queue.get(0.5))
+    def test_wait_until_fail(self):
+        def process():
+            keyboard.wait('a', suppress=True)
+            self.fail()
+        from threading import Thread
+        t = Thread(target=process)
+        t.daemon = True # Yep, we are letting this thread loose.
+        t.start()
+        time.sleep(0.01)
+        self.do(d_b)
         
     def test_add_hotkey_single_step_suppress_single(self):
         keyboard.add_hotkey('a', trigger, suppress=True)
         self.do(d_a, triggered_event)
     def test_add_hotkey_single_step_suppress_removed(self):
-        keyboard.add_hotkey('a', trigger, suppress=True)
-        keyboard.remove_hotkey('a')
+        keyboard.remove_hotkey(keyboard.add_hotkey('a', trigger, suppress=True))
         self.do(d_a, d_a)
     def test_add_hotkey_single_step_suppress_with_modifiers(self):
         keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
