@@ -549,7 +549,7 @@ def _parse_hotkey_combinations(hotkey):
     return tuple(possible_pairs_steps)
 
 _hotkeys = {}
-def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove=lambda: None):
+def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
@@ -636,7 +636,7 @@ def unhook_all_hotkeys():
     assert not _hotkeys
 unregister_all_hotkeys = remove_all_hotkeys = clear_all_hotkeys = unhook_all_hotkeys
 
-def remap_hotkey(src, dst):
+def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
     """
     Whenever the hotkey `src` is pressed, suppress it and send
     `dst` instead.
@@ -646,7 +646,6 @@ def remap_hotkey(src, dst):
         remap('alt+w', 'ctrl+up')
     """
     def handler(event):
-        if event.event_type == KEY_UP: return False
         active_modifiers = sorted(modifier for modifier, state in _listener.modifier_states.items() if state == 'allowed')
         for modifier in active_modifiers:
             release(modifier)
@@ -654,7 +653,7 @@ def remap_hotkey(src, dst):
         for modifier in reversed(active_modifiers):
             press(modifier)
         return False
-    return add_hotkey(src, handler, suppress=True)
+    return add_hotkey(src, handler, suppress=suppress, trigger_on_release=trigger_on_release)
 unremap_hotkey = remove_hotkey
 
 def stash_state():

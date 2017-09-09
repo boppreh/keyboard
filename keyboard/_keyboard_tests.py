@@ -560,6 +560,12 @@ class TestKeyboard(unittest.TestCase):
     def test_remap_hotkey_modifiers_state(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
         self.do(d_ctrl+d_shift+du_c+du_a+du_a, d_shift+d_ctrl+du_c+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_shift+u_ctrl+du_b+d_ctrl+d_shift)
+    def test_remap_hotkey_release_incomplete(self):
+        keyboard.remap_hotkey('a', 'b', trigger_on_release=True)
+        self.do(d_a, [])
+    def test_remap_hotkey_release_complete(self):
+        keyboard.remap_hotkey('a', 'b', trigger_on_release=True)
+        self.do(du_a, du_b)
 
     def test_add_hotkey_multistep_suppress(self):
         return
