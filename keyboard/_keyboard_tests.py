@@ -389,6 +389,7 @@ class TestKeyboard(unittest.TestCase):
     def test_write_modifiers(self):
         keyboard.write('Ab', exact=False)
         self.do([], d_shift+d_a+u_a+u_shift+d_b+u_b)
+    # restore_state_after has been removed after the introduction of `restore_modifiers`.
     #def test_write_stash_not_restore(self):
     #    self.do(d_shift)
     #    keyboard.write('a', restore_state_after=False, exact=False)
@@ -572,10 +573,8 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_shift+d_ctrl+d_a)
         self.assertTrue(queue.get(0.5))
 
-    #def test_add_hotkey_single_step_fail_multistep(self):
-    #    with self.assertRaises(Exception):
-    #        keyboard.add_hotkey('a, b', lambda e: None, True)
     def test_add_hotkey_single_step_fail_invalid_combination(self):
+        # TODO: support this instead of failing.
         with self.assertRaises(NotImplementedError):
             keyboard.add_hotkey('a+b', lambda e: None, True)
 
@@ -601,13 +600,36 @@ class TestKeyboard(unittest.TestCase):
         keyboard.remap_hotkey('a', 'b', trigger_on_release=True)
         self.do(du_a, du_b)
 
-    #def test_add_hotkey_multistep_suppress(self):
+    def test_parse_hotkey_combinations_scan_code(self):
+        self.assertEqual(keyboard.parse_hotkey_combinations(30), (((30, ()),),))
+    def test_parse_hotkey_combinations_single(self):
+        self.assertEqual(keyboard.parse_hotkey_combinations('a'), (((1, ()),),))
+    def test_parse_hotkey_combinations_single_modifier(self):
+        self.assertEqual(keyboard.parse_hotkey_combinations('shift+a'), (((1, (5,)), (1, (6,))),))
+    def test_parse_hotkey_combinations_single_modifiers(self):
+        self.assertEqual(keyboard.parse_hotkey_combinations('shift+ctrl+a'), (((1, (5, 7)), (1, (6, 7))),))
+    def test_parse_hotkey_combinations_multi(self):
+        self.assertEqual(keyboard.parse_hotkey_combinations('a, b'), (((1, ()),), ((2, ()),)))
+    def test_parse_hotkey_combinations_multi_modifier(self):
+        self.assertEqual(keyboard.parse_hotkey_combinations('shift+a, b'), (((1, (5,)), (1, (6,))), ((2, ()),)))
+    def test_parse_hotkey_combinations_fail_empty(self):
+        with self.assertRaises(ValueError):
+            keyboard.parse_hotkey_combinations('')
+    def test_parse_hotkey_combinations_fail_invalid(self):
+        # TODO: support this instead of failing.
+        with self.assertRaises(NotImplementedError):
+            keyboard.parse_hotkey_combinations('a+b')
+
+
+    #def test_add_hotkey_multistep_suppress_simple(self):
     #    keyboard.add_hotkey('a, b', trigger, suppress=True)
     #    self.do(du_a+du_b, triggered_event)
-
-    #def test_add_hotkey_single(self):
-    #    keyboard.add_multi_step_blocking_hotkey('a', trigger, suppress=True)
-    #    self.do(d_a, triggered_event)
+    #def test_add_hotkey_multistep_suppress_modifier(self):
+    #    keyboard.add_hotkey('shift+a, b', trigger, suppress=True)
+    #    self.do(d_shift+du_a+u_shift+du_b, triggered_event)
+    #def test_add_hotkey_multistep_suppress_fail(self):
+    #    keyboard.add_hotkey('a, b', trigger, suppress=True)
+    #    self.do(du_a+du_c, du_a+du_c)
 
 if __name__ == '__main__':
     unittest.main()

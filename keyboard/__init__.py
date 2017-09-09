@@ -513,16 +513,14 @@ def remap_key(src, dst):
     return hook_key(src, handler, suppress=True)
 unremap_key = unhook_key
 
-def _parse_hotkey_combinations(hotkey):
+def parse_hotkey_combinations(hotkey):
     """
     Parses a user-provided hotkey. Differently from `parse_hotkey`,
     instead of each step being a list of the different scan codes for each key,
     each step is a list of all possible combinations of those scan codes, and
     splitting modifiers into a second list.
     """
-    steps = parse_hotkey(hotkey)
-    possible_pairs_steps = []
-    for step in steps:
+    def combine_step(step):
         # A single step may be composed of many keys, and each key can have
         # multiple scan codes. To speed up hotkey matching and avoid introducing
         # event delays, we list all possible combinations of scan codes for these
@@ -533,15 +531,15 @@ def _parse_hotkey_combinations(hotkey):
         # is a necessary restriction because processing hotkeys is surprisingly
         # complicated.
         possible_pairs = []
-        for possible_scan_codes in itertools.product(*steps[0]):
+        for possible_scan_codes in itertools.product(*step):
             part_modifiers = tuple(sorted(filter(is_modifier, possible_scan_codes)))
             try:
                 part_main_key, = (scan_code for scan_code in possible_scan_codes if scan_code not in part_modifiers)
             except ValueError:
                 raise NotImplementedError('Can only hook hotkeys of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
-            possible_pairs.append((part_main_key, part_modifiers))
-        possible_pairs_steps.append(tuple(possible_pairs))
-    return tuple(possible_pairs_steps)
+            yield (part_main_key, part_modifiers)
+        
+    return tuple((tuple(combine_step(step)) for step in parse_hotkey(hotkey)))
 
 def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
     """
@@ -571,31 +569,45 @@ def add_hotkey(hotkey, callback, suppress=True, trigger_on_release=False):
     # TODO: timeout
     _listener.start_if_necessary()
 
-    steps = _parse_hotkey_combinations(hotkey)
+    steps = parse_hotkey_combinations(hotkey)
     event_type = KEY_UP if trigger_on_release else KEY_DOWN
+
     if len(steps) == 1:
         return _add_hotkey_step(event_type, steps[0], callback, suppress, on_remove=lambda: None)
 
+    hook(lambda e: print('======', e) or True, suppress=True)
     state = _State()
-    state.index = 0
     def set_index(new_index):
         state.index = new_index
         if state.index == len(steps):
             callback()
             state.index = 0
-        _add_hotkey_step(steps[state.index], triggered, suppress=suppress)
-        return False
-        
-    def triggered(event):
-        if event.event_type == KEY_DOWN:
-            return set_index(state.index+1)
-        return False
-    _add_hotkey_step(steps[state.index], triggered, suppress=suppress)
+        state.remove_last()
+        state.remove_last = _add_hotkey_step(
+            event_type,
+            steps[state.index],
+            lambda e: set_index(state.index+1),
+            suppress=suppress,
+            on_remove=lambda: None
+        )
+        return True
+    state.remove_last = lambda: None
+    set_index(0)
+
+    allowed_keys_by_step = [
+        set().union(*(
+            (main_key,)+modifiers
+            for main_key, modifiers in step
+        ))
+        for step in steps
+    ]
 
     # TODO: allow "a, a, b" when typing "aaab"
     # TODO: only register this when state.index >= 1
     def catch_misses(event):
-        if event.event_type == KEY_DOWN and state.index and event.scan_code not in steps[state.index]:
+        print(event, event.event_type == event_type, state.index, steps[state.index])
+        if event.event_type == event_type and state.index and event.scan_code not in allowed_keys_by_step[state.index]:
+            print('Failed hotkey, resetting')
             for part in steps[:state.index]:
                 send(part)
             set_index(0)
@@ -651,7 +663,7 @@ def stash_state():
     Builds a list of all currently pressed scan codes, releases them and returns
     the list. Pairs well with `restore_state` and `restore_modifiers`.
     """
-    # TODO: stash caps lock state.
+    # TODO: stash caps lock / numlock /scrollock state.
     state = sorted(_pressed_events)
     for scan_code in state:
         _os_keyboard.release(scan_code)
