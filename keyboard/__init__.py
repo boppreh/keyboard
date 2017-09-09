@@ -72,6 +72,7 @@ but this requries root.
 key events. In this case `keyboard` will be unable to report events.
 - This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming bots. Be responsible.
 """
+from __future__ import print_function
 
 import re
 import itertools
@@ -517,56 +518,101 @@ def remap_key(src, dst):
     return hook_key(src, handler, suppress=True)
 unremap_key = unhook_key
 
+def _parse_hotkey_combinations(hotkey):
+    """
+    Parses a user-provided hotkey. Differently from `parse_hotkey`,
+    instead of each step being a list of the different scan codes for each key,
+    each step is a list of all possible combinations of those scan codes, and
+    splitting modifiers into a second list.
+    """
+    steps = parse_hotkey(hotkey)
+    possible_pairs_steps = []
+    for step in steps:
+        # A single step may be composed of many keys, and each key can have
+        # multiple scan codes. To speed up hotkey matching and avoid introducing
+        # event delays, we list all possible combinations of scan codes for these
+        # keys. Hotkeys are usually small, and there are not many combinations, so
+        # this is not as insane as it sounds.
+        #
+        # The possible scan codes are then split into modifiers + main key. This is
+        # is a necessary restriction because processing hotkeys is surprisingly
+        # complicated.
+        possible_pairs = []
+        for possible_scan_codes in itertools.product(*steps[0]):
+            part_modifiers = tuple(sorted(filter(is_modifier, possible_scan_codes)))
+            try:
+                part_main_key, = (scan_code for scan_code in possible_scan_codes if scan_code not in part_modifiers)
+            except ValueError:
+                raise NotImplementedError('Can only hook hotkeys of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
+            possible_pairs.append((part_main_key, part_modifiers))
+        possible_pairs_steps.append(tuple(possible_pairs))
+    return tuple(possible_pairs_steps)
+
 _hotkeys = {}
-def _hook_hotkey_part(hotkey, callback, suppress):
+def _hook_hotkey_step(alias, possible_pairs, callback, suppress):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
-    _listener.start_if_necessary()
-
-    # Where to register.
     container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
-
-    steps = parse_hotkey(hotkey)
-    if len(steps) > 1:
-        raise NotImplementedError('Cannot hook multi-step blocking hotkey (e.g. "alt+s, t"). Please see https://github.com/boppreh/keyboard/issues/22')
-
-    # A single step may be composed of many keys, and each key can have
-    # multiple scan codes. To speed up hotkey matching and avoid introducing
-    # event delays, we list all possible combinations of scan codes for these
-    # keys. Hotkeys are usually small, and there are not many combinations, so
-    # this is not as insane as it sounds.
-    #
-    # The possible scan codes are then split into modifiers + main key. This is
-    # is a necessary restriction because processing hotkeys is surprisingly
-    # complicated.
-    possible_pairs = []
-    for possible_scan_codes in itertools.product(*steps[0]):
-        part_modifiers = tuple(sorted(filter(is_modifier, possible_scan_codes)))
-        try:
-            part_main_key, = (scan_code for scan_code in possible_scan_codes if scan_code not in part_modifiers)
-        except ValueError:
-            raise NotImplementedError('Can only hook hotkeys of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
-        possible_pairs.append((part_main_key, part_modifiers))
 
     def remove():
         for pair in possible_pairs:
             for modifier in pair[1]:
                 _listener.filtered_modifiers[modifier] -= 1
             container[pair].remove(callback)
-        del _hotkeys[hotkey]
-        del  _hotkeys[callback]
+        del _hotkeys[possible_pairs]
+        del _hotkeys[callback]
+        del _hotkeys[alias]
 
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in 
     # filtered_modifiers too, so suppression and replaying can work.
     for pair in possible_pairs:
         for modifier in pair[1]:
-            #print(hotkey, modifier)
             _listener.filtered_modifiers[modifier] += 1
         container[pair].append(callback)
-    _hotkeys[hotkey] = _hotkeys[callback] = remove
-    return hotkey
+    _hotkeys[possible_pairs] = _hotkeys[callback] = _hotkeys[alias] = remove
+    return possible_pairs
+
+def hook_hotkey(hotkey, callback, suppress=True):
+    # TODO: timeout
+    _listener.start_if_necessary()
+
+    first_part, = _parse_hotkey_combinations(hotkey)
+    return _hook_hotkey_step(hotkey, first_part, callback, suppress)
+
+    state = _State()
+    state.index = 0
+    def set_index(new_index):
+        if len(parts) == 1 and new_index == 1:
+            # Simplified case.
+            return callback()
+
+        unhook_blocking_hotkey(parts[state.index])
+        state.index = new_index
+        if state.index == len(parts):
+            callback()
+            state.index = 0
+        _hook_hotkey_step(parts[state.index], triggered, suppress=suppress)
+        
+    def triggered(event):
+        if event.event_type == KEY_DOWN:
+            set_index(state.index+1)
+        return False
+    _hook_hotkey_step(parts[state.index], triggered, suppress=suppress)
+
+    if len(parts) > 1:
+        # TODO: allow "a, a, b" when typing "aaab"
+        def catch_misses(event):
+            if event.event_type == KEY_DOWN and state.index and event.name not in parts[state.index]:
+                for part in parts[:state.index]:
+                    send(part)
+                set_index(0)
+            return True
+        hook_blocking(catch_misses)
+
+    # TODO
+    return
 
 def unhook_hotkey(hotkey):
     """ Removes a previously hooked hotkey. """
@@ -592,8 +638,7 @@ def remap_hotkey(src, dst):
 
     Example:
 
-        remap('alt+w', 'up')
-        remap('capslock', 'esc')
+        remap('alt+w', 'ctrl+up')
     """
     def handler(event):
         if event.event_type == KEY_UP: return False
@@ -604,7 +649,7 @@ def remap_hotkey(src, dst):
         for modifier in reversed(active_modifiers):
             press(modifier)
         return False
-    return _hook_hotkey_part(src, handler, suppress=True)
+    return hook_hotkey(src, handler, suppress=True)
 unremap_hotkey = unhook_hotkey
 
 def stash_state():
@@ -1045,40 +1090,3 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
 register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
 remove_abbreviation = remove_word_listener
-
-def add_multi_step_blocking_hotkey(hotkey, callback, suppress=True):
-    # TODO: timeout
-    parts = _parse_hotkey(hotkey)
-
-    state = _State()
-    state.index = 0
-    def set_index(new_index):
-        if len(parts) == 1 and new_index == 1:
-            # Simplified case.
-            return callback()
-
-        unhook_blocking_hotkey(parts[state.index])
-        state.index = new_index
-        if state.index == len(parts):
-            callback()
-            state.index = 0
-        hook_blocking_hotkey(parts[state.index], triggered)
-        
-    def triggered(event):
-        if event.event_type == KEY_DOWN:
-            set_index(state.index+1)
-        return False
-    hook_blocking_hotkey(parts[state.index], triggered)
-
-    if len(parts) > 1:
-        # TODO: allow "a, a, b" when typing "aaab"
-        def catch_misses(event):
-            if event.event_type == KEY_DOWN and state.index and event.name not in parts[state.index]:
-                for part in parts[:state.index]:
-                    send(part)
-                set_index(0)
-            return True
-        hook_blocking(catch_misses)
-
-    # TODO
-    return
