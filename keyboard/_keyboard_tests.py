@@ -500,50 +500,50 @@ class TestKeyboard(unittest.TestCase):
         time.sleep(0.01)
         self.assertFalse(self.triggered)
         
-    def test_hook_hotkey_part_suppress_single(self):
-        keyboard.hook_hotkey('a', trigger, suppress=True)
+    def test_add_hotkey_single_step_suppress_single(self):
+        keyboard.add_hotkey('a', trigger, suppress=True)
         self.do(d_a, triggered_event)
-    def test_hook_hotkey_part_suppress_single_allow(self):
-        keyboard.hook_hotkey('a', lambda e: trigger(e) or True, suppress=True)
-        self.do(d_a, triggered_event+d_a)
-    def test_hook_hotkey_part_suppress_removed(self):
-        keyboard.hook_hotkey('a', trigger, suppress=True)
-        keyboard.unhook_hotkey('a')
+    def test_add_hotkey_single_step_suppress_removed(self):
+        keyboard.add_hotkey('a', trigger, suppress=True)
+        keyboard.remove_hotkey('a')
         self.do(d_a, d_a)
-    def test_hook_hotkey_part_suppress_with_modifiers(self):
-        keyboard.hook_hotkey('ctrl+shift+a', trigger, suppress=True)
+    def test_add_hotkey_single_step_suppress_with_modifiers(self):
+        keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+d_a, triggered_event)
-    def test_hook_hotkey_part_suppress_with_modifiers_fail_unrelated_modifier(self):
-        keyboard.hook_hotkey('ctrl+shift+a', trigger, suppress=True)
+    def test_add_hotkey_single_step_suppress_with_modifiers_fail_unrelated_modifier(self):
+        keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+u_shift+d_a, d_shift+u_shift+d_ctrl+d_a)
-    def test_hook_hotkey_part_suppress_with_modifiers_fail_unrelated_key(self):
-        keyboard.hook_hotkey('ctrl+shift+a', trigger, suppress=True)
+    def test_add_hotkey_single_step_suppress_with_modifiers_fail_unrelated_key(self):
+        keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+du_b, d_shift+d_ctrl+du_b)
-    def test_hook_hotkey_part_suppress_with_modifiers_unrelated_key(self):
-        keyboard.hook_hotkey('ctrl+shift+a', trigger, suppress=True)
+    def test_add_hotkey_single_step_suppress_with_modifiers_unrelated_key(self):
+        keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+du_b+d_a, d_shift+d_ctrl+du_b+triggered_event)
-    def test_hook_hotkey_part_suppress_with_modifiers_release(self):
-        keyboard.hook_hotkey('ctrl+shift+a', trigger, suppress=True)
+    def test_add_hotkey_single_step_suppress_with_modifiers_release(self):
+        keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+du_b+d_a+u_ctrl+u_shift, d_shift+d_ctrl+du_b+triggered_event+u_ctrl+u_shift)
-    def test_hook_hotkey_part_suppress_with_modifiers_out_of_order(self):
-        keyboard.hook_hotkey('ctrl+shift+a', trigger, suppress=True)
+    def test_add_hotkey_single_step_suppress_with_modifiers_out_of_order(self):
+        keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_shift+d_ctrl+d_a, triggered_event)
-    def test_hook_hotkey_part_suppress_with_modifiers_repeated(self):
-        keyboard.hook_hotkey('ctrl+a', trigger, suppress=True)
+    def test_add_hotkey_single_step_suppress_with_modifiers_repeated(self):
+        keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
         self.do(d_ctrl+d_a+d_b+d_a, triggered_event+d_ctrl+d_b+triggered_event)
+    def test_add_hotkey_single_step_suppress_with_modifiers_release(self):
+        keyboard.add_hotkey('ctrl+a', trigger, suppress=True, trigger_on_release=True)
+        self.do(d_ctrl+du_a+du_b+du_a, triggered_event+d_ctrl+du_b+triggered_event)
 
-    def test_hook_hotkey_part_nosuppress_with_modifiers_out_of_order(self):
+    def test_add_hotkey_single_step_nosuppress_with_modifiers_out_of_order(self):
         queue = keyboard._queue.Queue()
-        keyboard.hook_hotkey('ctrl+shift+a', queue.put, suppress=False)
+        keyboard.add_hotkey('ctrl+shift+a', queue.put, suppress=False)
         self.do(d_shift+d_ctrl+d_a)
         self.assertTrue(queue.get(0.5))
 
-    def test_hook_hotkey_part_fail_multistep(self):
-        with self.assertRaises(Exception):
-            keyboard.hook_hotkey('a, b', lambda e: None, True)
-    def test_hook_hotkey_part_fail_invalid_combination(self):
+    #def test_add_hotkey_single_step_fail_multistep(self):
+    #    with self.assertRaises(Exception):
+    #        keyboard.add_hotkey('a, b', lambda e: None, True)
+    def test_add_hotkey_single_step_fail_invalid_combination(self):
         with self.assertRaises(NotImplementedError):
-            keyboard.hook_hotkey('a+b', lambda e: None, True)
+            keyboard.add_hotkey('a+b', lambda e: None, True)
 
     def test_remap_hotkey_single(self):
         keyboard.remap_hotkey('a', 'b')
@@ -560,6 +560,11 @@ class TestKeyboard(unittest.TestCase):
     def test_remap_hotkey_modifiers_state(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
         self.do(d_ctrl+d_shift+du_c+du_a+du_a, d_shift+d_ctrl+du_c+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_shift+u_ctrl+du_b+d_ctrl+d_shift)
+
+    def test_add_hotkey_multistep_suppress(self):
+        return
+        keyboard.add_hotkey('a, b', trigger, suppress=True)
+        self.do(du_a+du_b, triggered_event)
 
     #def test_add_hotkey_single(self):
     #    keyboard.add_multi_step_blocking_hotkey('a', trigger, suppress=True)

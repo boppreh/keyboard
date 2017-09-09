@@ -549,20 +549,22 @@ def _parse_hotkey_combinations(hotkey):
     return tuple(possible_pairs_steps)
 
 _hotkeys = {}
-def _hook_hotkey_step(alias, possible_pairs, callback, suppress):
+def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove=lambda: None):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
     container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
 
+    fn = lambda e: e.event_type == event_type and callback(e)
+
     def remove():
         for pair in possible_pairs:
             for modifier in pair[1]:
                 _listener.filtered_modifiers[modifier] -= 1
-            container[pair].remove(callback)
+            container[pair].remove(fn)
         del _hotkeys[possible_pairs]
-        del _hotkeys[callback]
-        del _hotkeys[alias]
+        del _hotkeys[fn]
+        on_remove()
 
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in 
@@ -570,54 +572,57 @@ def _hook_hotkey_step(alias, possible_pairs, callback, suppress):
     for pair in possible_pairs:
         for modifier in pair[1]:
             _listener.filtered_modifiers[modifier] += 1
-        container[pair].append(callback)
-    _hotkeys[possible_pairs] = _hotkeys[callback] = _hotkeys[alias] = remove
-    return possible_pairs
+        container[pair].append(fn)
+    _hotkeys[possible_pairs] = _hotkeys[fn] = remove
+    return remove
 
-def hook_hotkey(hotkey, callback, suppress=True):
+def add_hotkey(hotkey, callback, suppress=True, trigger_on_release=False):
     # TODO: timeout
     _listener.start_if_necessary()
 
-    first_part, = _parse_hotkey_combinations(hotkey)
-    return _hook_hotkey_step(hotkey, first_part, callback, suppress)
+    steps = _parse_hotkey_combinations(hotkey)
+    event_type = KEY_UP if trigger_on_release else KEY_DOWN
+    if len(steps) == 1:
+        def on_remove():
+            del _hotkeys[hotkey]
+        _hotkeys[hotkey] = _add_hotkey_step(event_type, steps[0], callback, suppress, on_remove=on_remove)
+        return _hotkeys[hotkey]
 
     state = _State()
     state.index = 0
     def set_index(new_index):
-        if len(parts) == 1 and new_index == 1:
-            # Simplified case.
-            return callback()
-
-        unhook_blocking_hotkey(parts[state.index])
         state.index = new_index
-        if state.index == len(parts):
+        if state.index == len(steps):
             callback()
             state.index = 0
-        _hook_hotkey_step(parts[state.index], triggered, suppress=suppress)
+        _add_hotkey_step(steps[state.index], triggered, suppress=suppress)
+        return False
         
     def triggered(event):
         if event.event_type == KEY_DOWN:
-            set_index(state.index+1)
+            return set_index(state.index+1)
         return False
-    _hook_hotkey_step(parts[state.index], triggered, suppress=suppress)
+    _add_hotkey_step(steps[state.index], triggered, suppress=suppress)
 
-    if len(parts) > 1:
-        # TODO: allow "a, a, b" when typing "aaab"
-        def catch_misses(event):
-            if event.event_type == KEY_DOWN and state.index and event.name not in parts[state.index]:
-                for part in parts[:state.index]:
-                    send(part)
-                set_index(0)
-            return True
-        hook_blocking(catch_misses)
+    # TODO: allow "a, a, b" when typing "aaab"
+    # TODO: only register this when state.index >= 1
+    def catch_misses(event):
+        if event.event_type == KEY_DOWN and state.index and event.scan_code not in steps[state.index]:
+            for part in steps[:state.index]:
+                send(part)
+            set_index(0)
+        return True
+    # Must be `suppress=True` to ensure `send` has priority.
+    hook(catch_misses, suppress=True)
 
     # TODO
     return
+register_hotkey = add_hotkey
 
-def unhook_hotkey(hotkey):
+def remove_hotkey(hotkey):
     """ Removes a previously hooked hotkey. """
     _hotkeys[hotkey]()
-unregister_hotkey = remove_hotkey = clear_hotkey = unhook_hotkey
+unregister_hotkey = clear_hotkey = remove_hotkey
 
 def unhook_all_hotkeys():
     """
@@ -649,8 +654,8 @@ def remap_hotkey(src, dst):
         for modifier in reversed(active_modifiers):
             press(modifier)
         return False
-    return hook_hotkey(src, handler, suppress=True)
-unremap_hotkey = unhook_hotkey
+    return add_hotkey(src, handler, suppress=True)
+unremap_hotkey = remove_hotkey
 
 def stash_state():
     """
@@ -921,7 +926,7 @@ def play(events, speed_factor=1.0):
     restore_modifiers(state)
 replay = play
 
-def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
+def add_hotkey_old(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
     """
     Invokes a callback every time a hotkey is pressed. The hotkey must
     be in the format "ctrl+shift+a, s". This would trigger when the user holds
