@@ -95,6 +95,12 @@ triggered_event = [KeyboardEvent(KEY_DOWN, scan_code=999)]
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
         keyboard.unhook_all()
+        self.assertEquals(keyboard._hooks, {})
+        self.assertEquals(keyboard._hotkeys, {})
+
+    def setUp(self):
+        keyboard._hooks.clear()
+        keyboard._hotkeys.clear()
         del input_events[:]
         del output_events[:]
         keyboard._recording = None
@@ -567,10 +573,9 @@ class TestKeyboard(unittest.TestCase):
         keyboard.remap_hotkey('a', 'b', trigger_on_release=True)
         self.do(du_a, du_b)
 
-    def test_add_hotkey_multistep_suppress(self):
-        return
-        keyboard.add_hotkey('a, b', trigger, suppress=True)
-        self.do(du_a+du_b, triggered_event)
+    #def test_add_hotkey_multistep_suppress(self):
+    #    keyboard.add_hotkey('a, b', trigger, suppress=True)
+    #    self.do(du_a+du_b, triggered_event)
 
     #def test_add_hotkey_single(self):
     #    keyboard.add_multi_step_blocking_hotkey('a', trigger, suppress=True)
