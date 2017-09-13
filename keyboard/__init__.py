@@ -719,6 +719,20 @@ def play(events, speed_factor=1.0):
 
 replay = play
 
+
+def get_shift_valuels(val):
+    """
+    It performs the mapping of special characters, for the correct operation
+    of the "get_typed_strings" function, when the [shift] is pressed.
+    """
+    mapping= {'1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '¨',
+             '7': '&', '8': '*', '9': '(', '0': ')', '-': '_', '=': '+', '\'': '"',
+             '[': '{', ']': '}', '´': '`', '~': '^', '\\': '|', ',': '<', '.': '>',
+             ';': ':', '/': '?'}
+			 
+    try: return mapping[val]
+    except: return val.upper()
+
 def get_typed_strings(events, allow_backspace=True):
     """
     Given a sequence of events, tries to deduce what strings were typed.
@@ -755,7 +769,9 @@ def get_typed_strings(events, allow_backspace=True):
             string = string[:-1]
         elif event.event_type == 'down':
             if len(name) == 1:
-                if shift_pressed ^ capslock_pressed:
+                if shift_pressed:
+                    name = get_shift_valuels(name)
+                elif capslock_pressed:
                     name = name.upper()
                 string = string + name
             else:
@@ -842,20 +858,3 @@ def read_shortcut():
     hook(test)
     return wait()
 read_hotkey = read_shortcut
-
-
-def remap(src, dst):
-    """
-    Whenever the key combination `src` is pressed, suppress it and press
-    `dst` instead.
-
-    Example:
-
-        remap('alt+w', 'up')
-        remap('capslock', 'esc')
-    """
-    def handler():
-        state = stash_state()
-        press_and_release(dst)
-        restore_state(state)
-    return add_hotkey(src, handler, suppress=True)
