@@ -719,19 +719,17 @@ def play(events, speed_factor=1.0):
 
 replay = play
 
+_shifted_mapping= {'1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '¨',
+    '7': '&', '8': '*', '9': '(', '0': ')', '-': '_', '=': '+', '\'': '"',
+    '[': '{', ']': '}', '´': '`', '~': '^', '\\': '|', ',': '<', '.': '>',
+    ';': ':', '/': '?'}
 
-def get_shift_valuels(val):
+def _get_shifted_character(character):
     """
     It performs the mapping of special characters, for the correct operation
     of the "get_typed_strings" function, when the [shift] is pressed.
     """
-    mapping= {'1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '¨',
-             '7': '&', '8': '*', '9': '(', '0': ')', '-': '_', '=': '+', '\'': '"',
-             '[': '{', ']': '}', '´': '`', '~': '^', '\\': '|', ',': '<', '.': '>',
-             ';': ':', '/': '?'}
-			 
-    try: return mapping[val]
-    except: return val.upper()
+    return _shifted_mapping.get(character, character.upper())
 
 def get_typed_strings(events, allow_backspace=True):
     """
@@ -770,7 +768,7 @@ def get_typed_strings(events, allow_backspace=True):
         elif event.event_type == 'down':
             if len(name) == 1:
                 if shift_pressed:
-                    name = get_shift_valuels(name)
+                    name = _get_shifted_character(name)
                 elif capslock_pressed:
                     name = name.upper()
                 string = string + name
