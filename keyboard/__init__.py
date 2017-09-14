@@ -719,6 +719,18 @@ def play(events, speed_factor=1.0):
 
 replay = play
 
+_shifted_mapping= {'1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '¨',
+    '7': '&', '8': '*', '9': '(', '0': ')', '-': '_', '=': '+', '\'': '"',
+    '[': '{', ']': '}', '´': '`', '~': '^', '\\': '|', ',': '<', '.': '>',
+    ';': ':', '/': '?'}
+
+def _get_shifted_character(character):
+    """
+    It performs the mapping of special characters, for the correct operation
+    of the "get_typed_strings" function, when the [shift] is pressed.
+    """
+    return _shifted_mapping.get(character, character.upper())
+
 def get_typed_strings(events, allow_backspace=True):
     """
     Given a sequence of events, tries to deduce what strings were typed.
@@ -755,7 +767,9 @@ def get_typed_strings(events, allow_backspace=True):
             string = string[:-1]
         elif event.event_type == 'down':
             if len(name) == 1:
-                if shift_pressed ^ capslock_pressed:
+                if shift_pressed:
+                    name = _get_shifted_character(name)
+                elif capslock_pressed:
                     name = name.upper()
                 string = string + name
             else:
@@ -843,7 +857,6 @@ def read_shortcut():
     return wait()
 read_hotkey = read_shortcut
 
-
 def remap(src, dst):
     """
     Whenever the key combination `src` is pressed, suppress it and press
@@ -858,4 +871,4 @@ def remap(src, dst):
         state = stash_state()
         press_and_release(dst)
         restore_state(state)
-    return add_hotkey(src, handler, suppress=True)
+    return add_hotkey(src, handler, suppress=True) 
