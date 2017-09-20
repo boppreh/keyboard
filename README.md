@@ -22,6 +22,8 @@ Take full control of your keyboard with this small Python library. Hook global e
 
 This program makes no attempt to hide itself, so don't use it for keyloggers.
 
+**Note**: a new version with more features is being worked on (see `suppress` branch). Any day now...
+
 ## Usage
 
 Install the [PyPI package](https://pypi.python.org/pypi/keyboard/):
