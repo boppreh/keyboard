@@ -308,7 +308,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
                 state.step = 0
         else:
             state.time = event.time
-            if all(is_pressed(part) or matches(event, part) for part in steps[state.step]):
+            if _step_is_pressed(steps[state.step]) or all(matches(event, part) for part in steps[state.step]):
                 state.step += 1
                 if not trigger_on_release and state.step == len(steps):
                     state.step = 0
@@ -324,6 +324,15 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
 
 # Alias.
 register_hotkey = add_hotkey
+
+def _step_is_pressed(step):
+    """
+    Returns True if:
+        - all keys within the step are currently pressed
+        - no undefined modifiers are currently pressed
+    """
+    inactive_modifiers = [x for x in all_modifiers if not x in step and x in all_modifiers]
+    return all(is_pressed(x) for x in step) and not any(is_pressed(x) for x in inactive_modifiers)
 
 def hook(callback):
     """
