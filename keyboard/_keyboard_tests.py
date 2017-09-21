@@ -566,6 +566,12 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_single_step_suppress_with_modifiers_release(self):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True, trigger_on_release=True)
         self.do(d_ctrl+du_a+du_b+du_a, triggered_event+d_ctrl+du_b+triggered_event)
+    def test_add_hotkey_single_step_suppress_with_modifier_superset_release(self):
+        keyboard.add_hotkey('ctrl+a', trigger, suppress=True, trigger_on_release=True)
+        self.do(d_ctrl+d_shift+du_a+u_shift+u_ctrl, d_ctrl+d_shift+du_a+u_shift+u_ctrl)
+    def test_add_hotkey_single_step_suppress_with_modifier_superset(self):
+        keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
+        self.do(d_ctrl+d_shift+du_a+u_shift+u_ctrl, d_ctrl+d_shift+du_a+u_shift+u_ctrl)
 
     def test_add_hotkey_single_step_nosuppress_with_modifiers_out_of_order(self):
         queue = keyboard._queue.Queue()
