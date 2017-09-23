@@ -154,32 +154,34 @@ class _KeyboardListener(_GenericListener):
         #|             |         |            |       |
         #|             |         |            |       |      Next state.
         #v             v         v            v       v      v
-        ('free',       KEY_UP,   'modifier'): (False, True, 'free'),
+        ('free',       KEY_UP,   'modifier'): (False, True,  'free'),
         ('free',       KEY_DOWN, 'modifier'): (False, False, 'pending'),
-        ('pending',    KEY_UP,   'modifier'): (True,  True, 'free'),
-        ('pending',    KEY_DOWN, 'modifier'): (False, True, 'allowed'),
+        ('pending',    KEY_UP,   'modifier'): (True,  True,  'free'),
+        ('pending',    KEY_DOWN, 'modifier'): (False, True,  'allowed'),
         ('suppressed', KEY_UP,   'modifier'): (False, False, 'free'),
         ('suppressed', KEY_DOWN, 'modifier'): (False, False, 'suppressed'),
-        ('allowed',    KEY_UP,   'modifier'): (False, True, 'free'),
-        ('allowed',    KEY_DOWN, 'modifier'): (False, True, 'allowed'),
+        ('allowed',    KEY_UP,   'modifier'): (False, True,  'free'),
+        ('allowed',    KEY_DOWN, 'modifier'): (False, True,  'allowed'),
 
-        ('free',       KEY_UP,   'hotkey'):   (False, None, 'free'),
-        ('free',       KEY_DOWN, 'hotkey'):   (False, None, 'free'),
-        ('pending',    KEY_UP,   'hotkey'):   (False, None, 'suppressed'),
-        ('pending',    KEY_DOWN, 'hotkey'):   (False, None, 'suppressed'),
-        ('suppressed', KEY_UP,   'hotkey'):   (False, None, 'suppressed'),
-        ('suppressed', KEY_DOWN, 'hotkey'):   (False, None, 'suppressed'),
-        ('allowed',    KEY_UP,   'hotkey'):   (False, None, 'allowed'),
-        ('allowed',    KEY_DOWN, 'hotkey'):   (False, None, 'allowed'),
+        ('free',       KEY_UP,   'hotkey'):   (False, None,  'free'),
+        ('free',       KEY_DOWN, 'hotkey'):   (False, None,  'free'),
+        ('pending',    KEY_UP,   'hotkey'):   (False, None,  'suppressed'),
+        ('pending',    KEY_DOWN, 'hotkey'):   (False, None,  'suppressed'),
+        ('suppressed', KEY_UP,   'hotkey'):   (False, None,  'suppressed'),
+        ('suppressed', KEY_DOWN, 'hotkey'):   (False, None,  'suppressed'),
+        ('allowed',    KEY_UP,   'hotkey'):   (False, None,  'allowed'),
+        ('allowed',    KEY_DOWN, 'hotkey'):   (False, None,  'allowed'),
 
-        ('free',       KEY_UP,   'other'):    (False, True, 'free'),
-        ('free',       KEY_DOWN, 'other'):    (False, True, 'free'),
-        ('pending',    KEY_UP,   'other'):    (True,  True, 'allowed'),
-        ('pending',    KEY_DOWN, 'other'):    (True,  True, 'allowed'),
+        ('free',       KEY_UP,   'other'):    (False, True,  'free'),
+        ('free',       KEY_DOWN, 'other'):    (False, True,  'free'),
+        ('pending',    KEY_UP,   'other'):    (True,  True,  'allowed'),
+        ('pending',    KEY_DOWN, 'other'):    (True,  True,  'allowed'),
+        # Necessary when hotkeys are removed after beign triggered, such as
+        # TestKeyboard.test_add_hotkey_multistep_suppress_modifier.
         ('suppressed', KEY_UP,   'other'):    (False, False, 'allowed'),
-        ('suppressed', KEY_DOWN, 'other'):    (True,  True, 'allowed'),
-        ('allowed',    KEY_UP,   'other'):    (False, True, 'allowed'),
-        ('allowed',    KEY_DOWN, 'other'):    (False, True, 'allowed'),
+        ('suppressed', KEY_DOWN, 'other'):    (True,  True,  'allowed'),
+        ('allowed',    KEY_UP,   'other'):    (False, True,  'allowed'),
+        ('allowed',    KEY_DOWN, 'other'):    (False, True,  'allowed'),
     }
 
     def init(self):
@@ -200,7 +202,8 @@ class _KeyboardListener(_GenericListener):
 
     def invoke_callbacks(self, event, blocking):
         # Currently only Windows is filling this value
-        # TODO: change to event.modifiers to avoid race conditions.
+        # TODO: change to event.modifiers to avoid race conditions on
+        # non-blocking callbacks.
         hotkey = tuple(sorted(_pressed_events))
         mapping = self.blocking_hotkeys if blocking else self.nonblocking_hotkeys
         return [callback(event) for callback in mapping[hotkey]]
@@ -598,7 +601,6 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         # TODO: timeout
         raise NotImplementedError()
     if args:
-        # TODO: args
         callback = lambda callback=callback: callback(*args)
 
     _listener.start_if_necessary()
@@ -961,7 +963,7 @@ def play(events, speed_factor=1.0):
 replay = play
 
 _word_listeners = {}
-def add_word_listener(word, callback, triggers=['space', '.', ',', ';', '?', '!'], match_suffix=False, timeout=2):
+def add_word_listener(word, callback, triggers=['space'], match_suffix=False, timeout=2):
     """
     Invokes a callback every time a sequence of characters is typed (e.g. 'pet')
     and followed by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl,
@@ -972,8 +974,8 @@ def add_word_listener(word, callback, triggers=['space', '.', ',', ';', '?', '!'
     is typed.
     - `triggers` is the list of keys that will cause a match to be checked. If
     the user presses some key that is not a character (len>1) and not in
-    triggers, the characters so far will be discarded. By default space and
-    punctuations are included.
+    triggers, the characters so far will be discarded. By default the trigger
+    is only `space`.
     - `match_suffix` defines if endings of words should also be checked instead
     of only whole words. E.g. if true, typing 'carpet'+space will trigger the
     listener for 'pet'. Defaults to false, only whole words are checked.
@@ -986,7 +988,6 @@ def add_word_listener(word, callback, triggers=['space', '.', ',', ';', '?', '!'
     Note: all actions are performed on key down. Key up events are ignored.
     Note: word mathes are **case sensitive**.
     """
-    # TODO: auto remove letters from "word" from triggers.
     # TODO: allow multiple word listeners.
     if word in _word_listeners:
         raise ValueError('Already listening for word {}'.format(repr(word)))
