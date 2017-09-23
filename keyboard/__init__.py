@@ -176,7 +176,7 @@ class _KeyboardListener(_GenericListener):
         ('free',       KEY_DOWN, 'other'):    (False, True, 'free'),
         ('pending',    KEY_UP,   'other'):    (True,  True, 'allowed'),
         ('pending',    KEY_DOWN, 'other'):    (True,  True, 'allowed'),
-        ('suppressed', KEY_UP,   'other'):    (True,  True, 'allowed'),
+        ('suppressed', KEY_UP,   'other'):    (False, False, 'allowed'),
         ('suppressed', KEY_DOWN, 'other'):    (True,  True, 'allowed'),
         ('allowed',    KEY_UP,   'other'):    (False, True, 'allowed'),
         ('allowed',    KEY_DOWN, 'other'):    (False, True, 'allowed'),
@@ -531,13 +531,13 @@ def parse_hotkey_combinations(hotkey):
 
     return tuple(tuple(combine_step(step)) for step in parse_hotkey(hotkey))
 
-def _add_hotkey_step(event_type, combinations, callback, suppress, on_remove):
+def _add_hotkey_step(callback_by_type, combinations, suppress, on_remove):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
     container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
 
-    fn = lambda e: e.event_type == event_type and callback()
+    fn = lambda e: callback_by_type.get(e.event_type, lambda: False)()
 
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in 
@@ -604,51 +604,49 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
     _listener.start_if_necessary()
 
     steps = parse_hotkey_combinations(hotkey)
+
     event_type = KEY_UP if trigger_on_release else KEY_DOWN
-
     if len(steps) == 1:
-        return _add_hotkey_step(event_type, steps[0], callback, suppress, on_remove=lambda: None)
-
-    raise NotImplementedError()
-    hook(lambda e: print('======', e) or True, suppress=True)
-    state = _State()
-    def set_index(new_index):
-        state.index = new_index
-        if state.index == len(steps):
-            callback()
-            state.index = 0
-        state.remove_last()
-        state.remove_last = _add_hotkey_step(
-            event_type,
-            steps[state.index],
-            lambda e: set_index(state.index+1),
-            suppress=suppress,
-            on_remove=lambda: None
-        )
-        return True
-    state.remove_last = lambda: None
-    set_index(0)
-
-    allowed_keys_by_step = [
-        set().union(*(
-            (main_key,)+modifiers
-            for main_key, modifiers in step
-        ))
-        for step in steps
-    ]
+        return _add_hotkey_step({event_type: callback}, steps[0], suppress, on_remove=lambda: None)
 
     # TODO: allow "a, a, b" when typing "aaab"
-    # TODO: only register this when state.index >= 1
     def catch_misses(event):
-        print(event, event.event_type == event_type, state.index, steps[state.index])
         if event.event_type == event_type and state.index and event.scan_code not in allowed_keys_by_step[state.index]:
-            print('Failed hotkey, resetting')
             for part in steps[:state.index]:
                 send(part)
             set_index(0)
         return True
-    # Must be `suppress=True` to ensure `send` has priority.
-    hook(catch_misses, suppress=True)
+
+    state = _State()
+    state.remove_catch_misses = lambda: None
+    def set_index(new_index):
+        state.index = new_index
+
+        if new_index == 0:
+            state.remove_catch_misses()
+        elif new_index == 1:
+            # Must be `suppress=True` to ensure `send` has priority.
+            state.remove_catch_misses = hook(catch_misses, suppress=True)
+
+        if state.index >= len(steps):
+            callback()
+            state.index = 0
+        if trigger_on_release:
+
+            mapping = {KEY_UP: lambda: (remove(), set_index(state.index+1))}
+        else:
+            # Use "lambda: remove()" to ensure late binding.
+            mapping = {KEY_DOWN: lambda: set_index(state.index+1), KEY_UP: lambda: remove()}
+        remove = _add_hotkey_step(mapping, steps[state.index], suppress, lambda: None)
+        state.remove_last = remove
+        return False
+    state.remove_last = lambda: None
+    set_index(0)
+
+    allowed_keys_by_step = [
+        set().union(*step)
+        for step in steps
+    ]
 
     # TODO
     return
