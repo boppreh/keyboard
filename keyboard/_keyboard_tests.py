@@ -559,7 +559,8 @@ class TestKeyboard(unittest.TestCase):
         keyboard.add_hotkey('a', lambda: trigger() or True, suppress=True)
         self.do(d_a, triggered_event+d_a)
     def test_add_hotkey_single_step_suppress_args_allow(self):
-        keyboard.add_hotkey('a', lambda: trigger() or True, suppress=True)
+        arg = object()
+        keyboard.add_hotkey('a', lambda a: self.assertIs(a, arg) or trigger() or True, args=(arg,), suppress=True)
         self.do(d_a, triggered_event+d_a)
     def test_add_hotkey_single_step_suppress_single(self):
         keyboard.add_hotkey('a', trigger, suppress=True)
@@ -591,7 +592,7 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_shift+d_ctrl+d_a, triggered_event)
     def test_add_hotkey_single_step_suppress_with_modifiers_repeated(self):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
-        self.do(d_ctrl+d_a+d_b+d_a, triggered_event+d_ctrl+d_b+triggered_event)
+        self.do(d_ctrl+du_a+du_b+du_a, triggered_event+d_ctrl+du_b+triggered_event)
     def test_add_hotkey_single_step_suppress_with_modifiers_release(self):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True, trigger_on_release=True)
         self.do(d_ctrl+du_a+du_b+du_a, triggered_event+d_ctrl+du_b+triggered_event)
@@ -602,19 +603,23 @@ class TestKeyboard(unittest.TestCase):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+du_a+u_shift+u_ctrl, d_ctrl+d_shift+du_a+u_shift+u_ctrl)
 
-    #def test_add_hotkey_single_step_nonsuppress_single(self):
-    #    keyboard.add_hotkey('a', trigger, suppress=False)
-    #    self.do(du_a, du_a+triggered_event)
+    def test_add_hotkey_single_step_nonsuppress(self):
+        queue = keyboard._queue.Queue()
+        keyboard.add_hotkey('ctrl+shift+a+b', lambda: queue.put(True), suppress=False)
+        self.do(d_shift+d_ctrl+d_a+d_b)
+        self.assertTrue(queue.get(timeout=0.5))
+    def test_add_hotkey_single_step_nonsuppress_repeated(self):
+        queue = keyboard._queue.Queue()
+        keyboard.add_hotkey('ctrl+shift+a+b', lambda: queue.put(True), suppress=False)
+        self.do(d_shift+d_ctrl+d_a+d_b)
+        self.do(d_shift+d_ctrl+d_a+d_b)
+        self.assertTrue(queue.get(timeout=0.5))
+        self.assertTrue(queue.get(timeout=0.5))
     def test_add_hotkey_single_step_nosuppress_with_modifiers_out_of_order(self):
         queue = keyboard._queue.Queue()
         keyboard.add_hotkey('ctrl+shift+a', lambda: queue.put(True), suppress=False)
         self.do(d_shift+d_ctrl+d_a)
         self.assertTrue(queue.get(timeout=0.5))
-
-    def test_add_hotkey_single_step_fail_invalid_combination(self):
-        # TODO: support this instead of failing.
-        with self.assertRaises(NotImplementedError):
-            keyboard.add_hotkey('a+b', lambda: None, True)
 
     def test_remap_hotkey_single(self):
         keyboard.remap_hotkey('a', 'b')
@@ -721,275 +726,6 @@ class TestKeyboard(unittest.TestCase):
         keyboard.add_abbreviation('abc', 'aaa')
         self.do(du_a+du_b+du_c+du_space, [])
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-exit()
-
-class OldTests(object):
-    def test_register_hotkey(self):
-        self.assertFalse(self.triggers('a', [['b']]))
-        self.assertTrue(self.triggers('a', [['a']]))
-        self.assertTrue(self.triggers('a, b', [['a'], ['b']]))
-        self.assertFalse(self.triggers('b, a', [['a'], ['b']]))
-        self.assertTrue(self.triggers('a+b', [['a', 'b']]))
-        self.assertTrue(self.triggers('ctrl+a, b', [['ctrl', 'a'], ['b']]))
-        self.assertFalse(self.triggers('ctrl+a, b', [['ctrl'], ['a'], ['b']]))
-        self.assertTrue(self.triggers('ctrl+a, b', [['a', 'ctrl'], ['b']]))
-        self.assertTrue(self.triggers('ctrl+a, b, a', [['ctrl', 'a'], ['b'], ['ctrl', 'a'], ['b'], ['a']]))
-
-    def test_remove_hotkey(self):
-        keyboard.press('a')
-        keyboard.add_hotkey('a', self.fail)
-        keyboard.clear_all_hotkeys()
-        keyboard.press('a')
-        keyboard.add_hotkey('a', self.fail)
-        keyboard.clear_all_hotkeys()
-        keyboard.press('a')
-
-        keyboard.clear_all_hotkeys()
-
-        keyboard.add_hotkey('a', self.fail)
-        with self.assertRaises(ValueError):
-            keyboard.remove_hotkey('b')
-        keyboard.remove_hotkey('a')
-
-    def test_wait(self):
-        # If this fails it blocks. Unfortunately, but I see no other way of testing.
-        from threading import Thread, Lock
-        lock = Lock()
-        lock.acquire()
-        def t():
-            keyboard.wait('a')
-            lock.release()
-        Thread(target=t).start()
-        self.click('a')
-        lock.acquire()
-
-    def test_record_play(self):
-        from threading import Thread, Lock
-        lock = Lock()
-        lock.acquire()
-        self.recorded = None
-        def t():
-            self.recorded = keyboard.record('esc')
-            lock.release()
-        Thread(target=t).start()
-        self.click('a')
-        self.press('shift')
-        self.press('b')
-        self.release('b')
-        self.release('shift')
-        self.press('esc')
-        lock.acquire()
-        expected = [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc')]
-        for event_recorded, expected_pair in zip(self.recorded, expected):
-            expected_type, expected_name = expected_pair
-            self.assertEqual(event_recorded.event_type, expected_type)
-            self.assertEqual(event_recorded.name, expected_name)
-
-        keyboard._pressed_events.clear()
-
-        keyboard.play(self.recorded, speed_factor=0)
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc')])
-
-        keyboard.play(self.recorded, speed_factor=100)
-        self.assertEqual(self.flush_events(), [(KEY_DOWN, 'a'), (KEY_UP, 'a'), (KEY_DOWN, 'shift'), (KEY_DOWN, 'b'), (KEY_UP, 'b'), (KEY_UP, 'shift'), (KEY_DOWN, 'esc')])
-
-        # Should be ignored and not throw an error.
-        keyboard.play([FakeEvent('fake type', 'a')])
-
-    def test_word_listener_normal(self):
-        keyboard.add_word_listener('bird', self.fail)
-        self.click('b')
-        self.click('i')
-        self.click('r')
-        self.click('d')
-        self.click('s')
-        self.click('space')
-        with self.assertRaises(ValueError):
-            keyboard.add_word_listener('bird', self.fail)
-        keyboard.remove_word_listener('bird')
-
-        self.triggered = False
-        def on_triggered():
-            self.triggered = True
-        keyboard.add_word_listener('bird', on_triggered)
-        self.click('b')
-        self.click('i')
-        self.click('r')
-        self.click('d')
-        self.assertFalse(self.triggered)
-        self.click('space')
-        self.assertTrue(self.triggered)
-        keyboard.remove_word_listener('bird')
-
-        self.triggered = False
-        def on_triggered():
-            self.triggered = True
-        # Word listener should be case sensitive.
-        keyboard.add_word_listener('Bird', on_triggered)
-        self.click('b')
-        self.click('i')
-        self.click('r')
-        self.click('d')
-        self.assertFalse(self.triggered)
-        self.click('space')
-        self.assertFalse(self.triggered)
-        self.press('shift')
-        self.click('b')
-        self.release('shift')
-        self.click('i')
-        self.click('r')
-        self.click('d')
-        self.click('space')
-        self.assertTrue(self.triggered)
-        keyboard.remove_word_listener('Bird')
-
-    def test_word_listener_edge_cases(self):
-        self.triggered = False
-        def on_triggered():
-            self.triggered = True
-        handler = keyboard.add_word_listener('bird', on_triggered, triggers=['enter'])
-        self.click('b')
-        self.click('i')
-        self.click('r')
-        self.click('d')
-        self.click('space')
-        # We overwrote the triggers to remove space. Should not trigger.
-        self.assertFalse(self.triggered)
-        self.click('b')
-        self.click('i')
-        self.click('r')
-        self.click('d')
-        self.assertFalse(self.triggered)
-        self.click('enter')
-        self.assertTrue(self.triggered)
-        with self.assertRaises(ValueError):
-            # Must pass handler returned by function, not passed callback.
-            keyboard.remove_word_listener(on_triggered)
-        with self.assertRaises(ValueError):
-            keyboard.remove_word_listener('birb')
-        keyboard.remove_word_listener(handler)
-
-        self.triggered = False
-        # Timeout of 0 should mean "no timeout".
-        keyboard.add_word_listener('bird', on_triggered, timeout=0)
-        self.click('b')
-        self.click('i')
-        self.click('r')
-        self.click('d')
-        self.assertFalse(self.triggered)
-        self.click('space')
-        self.assertTrue(self.triggered)
-        keyboard.remove_word_listener('bird')
-
-        self.triggered = False
-        keyboard.add_word_listener('bird', on_triggered, timeout=0.01)
-        self.click('b')
-        self.click('i')
-        self.click('r')
-        time.sleep(0.03)
-        self.click('d')
-        self.assertFalse(self.triggered)
-        self.click('space')
-        # Should have timed out.
-        self.assertFalse(self.triggered)
-        keyboard.remove_word_listener('bird')
-
-    def test_abbreviation(self):
-        keyboard.add_abbreviation('tm', 'a')
-        self.press('shift')
-        self.click('t')
-        self.release('shift')
-        self.click('space')
-        self.assertEqual(self.flush_events(), []) # abbreviations should be case sensitive
-        self.click('t')
-        self.click('m')
-        self.click('space')
-        self.assertEqual(self.flush_events(), [
-            (KEY_UP, 'space'),
-            (KEY_DOWN, 'backspace'),
-            (KEY_UP, 'backspace'),
-            (KEY_DOWN, 'backspace'),
-            (KEY_UP, 'backspace'),
-            (KEY_DOWN, 'backspace'),
-            (KEY_UP, 'backspace'),
-            (KEY_DOWN, 'a'),
-            (KEY_UP, 'a')])
-
-        keyboard.add_abbreviation('TM', 'A')
-        self.press('shift')
-        self.click('t')
-        self.release('shift')
-        self.click('m')
-        self.click('space')
-        self.assertEqual(self.flush_events(), [])
-        self.press('shift')
-        self.click('t')
-        self.click('m')
-        self.release('shift')
-        self.click('space')
-        self.assertEqual(self.flush_events(), [
-            (KEY_UP, 'space'),
-            (KEY_DOWN, 'backspace'),
-            (KEY_UP, 'backspace'),
-            (KEY_DOWN, 'backspace'),
-            (KEY_UP, 'backspace'),
-            (KEY_DOWN, 'backspace'),
-            (KEY_UP, 'backspace'),
-            (KEY_DOWN, 'shift'),
-            (KEY_DOWN, 'a'),
-            (KEY_UP, 'a'),
-            (KEY_UP, 'shift'),])
-
-    def test_suppression(self):
-        def dummy():
-            pass
-
-        keyboard.add_hotkey('z', dummy, suppress=True)
-        keyboard.add_hotkey('a+b+c', dummy, suppress=True)
-        keyboard.add_hotkey('a+g+h', dummy, suppress=True, timeout=0.01)
-
-        for key in ['a', 'b', 'c']:
-            self.assertFalse(self.press(key))
-        for key in ['a', 'b', 'c']:
-            self.assertFalse(self.release(key))
-
-        self.assertTrue(self.click('d'))
-
-        for key in ['a', 'b']:
-            self.assertFalse(self.press(key))
-        for key in ['a', 'b']:
-            self.assertFalse(self.release(key))
-
-        self.assertTrue(self.click('c'))
-
-        for key in ['a', 'g']:
-            self.assertFalse(self.press(key))
-        for key in ['a', 'g']:
-            self.assertFalse(self.release(key))
-
-        time.sleep(0.03)
-        self.assertTrue(self.click('h'))
-
-        self.assertFalse(self.press('a'))
-        self.assertFalse(self.press('a'))
-        self.assertFalse(self.press('a'))
-        self.assertFalse(self.press('a'))
-        self.assertFalse(self.release('a'))
-
-        self.assertFalse(self.press('z'))
-        self.assertFalse(self.press('z'))
-        self.assertFalse(self.press('z'))
-        self.assertFalse(self.press('z'))
-        self.assertFalse(self.release('z'))
-
-        keyboard.remove_hotkey('a+g+h')
-        keyboard.remove_hotkey('a+b+c')
-
-        self.assertTrue(self.click('a'))
 
 if __name__ == '__main__':
     unittest.main()

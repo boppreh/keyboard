@@ -599,7 +599,6 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         raise NotImplementedError()
     if args:
         # TODO: args
-        raise NotImplementedError()
         callback = lambda callback=callback: callback(*args)
 
     _listener.start_if_necessary()
