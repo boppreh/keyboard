@@ -10,9 +10,10 @@ well documented on Microsoft's webstie and scattered examples.
 - Keypad numbers still print as numbers even when numlock is off.
 - No way to specify if user wants a keypad key or not in `map_char`.
 """
-import atexit
-from threading import Lock
 import re
+import atexit
+import traceback
+from threading import Lock
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 
@@ -509,7 +510,8 @@ def prepare_intercept(callback):
                 if not should_continue:
                     return -1
         except Exception as e:
-            print('Error in keyboard hook: ', e)
+            print('Error in keyboard hook:')
+            traceback.print_exc()
 
         return CallNextHookEx(NULL, nCode, wParam, lParam)
 

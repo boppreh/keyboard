@@ -334,6 +334,12 @@ def parse_hotkey(hotkey):
         step = (scan_codes,)
         steps = (step,)
         return steps
+    elif _is_list(hotkey):
+        if not any(_is_list(k) for k in hotkey):
+            step = tuple(key_to_scan_codes(k) for k in hotkey)
+            steps = (step,)
+            return steps
+        return hotkey
 
     steps = []
     for step in re.split(r',\s?', hotkey):
@@ -619,14 +625,13 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
             state.remove_last_step()
 
             for part in steps[:state.index]:
-                send(part)
+                send([part])
 
             # Trigger "a, b" when typing "aab"
             index = 0
-            activated_keys = tuple(sorted(set(_pressed_events) | set([event.scan_code])))
-            for index, step in enumerate(steps[index]):
-                if activated_keys not in step:
-                    break
+            #activated_keys = tuple(sorted(set(_pressed_events) | set([event.scan_code])))
+            #while index < len(steps) and activated_keys in steps[index]:
+            #    index ++ 1
             set_index(index)
         return True
 
@@ -644,11 +649,11 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
 
         if new_index == len(steps) - 1:
             if trigger_on_release:
+                press = lambda: False
                 def release():
                     remove()
                     set_index(0)
                     return callback()
-                press = lambda: False
             else:
                 def press():
                     set_index(0)

@@ -192,6 +192,10 @@ class TestKeyboard(unittest.TestCase):
         b_codes = keyboard.key_to_scan_codes('b')
         c_codes = keyboard.key_to_scan_codes('c')
         self.assertEqual(keyboard.parse_hotkey("alt+shift+a, alt+b, c"), ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,)))
+    def test_parse_hotkey_list_scan_codes(self):
+        self.assertEqual(keyboard.parse_hotkey([1, 2, 3]), (((1,), (2,), (3,)),))
+    def test_parse_hotkey_list_names(self):
+        self.assertEqual(keyboard.parse_hotkey(['a', 'b', 'c']), (((1,), (2,), (3,)),))
 
     def test_is_pressed_none(self):
         self.assertFalse(keyboard.is_pressed('a'))
