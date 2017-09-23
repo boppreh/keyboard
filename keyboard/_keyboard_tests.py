@@ -425,6 +425,18 @@ class TestKeyboard(unittest.TestCase):
         with self.assertRaises(ValueError):
             keyboard.stop_recording()
 
+    def test_record(self):
+        queue = keyboard._queue.Queue()
+        def process():
+            queue.put(keyboard.record('space'))
+        from threading import Thread
+        t = Thread(target=process)
+        t.daemon = True
+        t.start()
+        time.sleep(0.01)
+        self.do(du_a+du_b+du_space)
+        self.assertEqual(queue.get(timeout=0.5), du_a+du_b+du_space)
+
     def test_play_nodelay(self):
         keyboard.play(d_a+u_a, 0)
         self.do([], d_a+u_a)
@@ -482,7 +494,7 @@ class TestKeyboard(unittest.TestCase):
         t.start()
         time.sleep(0.01)
         self.do(d_ctrl+d_a+d_b+u_ctrl)
-        self.assertEqual(queue.get(0.5), 'ctrl+a+b')
+        self.assertEqual(queue.get(timeout=0.5), 'ctrl+a+b')
 
     def test_read_event(self):
         queue = keyboard._queue.Queue()
@@ -494,7 +506,7 @@ class TestKeyboard(unittest.TestCase):
         t.start()
         time.sleep(0.01)
         self.do(d_a, [])
-        self.assertEqual(queue.get(0.5), d_a[0])
+        self.assertEqual(queue.get(timeout=0.5), d_a[0])
 
     def test_read_key(self):
         queue = keyboard._queue.Queue()
@@ -506,7 +518,7 @@ class TestKeyboard(unittest.TestCase):
         t.start()
         time.sleep(0.01)
         self.do(d_a, [])
-        self.assertEqual(queue.get(0.5), 'a')
+        self.assertEqual(queue.get(timeout=0.5), 'a')
 
     def test_wait_infinite(self):
         self.triggered = False
@@ -523,7 +535,7 @@ class TestKeyboard(unittest.TestCase):
     def test_wait_until_success(self):
         queue = keyboard._queue.Queue()
         def process():
-            queue.put(keyboard.wait(queue.get(0.5), suppress=True) or True)
+            queue.put(keyboard.wait(queue.get(timeout=0.5), suppress=True) or True)
         from threading import Thread
         t = Thread(target=process)
         t.daemon = True
@@ -531,7 +543,7 @@ class TestKeyboard(unittest.TestCase):
         queue.put('a')
         time.sleep(0.01)
         self.do(d_a, [])
-        self.assertTrue(queue.get(0.5))
+        self.assertTrue(queue.get(timeout=0.5))
     def test_wait_until_fail(self):
         def process():
             keyboard.wait('a', suppress=True)
@@ -594,12 +606,12 @@ class TestKeyboard(unittest.TestCase):
         queue = keyboard._queue.Queue()
         keyboard.add_hotkey('ctrl+shift+a', lambda: queue.put(True), suppress=False)
         self.do(d_shift+d_ctrl+d_a)
-        self.assertTrue(queue.get(0.5))
+        self.assertTrue(queue.get(timeout=0.5))
 
     def test_add_hotkey_single_step_fail_invalid_combination(self):
         # TODO: support this instead of failing.
         with self.assertRaises(NotImplementedError):
-            keyboard.add_hotkey('a+b', lambda e: None, True)
+            keyboard.add_hotkey('a+b', lambda: None, True)
 
     def test_remap_hotkey_single(self):
         keyboard.remap_hotkey('a', 'b')
