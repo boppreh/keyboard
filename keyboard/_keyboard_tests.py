@@ -672,6 +672,15 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_multistep_suppress_fail(self):
         keyboard.add_hotkey('a, b', trigger, suppress=True)
         self.do(du_a+du_c, du_a+du_c)
+    def test_add_hotkey_multistep_suppress_three_steps(self):
+        keyboard.add_hotkey('a, b, c', trigger, suppress=True)
+        self.do(du_a+du_b+du_c, triggered_event)
+    def test_add_hotkey_multistep_suppress_repeated_prefix(self):
+        keyboard.add_hotkey('a, a, c', trigger, suppress=True, trigger_on_release=True)
+        self.do(du_a+du_a+du_c, triggered_event)
+    def test_add_hotkey_multistep_suppress_repeated_key(self):
+        keyboard.add_hotkey('a, b', trigger, suppress=True)
+        self.do(du_a+du_a+du_b, du_a+triggered_event)
 
     def test_add_word_listener_success(self):
         queue = keyboard._queue.Queue()

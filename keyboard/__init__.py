@@ -534,7 +534,7 @@ def parse_hotkey_combinations(hotkey):
 
     return tuple(tuple(combine_step(step)) for step in parse_hotkey(hotkey))
 
-def _add_hotkey_step(callback_by_type, combinations, suppress, on_remove):
+def _add_hotkey_step(callback_by_type, combinations, suppress):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
@@ -557,7 +557,6 @@ def _add_hotkey_step(callback_by_type, combinations, suppress, on_remove):
                 if is_modifier(scan_code):
                     _listener.filtered_modifiers[scan_code] -= 1
             container[scan_codes].remove(fn)
-        on_remove()
     return remove
 
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_release=False):
@@ -609,40 +608,61 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
 
     event_type = KEY_UP if trigger_on_release else KEY_DOWN
     if len(steps) == 1:
-        return _add_hotkey_step({event_type: callback}, steps[0], suppress, on_remove=lambda: None)
-
-    # TODO: allow "a, a, b" when typing "aaab"
-    def catch_misses(event):
-        if event.event_type == event_type and state.index and event.scan_code not in allowed_keys_by_step[state.index]:
-            for part in steps[:state.index]:
-                send(part)
-            set_index(0)
-        return True
+        return _add_hotkey_step({event_type: callback}, steps[0], suppress)
 
     state = _State()
     state.remove_catch_misses = lambda: None
+    state.remove_last_step = lambda: None
+    
+    def catch_misses(event):
+        if event.event_type == event_type and state.index and event.scan_code not in allowed_keys_by_step[state.index]:
+            state.remove_last_step()
+
+            for part in steps[:state.index]:
+                send(part)
+
+            # Trigger "a, b" when typing "aab"
+            index = 0
+            activated_keys = tuple(sorted(set(_pressed_events) | set([event.scan_code])))
+            for index, step in enumerate(steps[index]):
+                if activated_keys not in step:
+                    break
+            set_index(index)
+        return True
+
     def set_index(new_index):
         state.index = new_index
 
         if new_index == 0:
-            state.remove_catch_misses()
+            # This is done for performance reasons, avoiding a global key hook
+            # that is always on.
+            #state.remove_catch_misses()
+            pass
         elif new_index == 1:
             # Must be `suppress=True` to ensure `send` has priority.
             state.remove_catch_misses = hook(catch_misses, suppress=True)
 
-        if state.index >= len(steps):
-            callback()
-            state.index = 0
-        if trigger_on_release:
-
-            mapping = {KEY_UP: lambda: (remove(), set_index(state.index+1))}
+        if new_index == len(steps) - 1:
+            if trigger_on_release:
+                def release():
+                    remove()
+                    set_index(0)
+                    return callback()
+                press = lambda: False
+            else:
+                def press():
+                    set_index(0)
+                    return callback()
+                # Late binding.
+                release = lambda: remove()
+            remove = _add_hotkey_step({KEY_UP: release, KEY_DOWN: press}, steps[state.index], suppress)
         else:
-            # Use "lambda: remove()" to ensure late binding.
-            mapping = {KEY_DOWN: lambda: set_index(state.index+1), KEY_UP: lambda: remove()}
-        remove = _add_hotkey_step(mapping, steps[state.index], suppress, lambda: None)
-        state.remove_last = remove
+            def trigger():
+                remove()
+                return set_index(state.index+1)
+            remove = _add_hotkey_step({KEY_UP: trigger}, steps[state.index], suppress)
+        state.remove_last_step = remove
         return False
-    state.remove_last = lambda: None
     set_index(0)
 
     allowed_keys_by_step = [
