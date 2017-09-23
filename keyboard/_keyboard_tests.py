@@ -44,6 +44,8 @@ dummy_keys = {
     '+': [(10, [])],
     ',': [(11, [])],
     '_': [(12, [])],
+
+    'none': [],
 }
 
 def make_event(event_type, name, scan_code=None, time=0):
@@ -106,6 +108,7 @@ class TestKeyboard(unittest.TestCase):
         keyboard._recording = None
         keyboard._pressed_events.clear()
         keyboard._listener.init()
+        keyboard._word_listeners = {} 
 
     def do(self, manual_events, expected=None):
         input_events.extend(manual_events)
@@ -134,6 +137,7 @@ class TestKeyboard(unittest.TestCase):
 
     def test_key_to_scan_codes_brute(self):
         for name, entries in dummy_keys.items():
+            if name == 'none': continue
             expected = tuple(scan_code for scan_code, modifiers in entries)
             self.assertEqual(keyboard.key_to_scan_codes(name), expected)
     def test_key_to_scan_code_from_scan_code(self):
@@ -163,6 +167,9 @@ class TestKeyboard(unittest.TestCase):
             keyboard.key_to_scan_codes({})
     def test_key_to_scan_code_list(self):
         self.assertEqual(keyboard.key_to_scan_codes([10, 5, 'a']), (10, 5, 1))
+    def test_key_to_scan_code_empty(self):
+        with self.assertRaises(ValueError):
+            keyboard.key_to_scan_codes('none')
 
     def test_parse_hotkey_simple(self):
         self.assertEqual(keyboard.parse_hotkey('a'), (((1,),),))
@@ -535,13 +542,23 @@ class TestKeyboard(unittest.TestCase):
         t.start()
         time.sleep(0.01)
         self.do(d_b)
-        
+
+    def test_add_hotkey_single_step_suppress_allow(self):
+        keyboard.add_hotkey('a', lambda: trigger() or True, suppress=True)
+        self.do(d_a, triggered_event+d_a)
+    def test_add_hotkey_single_step_suppress_args_allow(self):
+        keyboard.add_hotkey('a', lambda: trigger() or True, suppress=True)
+        self.do(d_a, triggered_event+d_a)
     def test_add_hotkey_single_step_suppress_single(self):
         keyboard.add_hotkey('a', trigger, suppress=True)
         self.do(d_a, triggered_event)
     def test_add_hotkey_single_step_suppress_removed(self):
         keyboard.remove_hotkey(keyboard.add_hotkey('a', trigger, suppress=True))
         self.do(d_a, d_a)
+    def test_add_hotkey_single_step_suppress_removed(self):
+        keyboard.remove_hotkey(keyboard.add_hotkey('ctrl+a', trigger, suppress=True))
+        self.do(d_ctrl+d_a, d_ctrl+d_a)
+        self.assertEqual(keyboard._listener.filtered_modifiers[dummy_keys['left ctrl'][0][0]], 0)
     def test_add_hotkey_single_step_suppress_with_modifiers(self):
         keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+d_a, triggered_event)
@@ -575,7 +592,7 @@ class TestKeyboard(unittest.TestCase):
 
     def test_add_hotkey_single_step_nosuppress_with_modifiers_out_of_order(self):
         queue = keyboard._queue.Queue()
-        keyboard.add_hotkey('ctrl+shift+a', queue.put, suppress=False)
+        keyboard.add_hotkey('ctrl+shift+a', lambda: queue.put(True), suppress=False)
         self.do(d_shift+d_ctrl+d_a)
         self.assertTrue(queue.get(0.5))
 
@@ -636,6 +653,63 @@ class TestKeyboard(unittest.TestCase):
     #def test_add_hotkey_multistep_suppress_fail(self):
     #    keyboard.add_hotkey('a, b', trigger, suppress=True)
     #    self.do(du_a+du_c, du_a+du_c)
+
+    def test_add_word_listener_success(self):
+        queue = keyboard._queue.Queue()
+        def free():
+            queue.put(1)
+        keyboard.add_word_listener('abc', free)
+        self.do(du_a+du_b+du_c+du_space)
+        self.assertTrue(queue.get(timeout=0.5))
+    def test_add_word_listener_no_trigger_fail(self):
+        queue = keyboard._queue.Queue()
+        def free():
+            queue.put(1)
+        keyboard.add_word_listener('abc', free)
+        self.do(du_a+du_b+du_c)
+        with self.assertRaises(keyboard._queue.Empty):
+            queue.get(timeout=0.01)
+    def test_add_word_listener_timeout_fail(self):
+        queue = keyboard._queue.Queue()
+        def free():
+            queue.put(1)
+        keyboard.add_word_listener('abc', free, timeout=1)
+        self.do(du_a+du_b+du_c+[make_event(KEY_DOWN, name='space', time=2)])
+        with self.assertRaises(keyboard._queue.Empty):
+            queue.get(timeout=0.01)
+    def test_duplicated_word_listener(self):
+        keyboard.add_word_listener('abc', trigger)
+        with self.assertRaises(ValueError):
+            keyboard.add_word_listener('abc', trigger)
+    def test_add_word_listener_remove(self):
+        queue = keyboard._queue.Queue()
+        def free():
+            queue.put(1)
+        keyboard.add_word_listener('abc', free)
+        keyboard.remove_word_listener('abc')
+        self.do(du_a+du_b+du_c+du_space)
+        with self.assertRaises(keyboard._queue.Empty):
+            queue.get(timeout=0.01)
+    def test_add_word_listener_suffix_success(self):
+        queue = keyboard._queue.Queue()
+        def free():
+            queue.put(1)
+        keyboard.add_word_listener('abc', free, match_suffix=True)
+        self.do(du_a+du_a+du_b+du_c+du_space)
+        self.assertTrue(queue.get(timeout=0.5))
+    def test_add_word_listener_suffix_fail(self):
+        queue = keyboard._queue.Queue()
+        def free():
+            queue.put(1)
+        keyboard.add_word_listener('abc', free)
+        self.do(du_a+du_a+du_b+du_c)
+        with self.assertRaises(keyboard._queue.Empty):
+            queue.get(timeout=0.01)
+
+    def test_add_abbreviation(self):
+        keyboard.add_abbreviation('abc', 'aaa')
+        self.do(du_a+du_b+du_c+du_space, [])
+
 
 if __name__ == '__main__':
     unittest.main()

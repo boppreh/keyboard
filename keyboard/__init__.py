@@ -547,7 +547,7 @@ def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
     """
     container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
 
-    fn = lambda e: e.event_type == event_type and callback(e)
+    fn = lambda e: e.event_type == event_type and callback()
 
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in 
@@ -565,8 +565,51 @@ def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
         on_remove()
     return remove
 
-def add_hotkey(hotkey, callback, suppress=True, trigger_on_release=False):
-    # TODO: timeout
+def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_release=False):
+    """
+    Invokes a callback every time a hotkey is pressed. The hotkey must
+    be in the format "ctrl+shift+a, s". This would trigger when the user holds
+    ctrl, shift and "a" at once, releases, and then presses "s". To represent
+    literal commas, pluses and spaces use their names ('comma', 'plus',
+    'space').
+
+    - `args` is an optional list of arguments to passed to the callback during
+    each invocation.
+    - `suppress` defines if the it should block processing other hotkeys after
+    a match is found. Currently Windows-only.
+    - `timeout` is the amount of seconds allowed to pass between key presses.
+    - `trigger_on_release` if true, the callback is invoked on key release instead
+    of key press.
+
+    The event handler function is returned. To remove a hotkey call
+    `remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
+    before the hotkey state is reset.
+
+    Note: hotkeys are activated when the last key is *pressed*, not released.
+    Note: the callback is executed in a separate thread, asynchronously. For an
+    example of how to use a callback synchronously, see `wait`.
+
+    Examples:
+
+        # Different but equivalent ways to listen for a spacebar key press.
+        add_hotkey(' ', print, args=['space was pressed'])
+        add_hotkey('space', print, args=['space was pressed'])
+        add_hotkey('Space', print, args=['space was pressed'])
+        # Here 57 represents the keyboard code for spacebar; so you will be
+        # pressing 'spacebar', not '57' to activate the print function.
+        add_hotkey(57, print, args=['space was pressed'])
+
+        add_hotkey('ctrl+q', quit)
+        add_hotkey('ctrl+alt+enter, space', some_callback)
+    """
+    if timeout:
+        # TODO: timeout
+        raise NotImplementedError()
+    if args:
+        # TODO: args
+        raise NotImplementedError()
+        callback = lambda callback=callback: callback(*args)
+
     _listener.start_if_necessary()
 
     steps = parse_hotkey_combinations(hotkey)
@@ -575,6 +618,7 @@ def add_hotkey(hotkey, callback, suppress=True, trigger_on_release=False):
     if len(steps) == 1:
         return _add_hotkey_step(event_type, steps[0], callback, suppress, on_remove=lambda: None)
 
+    raise NotImplementedError()
     hook(lambda e: print('======', e) or True, suppress=True)
     state = _State()
     def set_index(new_index):
@@ -647,7 +691,7 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
 
         remap('alt+w', 'ctrl+up')
     """
-    def handler(event):
+    def handler():
         active_modifiers = sorted(modifier for modifier, state in _listener.modifier_states.items() if state == 'allowed')
         for modifier in active_modifiers:
             release(modifier)
@@ -744,7 +788,7 @@ def wait(hotkey=None, suppress=False, trigger_on_release=False):
     """
     if hotkey:
         lock = _Event()
-        remove = add_hotkey(hotkey, lambda e: lock.set(), suppress=suppress, trigger_on_release=trigger_on_release)
+        remove = add_hotkey(hotkey, lock.set, suppress=suppress, trigger_on_release=trigger_on_release)
         lock.wait()
         remove_hotkey(remove)
     else:
@@ -927,92 +971,8 @@ def play(events, speed_factor=1.0):
     restore_modifiers(state)
 replay = play
 
-def add_hotkey_old(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
-    """
-    Invokes a callback every time a hotkey is pressed. The hotkey must
-    be in the format "ctrl+shift+a, s". This would trigger when the user holds
-    ctrl, shift and "a" at once, releases, and then presses "s". To represent
-    literal commas, pluses and spaces use their names ('comma', 'plus',
-    'space').
-
-    - `args` is an optional list of arguments to passed to the callback during
-    each invocation.
-    - `suppress` defines if the it should block processing other hotkeys after
-    a match is found. Currently Windows-only.
-    - `timeout` is the amount of seconds allowed to pass between key presses.
-    - `trigger_on_release` if true, the callback is invoked on key release instead
-    of key press.
-
-    The event handler function is returned. To remove a hotkey call
-    `remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
-    before the hotkey state is reset.
-
-    Note: hotkeys are activated when the last key is *pressed*, not released.
-    Note: the callback is executed in a separate thread, asynchronously. For an
-    example of how to use a callback synchronously, see `wait`.
-
-    Examples:
-
-        # Different but equivalent ways to listen for a spacebar key press.
-        add_hotkey(' ', print, args=['space was pressed'])
-        add_hotkey('space', print, args=['space was pressed'])
-        add_hotkey('Space', print, args=['space was pressed'])
-        # Here 57 represents the keyboard code for spacebar; so you will be
-        # pressing 'spacebar', not '57' to activate the print function.
-        add_hotkey(57, print, args=['space was pressed'])
-
-        add_hotkey('ctrl+q', quit)
-        add_hotkey('ctrl+alt+enter, space', some_callback)
-    """
-    if suppress:
-        # TODO: removal
-        return hook_blocking_hotkey(hotkey, lambda e: (callback(args), False)[1])
-
-    steps = _parse_hotkey(hotkey)
-
-    state = _State()
-    state.step = 0
-    state.time = _time.time()
-
-    def handler(event):
-        if event.event_type == KEY_UP:
-            if trigger_on_release and state.step == len(steps):
-                state.step = 0
-                callback(*args)
-                return suppress
-            return
-
-        # Just waiting for the user to release a key.
-        if trigger_on_release and state.step >= len(steps):
-            return
-
-        timed_out = state.step > 0 and timeout and event.time - state.time > timeout
-        unexpected = not any(matches(event, part) for part in steps[state.step])
-
-        if unexpected or timed_out:
-            if state.step > 0:
-                state.step = 0
-                # Could be start of hotkey again.
-                handler(event)
-            else:
-                state.step = 0
-        else:
-            state.time = event.time
-            if all(is_pressed(part) or matches(event, part) for part in steps[state.step]):
-                state.step += 1
-                if not trigger_on_release and state.step == len(steps):
-                    state.step = 0
-                    callback(*args)
-                    return suppress
-
-    _hotkeys[hotkey] = handler
-    return hook(handler)
-
-# Alias.
-register_hotkey = add_hotkey
-
 _word_listeners = {}
-def add_word_listener(word, callback, triggers=['space'], match_suffix=False, timeout=2):
+def add_word_listener(word, callback, triggers=['space', '.', ',', ';', '?', '!'], match_suffix=False, timeout=2):
     """
     Invokes a callback every time a sequence of characters is typed (e.g. 'pet')
     and followed by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl,
@@ -1023,8 +983,8 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     is typed.
     - `triggers` is the list of keys that will cause a match to be checked. If
     the user presses some key that is not a character (len>1) and not in
-    triggers, the characters so far will be discarded. By default only space
-    bar triggers match checks.
+    triggers, the characters so far will be discarded. By default space and
+    punctuations are included.
     - `match_suffix` defines if endings of words should also be checked instead
     of only whole words. E.g. if true, typing 'carpet'+space will trigger the
     listener for 'pet'. Defaults to false, only whole words are checked.
@@ -1037,16 +997,22 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     Note: all actions are performed on key down. Key up events are ignored.
     Note: word mathes are **case sensitive**.
     """
+    # TODO: auto remove letters from "word" from triggers.
+    # TODO: allow multiple word listeners.
     if word in _word_listeners:
         raise ValueError('Already listening for word {}'.format(repr(word)))
 
     state = _State()
     state.current = ''
-    state.time = _time.time()
+    state.time = -1
 
     def handler(event):
         name = event.name
         if event.event_type == KEY_UP or name in all_modifiers: return
+
+        if timeout and event.time - state.time > timeout:
+            state.current = ''
+        state.time = event.time
 
         matched = state.current == word or (match_suffix and state.current.endswith(word))
         if name in triggers and matched:
@@ -1055,13 +1021,16 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
         elif len(name) > 1:
             state.current = ''
         else:
-            if timeout and event.time - state.time > timeout:
-                state.current = ''
-            state.time = event.time
-            state.current += name if not is_pressed('shift') else name.upper()
+            state.current += name
 
-    _word_listeners[word] = hook(handler)
-    return handler
+    hooked = hook(handler)
+    def remove():
+        hooked()
+        del _word_listeners[word]
+        del _word_listeners[handler]
+        del _word_listeners[remove]
+    _word_listeners[word] = _word_listeners[handler] = _word_listeners[remove] = remove
+    return remove
 
 def remove_word_listener(word_or_handler):
     """
@@ -1069,7 +1038,7 @@ def remove_word_listener(word_or_handler):
     during registration (exact string) or the event handler returned by the
     `add_word_listener` or `add_abbreviation` functions.
     """
-    _remove_named_hook(word_or_handler, _word_listeners)
+    _word_listeners[word_or_handler]()
 
 def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=2):
     """
