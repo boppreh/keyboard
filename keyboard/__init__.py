@@ -197,16 +197,19 @@ class _KeyboardListener(_GenericListener):
         # Supporting hotkey suppression is harder than it looks. See
         # https://github.com/boppreh/keyboard/issues/22
         self.modifier_states = {} # "alt" -> "allowed"
+
+    def invoke_callbacks(self, event, blocking):
+        # Currently only Windows is filling this value
+        # TODO: change to event.modifiers to avoid race conditions.
+        hotkey = tuple(sorted(_pressed_events))
+        mapping = self.blocking_hotkeys if blocking else self.nonblocking_hotkeys
+        return [callback(event) for callback in mapping[hotkey]]
         
     def pre_process_event(self, event):
         for key_hook in self.nonblocking_keys[event.scan_code]:
             key_hook(event)
 
-        # TODO: change to event.modifiers to avoid race conditions.
-        # Currently only Windows is filling this value
-        hotkey_pair = (event.scan_code, tuple(sorted(self.active_modifiers)))
-        for callback in self.nonblocking_hotkeys[hotkey_pair]:
-            callback(event)
+        self.invoke_callbacks(event, False)
 
         return event.scan_code or (event.name and event.name != 'unknown')
 
@@ -249,10 +252,9 @@ class _KeyboardListener(_GenericListener):
                 modifiers_to_update = set([event.scan_code])
             else:
                 modifiers_to_update = self.active_modifiers
-                hotkey_pair = (event.scan_code, tuple(sorted(self.active_modifiers)))
-                hotkey_callbacks = self.blocking_hotkeys[hotkey_pair]
-                if hotkey_callbacks:
-                    accept = all(callback(event) for callback in hotkey_callbacks)
+                callback_results = self.invoke_callbacks(event, True)
+                if callback_results:
+                    accept = all(callback_results)
                     origin = 'hotkey'
                 else:
                     origin = 'other'
@@ -517,8 +519,7 @@ def parse_hotkey_combinations(hotkey):
     """
     Parses a user-provided hotkey. Differently from `parse_hotkey`,
     instead of each step being a list of the different scan codes for each key,
-    each step is a list of all possible combinations of those scan codes, and
-    splitting modifiers into a second list.
+    each step is a list of all possible combinations of those scan codes.
     """
     def combine_step(step):
         # A single step may be composed of many keys, and each key can have
@@ -526,22 +527,11 @@ def parse_hotkey_combinations(hotkey):
         # event delays, we list all possible combinations of scan codes for these
         # keys. Hotkeys are usually small, and there are not many combinations, so
         # this is not as insane as it sounds.
-        #
-        # The possible scan codes are then split into modifiers + main key. This is
-        # is a necessary restriction because processing hotkeys is surprisingly
-        # complicated.
-        possible_pairs = []
-        for possible_scan_codes in itertools.product(*step):
-            part_modifiers = tuple(sorted(filter(is_modifier, possible_scan_codes)))
-            try:
-                part_main_key, = (scan_code for scan_code in possible_scan_codes if scan_code not in part_modifiers)
-            except ValueError:
-                raise NotImplementedError('Can only hook hotkeys of modifiers plus a single key. Please see https://github.com/boppreh/keyboard/issues/22')
-            yield (part_main_key, part_modifiers)
-        
-    return tuple((tuple(combine_step(step)) for step in parse_hotkey(hotkey)))
+        return (tuple(sorted(scan_codes)) for scan_codes in itertools.product(*step))
 
-def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
+    return tuple(tuple(combine_step(step)) for step in parse_hotkey(hotkey))
+
+def _add_hotkey_step(event_type, combinations, callback, suppress, on_remove):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
@@ -552,16 +542,18 @@ def _add_hotkey_step(event_type, possible_pairs, callback, suppress, on_remove):
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in 
     # filtered_modifiers too, so suppression and replaying can work.
-    for pair in possible_pairs:
-        for modifier in pair[1]:
-            _listener.filtered_modifiers[modifier] += 1
-        container[pair].append(fn)
+    for scan_codes in combinations:
+        for scan_code in scan_codes:
+            if is_modifier(scan_code):
+                _listener.filtered_modifiers[scan_code] += 1
+        container[scan_codes].append(fn)
 
     def remove():
-        for pair in possible_pairs:
-            for modifier in pair[1]:
-                _listener.filtered_modifiers[modifier] -= 1
-            container[pair].remove(fn)
+        for scan_codes in combinations:
+            for scan_code in scan_codes:
+                if is_modifier(scan_code):
+                    _listener.filtered_modifiers[scan_code] -= 1
+            container[scan_codes].remove(fn)
         on_remove()
     return remove
 
@@ -788,7 +780,7 @@ def wait(hotkey=None, suppress=False, trigger_on_release=False):
     """
     if hotkey:
         lock = _Event()
-        remove = add_hotkey(hotkey, lock.set, suppress=suppress, trigger_on_release=trigger_on_release)
+        remove = add_hotkey(hotkey, lambda: lock.set(), suppress=suppress, trigger_on_release=trigger_on_release)
         lock.wait()
         remove_hotkey(remove)
     else:
@@ -934,7 +926,7 @@ def stop_recording():
     unhook(hooked)
     return list(recorded_events_queue.queue)
 
-def record(until='escape'):
+def record(until='escape', suppress=False, trigger_on_release=False):
     """
     Records all keyboard events from all keyboards until the user presses the
     given hotkey. Then returns the list of events recorded, of type
@@ -945,7 +937,7 @@ def record(until='escape'):
     Note: for more details on the keyboard hook and events see `hook`.
     """
     start_recording()
-    wait(until)
+    wait(until, suppress=suppress, trigger_on_release=trigger_on_release)
     return stop_recording()
 
 def play(events, speed_factor=1.0):

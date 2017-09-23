@@ -428,13 +428,13 @@ class TestKeyboard(unittest.TestCase):
     def test_record(self):
         queue = keyboard._queue.Queue()
         def process():
-            queue.put(keyboard.record('space'))
+            queue.put(keyboard.record('space', suppress=True))
         from threading import Thread
         t = Thread(target=process)
         t.daemon = True
         t.start()
         time.sleep(0.01)
-        self.do(du_a+du_b+du_space)
+        self.do(du_a+du_b+du_space, du_a+du_b)
         self.assertEqual(queue.get(timeout=0.5), du_a+du_b+du_space)
 
     def test_play_nodelay(self):
@@ -602,6 +602,9 @@ class TestKeyboard(unittest.TestCase):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+du_a+u_shift+u_ctrl, d_ctrl+d_shift+du_a+u_shift+u_ctrl)
 
+    #def test_add_hotkey_single_step_nonsuppress_single(self):
+    #    keyboard.add_hotkey('a', trigger, suppress=False)
+    #    self.do(du_a, du_a+triggered_event)
     def test_add_hotkey_single_step_nosuppress_with_modifiers_out_of_order(self):
         queue = keyboard._queue.Queue()
         keyboard.add_hotkey('ctrl+shift+a', lambda: queue.put(True), suppress=False)
@@ -636,24 +639,20 @@ class TestKeyboard(unittest.TestCase):
         self.do(du_a, du_b)
 
     def test_parse_hotkey_combinations_scan_code(self):
-        self.assertEqual(keyboard.parse_hotkey_combinations(30), (((30, ()),),))
+        self.assertEqual(keyboard.parse_hotkey_combinations(30), (((30,),),))
     def test_parse_hotkey_combinations_single(self):
-        self.assertEqual(keyboard.parse_hotkey_combinations('a'), (((1, ()),),))
+        self.assertEqual(keyboard.parse_hotkey_combinations('a'), (((1,),),))
     def test_parse_hotkey_combinations_single_modifier(self):
-        self.assertEqual(keyboard.parse_hotkey_combinations('shift+a'), (((1, (5,)), (1, (6,))),))
+        self.assertEqual(keyboard.parse_hotkey_combinations('shift+a'), (((1, 5), (1, 6)),))
     def test_parse_hotkey_combinations_single_modifiers(self):
-        self.assertEqual(keyboard.parse_hotkey_combinations('shift+ctrl+a'), (((1, (5, 7)), (1, (6, 7))),))
+        self.assertEqual(keyboard.parse_hotkey_combinations('shift+ctrl+a'), (((1, 5, 7), (1, 6, 7)),))
     def test_parse_hotkey_combinations_multi(self):
-        self.assertEqual(keyboard.parse_hotkey_combinations('a, b'), (((1, ()),), ((2, ()),)))
+        self.assertEqual(keyboard.parse_hotkey_combinations('a, b'), (((1,),), ((2,),)))
     def test_parse_hotkey_combinations_multi_modifier(self):
-        self.assertEqual(keyboard.parse_hotkey_combinations('shift+a, b'), (((1, (5,)), (1, (6,))), ((2, ()),)))
+        self.assertEqual(keyboard.parse_hotkey_combinations('shift+a, b'), (((1, 5), (1, 6)), ((2,),)))
     def test_parse_hotkey_combinations_fail_empty(self):
         with self.assertRaises(ValueError):
             keyboard.parse_hotkey_combinations('')
-    def test_parse_hotkey_combinations_fail_invalid(self):
-        # TODO: support this instead of failing.
-        with self.assertRaises(NotImplementedError):
-            keyboard.parse_hotkey_combinations('a+b')
 
 
     #def test_add_hotkey_multistep_suppress_simple(self):
