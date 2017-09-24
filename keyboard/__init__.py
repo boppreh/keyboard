@@ -655,16 +655,16 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
                     set_index(0)
                     return callback()
             else:
-                def press():
-                    set_index(0)
-                    return callback()
-                # Late binding.
-                release = lambda: remove()
+                press = callback
+                def release():
+                    remove( )
+                    return set_index(0)
             remove = _add_hotkey_step({KEY_UP: release, KEY_DOWN: press}, steps[state.index], suppress)
         else:
-            def trigger():
+            # Fix value of next_index.
+            def trigger(new_index=state.index+1):
                 remove()
-                return set_index(state.index+1)
+                return set_index(new_index)
             remove = _add_hotkey_step({KEY_UP: trigger}, steps[state.index], suppress)
         state.remove_last_step = remove
         return False
