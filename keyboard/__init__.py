@@ -77,7 +77,7 @@ from __future__ import print_function
 import re
 import itertools
 import time as _time
-from collections import Counter, defaultdict, OrderedDict
+import collections as _collections
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
 
@@ -189,11 +189,11 @@ class _KeyboardListener(_GenericListener):
 
         self.active_modifiers = set()
         self.blocking_hooks = []
-        self.blocking_keys = defaultdict(list)
-        self.nonblocking_keys = defaultdict(list)
-        self.blocking_hotkeys = defaultdict(list)
-        self.nonblocking_hotkeys = defaultdict(list)
-        self.filtered_modifiers = Counter()
+        self.blocking_keys = _collections.defaultdict(list)
+        self.nonblocking_keys = _collections.defaultdict(list)
+        self.blocking_hotkeys = _collections.defaultdict(list)
+        self.nonblocking_hotkeys = _collections.defaultdict(list)
+        self.filtered_modifiers = _collections.Counter()
         self.is_replaying = False
 
         # Supporting hotkey suppression is harder than it looks. See
@@ -226,7 +226,6 @@ class _KeyboardListener(_GenericListener):
         events by suppressing and re-emitting; and blocked hotkeys, which
         suppress specific hotkeys.
         """
-
         # Pass through all fake key events, don't even report to other handlers.
         if self.is_replaying:
             return True
@@ -303,7 +302,7 @@ def key_to_scan_codes(key, error_if_missing=True):
 
     e = None
     try:
-        t = OrderedDict((scan_code, True) for scan_code, modifier in _os_keyboard.map_name(normalized))
+        t = _collections.OrderedDict((scan_code, True) for scan_code, modifier in _os_keyboard.map_name(normalized))
         if t:
             return tuple(t)
     except (KeyError, ValueError) as exception:
@@ -335,7 +334,7 @@ def parse_hotkey(hotkey):
         steps = (step,)
         return steps
     elif _is_list(hotkey):
-        if not any(_is_list(k) for k in hotkey):
+        if all(not _is_list(k) for k in hotkey):
             step = tuple(key_to_scan_codes(k) for k in hotkey)
             steps = (step,)
             return steps
@@ -540,13 +539,11 @@ def parse_hotkey_combinations(hotkey):
 
     return tuple(tuple(combine_step(step)) for step in parse_hotkey(hotkey))
 
-def _add_hotkey_step(callback_by_type, combinations, suppress):
+def _add_hotkey_step(handler, combinations, suppress):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
     container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
-
-    fn = lambda e: callback_by_type.get(e.event_type, lambda: False)()
 
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in 
@@ -555,14 +552,14 @@ def _add_hotkey_step(callback_by_type, combinations, suppress):
         for scan_code in scan_codes:
             if is_modifier(scan_code):
                 _listener.filtered_modifiers[scan_code] += 1
-        container[scan_codes].append(fn)
+        container[scan_codes].append(handler)
 
     def remove():
         for scan_codes in combinations:
             for scan_code in scan_codes:
                 if is_modifier(scan_code):
                     _listener.filtered_modifiers[scan_code] -= 1
-            container[scan_codes].remove(fn)
+            container[scan_codes].remove(handler)
     return remove
 
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_release=False):
@@ -614,25 +611,27 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
 
     event_type = KEY_UP if trigger_on_release else KEY_DOWN
     if len(steps) == 1:
-        return _add_hotkey_step({event_type: callback}, steps[0], suppress)
+        handler = lambda e: e.event_type == event_type and callback()
+        return _add_hotkey_step(handler, steps[0], suppress)
 
     state = _State()
     state.remove_catch_misses = lambda: None
     state.remove_last_step = lambda: None
+    state.suppressed_events = []
     
     def catch_misses(event):
         if event.event_type == event_type and state.index and event.scan_code not in allowed_keys_by_step[state.index]:
             state.remove_last_step()
 
-            for part in steps[:state.index]:
-                send([part])
+            for event in state.suppressed_events:
+                if event.event_type == KEY_DOWN:
+                    press(event.scan_code)
+                else:
+                    release(event.scan_code)
+            del state.suppressed_events[:]
 
-            # Trigger "a, b" when typing "aab"
             index = 0
-            #activated_keys = tuple(sorted(set(_pressed_events) | set([event.scan_code])))
-            #while index < len(steps) and activated_keys in steps[index]:
-            #    index ++ 1
-            set_index(index)
+            set_index(0)
         return True
 
     def set_index(new_index):
@@ -641,31 +640,33 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         if new_index == 0:
             # This is done for performance reasons, avoiding a global key hook
             # that is always on.
-            #state.remove_catch_misses()
-            pass
+            state.remove_catch_misses()
         elif new_index == 1:
             # Must be `suppress=True` to ensure `send` has priority.
             state.remove_catch_misses = hook(catch_misses, suppress=True)
 
         if new_index == len(steps) - 1:
-            if trigger_on_release:
-                press = lambda: False
-                def release():
+            def handler(event):
+                if event.event_type == KEY_UP:
                     remove()
                     set_index(0)
-                    return callback()
-            else:
-                press = callback
-                def release():
-                    remove( )
-                    return set_index(0)
-            remove = _add_hotkey_step({KEY_UP: release, KEY_DOWN: press}, steps[state.index], suppress)
+                accept = event.event_type == event_type and callback()
+                del state.suppressed_events[:]
+                if accept:
+                    return True
+                else:
+                    state.suppressed_events.append(event)
+                    return False
+            remove = _add_hotkey_step(handler, steps[state.index], suppress)
         else:
             # Fix value of next_index.
-            def trigger(new_index=state.index+1):
-                remove()
-                return set_index(new_index)
-            remove = _add_hotkey_step({KEY_UP: trigger}, steps[state.index], suppress)
+            def handler(event, new_index=state.index+1):
+                if event.event_type == KEY_UP:
+                    remove()
+                    set_index(new_index)
+                state.suppressed_events.append(event)
+                return False
+            remove = _add_hotkey_step(handler, steps[state.index], suppress)
         state.remove_last_step = remove
         return False
     set_index(0)

@@ -197,6 +197,9 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(keyboard.parse_hotkey("alt+shift+a, alt+b, c"), ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,)))
     def test_parse_hotkey_list_scan_codes(self):
         self.assertEqual(keyboard.parse_hotkey([1, 2, 3]), (((1,), (2,), (3,)),))
+    def test_parse_hotkey_deep_list_scan_codes(self):
+        result = keyboard.parse_hotkey('a')
+        self.assertEqual(keyboard.parse_hotkey(result), (((1,),),))
     def test_parse_hotkey_list_names(self):
         self.assertEqual(keyboard.parse_hotkey(['a', 'b', 'c']), (((1,), (2,), (3,)),))
 
@@ -627,6 +630,9 @@ class TestKeyboard(unittest.TestCase):
         keyboard.add_hotkey('ctrl+shift+a', lambda: queue.put(True), suppress=False)
         self.do(d_shift+d_ctrl+d_a)
         self.assertTrue(queue.get(timeout=0.5))
+    def test_add_hotkey_single_step_suppress_regression_1(self):
+        keyboard.add_hotkey('a', trigger, suppress=True)
+        self.do(d_c+d_a+u_c+u_a+du_c, d_c+d_a+u_c+u_a+du_c)
 
     def test_remap_hotkey_single(self):
         keyboard.remap_hotkey('a', 'b')
@@ -692,6 +698,12 @@ class TestKeyboard(unittest.TestCase):
         self.do(du_a+du_a+du_b, du_a+triggered_event)
         self.assertEqual(keyboard._listener.blocking_hotkeys[(2,)], [])
         self.assertEqual(len(keyboard._listener.blocking_hotkeys[(1,)]), 1)
+    def test_add_hotkey_multi_step_suppress_regression_1(self):
+        keyboard.add_hotkey('a, b', trigger, suppress=True)
+        self.do(d_c+d_a+u_c+u_a+du_c, d_c+d_a+u_c+u_a+du_c)
+    def test_add_hotkey_multi_step_suppress_replays(self):
+        keyboard.add_hotkey('a, b, c', trigger, suppress=True)
+        self.do(du_a+du_b+du_a+du_b+du_space, du_a+du_b+du_a+du_b+du_space)
 
     def test_add_word_listener_success(self):
         queue = keyboard._queue.Queue()
