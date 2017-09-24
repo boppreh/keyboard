@@ -46,6 +46,7 @@ dummy_keys = {
     '_': [(12, [])],
 
     'none': [],
+    'duplicated': [(20, []), (20, [])],
 }
 
 def make_event(event_type, name, scan_code=None, time=0):
@@ -137,7 +138,7 @@ class TestKeyboard(unittest.TestCase):
 
     def test_key_to_scan_codes_brute(self):
         for name, entries in dummy_keys.items():
-            if name == 'none': continue
+            if name in ['none', 'duplicated']: continue
             expected = tuple(scan_code for scan_code, modifiers in entries)
             self.assertEqual(keyboard.key_to_scan_codes(name), expected)
     def test_key_to_scan_code_from_scan_code(self):
@@ -170,6 +171,8 @@ class TestKeyboard(unittest.TestCase):
     def test_key_to_scan_code_empty(self):
         with self.assertRaises(ValueError):
             keyboard.key_to_scan_codes('none')
+    def test_key_to_scan_code_duplicated(self):
+        self.assertEqual(keyboard.key_to_scan_codes('duplicated'), (20,))
 
     def test_parse_hotkey_simple(self):
         self.assertEqual(keyboard.parse_hotkey('a'), (((1,),),))
@@ -667,6 +670,8 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_multistep_suppress_incomplete(self):
         keyboard.add_hotkey('a, b', trigger, suppress=True)
         self.do(du_a, [])
+        self.assertEqual(keyboard._listener.blocking_hotkeys[(1,)], [])
+        self.assertEqual(len(keyboard._listener.blocking_hotkeys[(2,)]), 1)
     def test_add_hotkey_multistep_suppress_incomplete(self):
         keyboard.add_hotkey('a, b', trigger, suppress=True)
         self.do(du_a+du_b, triggered_event)
@@ -685,6 +690,8 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_multistep_suppress_repeated_key(self):
         keyboard.add_hotkey('a, b', trigger, suppress=True)
         self.do(du_a+du_a+du_b, du_a+triggered_event)
+        self.assertEqual(keyboard._listener.blocking_hotkeys[(2,)], [])
+        self.assertEqual(len(keyboard._listener.blocking_hotkeys[(1,)]), 1)
 
     def test_add_word_listener_success(self):
         queue = keyboard._queue.Queue()

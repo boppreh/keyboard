@@ -77,7 +77,7 @@ from __future__ import print_function
 import re
 import itertools
 import time as _time
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, OrderedDict
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
 
@@ -303,9 +303,9 @@ def key_to_scan_codes(key, error_if_missing=True):
 
     e = None
     try:
-        t = tuple(scan_code for scan_code, modifier in _os_keyboard.map_name(normalized))
+        t = OrderedDict((scan_code, True) for scan_code, modifier in _os_keyboard.map_name(normalized))
         if t:
-            return t
+            return tuple(t)
     except (KeyError, ValueError) as exception:
         t = ()
         e = exception
