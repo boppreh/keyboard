@@ -63,6 +63,11 @@ canonical_names = {
     'linefeed': 'enter',
     'win': 'windows',
 
+    # Mac keys
+    'command': 'windows',
+    'control': 'ctrl',
+    'option': 'alt',
+
     'app': 'menu',
     'apps': 'menu',
     'application': 'menu',

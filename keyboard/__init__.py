@@ -9,7 +9,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 
 - Global event hook on all keyboards (captures keys regardless of focus).
 - **Listen** and **sends** keyboard events.
-- Works with **Windows** and **Linux** (requires sudo).
+- Works with **Windows** and **Linux** (requires sudo), with experimental **OS X** support (thanks @glitchassassin!).
 - **Pure Python**, no C modules to be compiled.
 - **Zero dependencies**. Trivial to install and deploy, just copy the files.
 - **Python 2 and 3**.
@@ -19,7 +19,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 - Events automatically captured in separate thread, doesn't block main program.
 - Tested and documented.
 - Doesn't break accented dead keys (I'm looking at you, pyHook).
-- Mouse support coming soon.
+- Mouse support available via project [mouse](https://github.com/boppreh/mouse) (`pip install mouse`).
 
 This program makes no attempt to hide itself, so don't use it for keyloggers.
 
@@ -205,10 +205,10 @@ def canonicalize(hotkey):
         return [[_normalize_name(hotkey)]]
     else:
         steps = []
-        for str_step in hotkey.replace(' ', '').split(','):
+        for str_step in hotkey.split(','):
             steps.append([])
             for part in str_step.split('+'):
-                steps[-1].append(_normalize_name(part))
+                steps[-1].append(_normalize_name(part.strip()))
         return steps
 
 def call_later(fn, args=(), delay=0.001):
@@ -308,7 +308,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
                 state.step = 0
         else:
             state.time = event.time
-            if all(is_pressed(part) or matches(event, part) for part in steps[state.step]):
+            if _step_is_pressed(steps[state.step]) or all(matches(event, part) for part in steps[state.step]):
                 state.step += 1
                 if not trigger_on_release and state.step == len(steps):
                     state.step = 0
@@ -324,6 +324,15 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
 
 # Alias.
 register_hotkey = add_hotkey
+
+def _step_is_pressed(step):
+    """
+    Returns True if:
+        - all keys within the step are currently pressed
+        - no undefined modifiers are currently pressed
+    """
+    inactive_modifiers = [x for x in all_modifiers if not x in step and x in all_modifiers]
+    return all(is_pressed(x) for x in step) and not any(is_pressed(x) for x in inactive_modifiers)
 
 def hook(callback):
     """
@@ -539,7 +548,7 @@ def restore_state(scan_codes):
     for scan_code in target - current:
         _os_keyboard.press(scan_code)
 
-def write(text, delay=0, restore_state_after=True):
+def write(text, delay=0, restore_state_after=True, exact=False):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Characters not available on the keyboard are typed as explicit unicode
@@ -553,31 +562,38 @@ def write(text, delay=0, restore_state_after=True):
     - `restore_state_after` can be used to restore the state of pressed keys
     after the text is typed, i.e. presses the keys that were released at the
     beginning. Defaults to True.
+    - `exact` forces typing all characters as explicit unicode (e.g. alt+codepoint)
     """
     state = stash_state()
-
-    for letter in text:
-        try:
-            if letter in '\n\b\t ':
-                letter = _normalize_name(letter)
-            scan_code, modifiers = _os_keyboard.map_char(letter)
-
-            if is_pressed(scan_code):
-                release(scan_code)
-
-            for modifier in modifiers:
-                press(modifier)
-
-            _os_keyboard.press(scan_code)
-            _os_keyboard.release(scan_code)
-
-            for modifier in modifiers:
-                release(modifier)
-        except ValueError:
+    
+    if exact:
+        for letter in text:
             _os_keyboard.type_unicode(letter)
+            if delay: _time.sleep(delay)
 
-        if delay:
-            _time.sleep(delay)
+    else:
+        for letter in text:
+            try:
+                if letter in '\n\b\t ':
+                    letter = _normalize_name(letter)
+                scan_code, modifiers = _os_keyboard.map_char(letter)
+
+                if is_pressed(scan_code):
+                    release(scan_code)
+
+                for modifier in modifiers:
+                    press(modifier)
+
+                _os_keyboard.press(scan_code)
+                _os_keyboard.release(scan_code)
+
+                for modifier in modifiers:
+                    release(modifier)
+            except ValueError:
+                _os_keyboard.type_unicode(letter)
+
+            if delay:
+                _time.sleep(delay)
 
     if restore_state_after:
         restore_state(state)
@@ -712,6 +728,18 @@ def play(events, speed_factor=1.0):
 
 replay = play
 
+_shifted_mapping= {'1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '¨',
+    '7': '&', '8': '*', '9': '(', '0': ')', '-': '_', '=': '+', '\'': '"',
+    '[': '{', ']': '}', '´': '`', '~': '^', '\\': '|', ',': '<', '.': '>',
+    ';': ':', '/': '?'}
+
+def _get_shifted_character(character):
+    """
+    It performs the mapping of special characters, for the correct operation
+    of the "get_typed_strings" function, when the [shift] is pressed.
+    """
+    return _shifted_mapping.get(character, character.upper())
+
 def get_typed_strings(events, allow_backspace=True):
     """
     Given a sequence of events, tries to deduce what strings were typed.
@@ -748,7 +776,9 @@ def get_typed_strings(events, allow_backspace=True):
             string = string[:-1]
         elif event.event_type == 'down':
             if len(name) == 1:
-                if shift_pressed ^ capslock_pressed:
+                if shift_pressed:
+                    name = _get_shifted_character(name)
+                elif capslock_pressed:
                     name = name.upper()
                 string = string + name
             else:
@@ -757,3 +787,97 @@ def get_typed_strings(events, allow_backspace=True):
     yield string
 
 _key_table = _KeyTable(press, release)
+
+recording = None
+def start_recording(recorded_events_queue=None):
+    """
+    Starts recording all keyboard events into a global variable, or the given
+    queue if any. Returns the queue of events and the hooked function.
+
+    Use `stop_recording()` or `unhook(hooked_function)` to stop.
+    """
+    global recording
+    recorded_events_queue = recorded_events_queue or queue.Queue()
+    recording = recorded_events_queue, hook(recorded_events_queue.put)
+    return recording
+
+def stop_recording():
+    """
+    Stops the global recording of events and returns a list of the events
+    captured.
+    """
+    global recording
+    if not recording:
+        raise ValueError('Must call "start_recording" before.')
+    recorded_events_queue, hooked = recording
+    unhook(hooked)
+    recording = None
+    return list(recorded_events_queue.queue)
+
+
+def get_shortcut_name(names=None):
+    """
+    Returns a string representation of shortcut from the given key names, or
+    the currently pressed keys if not given.  This function:
+
+    - normalizes names;
+    - removes "left" and "right" prefixes;
+    - replaces the "+" key name with "plus" to avoid ambiguity;
+    - puts modifier keys first, in a standardized order;
+    - sort remaining keys;
+    - finally, joins everything with "+".
+
+    Example:
+
+        get_shortcut_name(['+', 'left ctrl', 'shift'])
+        # "ctrl+shift+plus"
+    """
+    if names is None:
+        _listener.start_if_necessary()
+        names = [e.name for e in _pressed_events.values()]
+    else:
+        names = [_normalize_name(name) for name in names]
+    clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
+    # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
+    # > List modifier keys in the correct order. If you use more than one modifier key in a
+    # > shortcut, always list them in this order: Control, Option, Shift, Command.
+    modifiers = ['ctrl', 'alt', 'shift', 'windows']
+    sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
+    return '+'.join(sorted(clean_names, key=sorting_key))
+
+def read_shortcut():
+    """
+    Similar to `read_key()`, but blocks until the user presses and releases a key
+    combination (or single key), then returns a string representing the shortcut
+    pressed.
+
+    Example:
+
+        read_shortcut()
+        # "ctrl+shift+p"
+    """
+    wait, unlock = _make_wait_and_unlock()
+    def test(event):
+        if event.event_type == KEY_UP:
+            unhook(test)
+            names = [e.name for e in _pressed_events.values()] + [event.name]
+            unlock(get_shortcut_name(names))
+    hook(test)
+    return wait()
+read_hotkey = read_shortcut
+
+def remap(src, dst):
+    """
+    Whenever the key combination `src` is pressed, suppress it and press
+    `dst` instead.
+
+    Example:
+
+        remap('alt+w', 'up')
+        remap('capslock', 'esc')
+    """
+    def handler():
+        state = stash_state()
+        press_and_release(dst)
+        restore_state(state)
+    return add_hotkey(src, handler, suppress=True) 

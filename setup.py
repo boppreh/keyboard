@@ -15,6 +15,10 @@ except ImportError:
 import re
 last_version = re.search('(\d+(?:\.\d+)+)', open('CHANGES.md').read()).group(1)
 
+# Wheel creation breaks with Windows newlines.
+# https://github.com/pypa/setuptools/issues/1126
+long_description = long_description.replace('\r\n', '\n')
+
 from setuptools import setup
 setup(
     name='keyboard',
