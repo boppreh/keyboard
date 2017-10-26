@@ -75,6 +75,7 @@ class TestKeyboard(unittest.TestCase):
         keyboard._os_keyboard.append = self.events.append
 
     def tearDown(self):
+        keyboard.clear_all_hotkeys()
         keyboard.unhook_all()
         # Make sure there's no spill over between tests.
         self.wait_for_events_queue()
@@ -566,35 +567,48 @@ class TestKeyboard(unittest.TestCase):
         def dummy():
             pass
 
+        keyboard.add_hotkey('z', dummy, suppress=True)
         keyboard.add_hotkey('a+b+c', dummy, suppress=True)
         keyboard.add_hotkey('a+g+h', dummy, suppress=True, timeout=0.01)
 
         for key in ['a', 'b', 'c']:
-            assert not self.press(key)
+            self.assertFalse(self.press(key))
         for key in ['a', 'b', 'c']:
-            assert not self.release(key)
+            self.assertFalse(self.release(key))
 
-        assert self.click('d')
+        self.assertTrue(self.click('d'))
 
         for key in ['a', 'b']:
-            assert not self.press(key)
+            self.assertFalse(self.press(key))
         for key in ['a', 'b']:
-            assert not self.release(key)
+            self.assertFalse(self.release(key))
 
-        assert self.click('c')
+        self.assertTrue(self.click('c'))
 
         for key in ['a', 'g']:
-            assert not self.press(key)
+            self.assertFalse(self.press(key))
         for key in ['a', 'g']:
-            assert not self.release(key)
+            self.assertFalse(self.release(key))
 
         time.sleep(0.03)
-        assert self.click('h')
+        self.assertTrue(self.click('h'))
+
+        self.assertFalse(self.press('a'))
+        self.assertFalse(self.press('a'))
+        self.assertFalse(self.press('a'))
+        self.assertFalse(self.press('a'))
+        self.assertFalse(self.release('a'))
+
+        self.assertFalse(self.press('z'))
+        self.assertFalse(self.press('z'))
+        self.assertFalse(self.press('z'))
+        self.assertFalse(self.press('z'))
+        self.assertFalse(self.release('z'))
 
         keyboard.remove_hotkey('a+g+h')
         keyboard.remove_hotkey('a+b+c')
 
-        assert self.click('a')
+        self.assertTrue(self.click('a'))
 
 if __name__ == '__main__':
     unittest.main()

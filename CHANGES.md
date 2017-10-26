@@ -1,3 +1,49 @@
+# 0.11.0
+
+- [Windows] Used explicit WinDLL to fix "expected CFunctionType instance instead of CFunctionType".
+- [Windows] Added more Windows virtual key codes for key name mapping (should fix .e.g "?").
+- [All] Fixed canonicalization removing too much space (thanks @iliazeus).
+- [All] Added `start_recording` and `stop_recording` for more flexible macros (thanks @softuser25 for the suggestion).
+- [All] Added `read_shortcut` function.
+- [All] Added `get_shortcut_name` function.
+- [All] Cleaned up `examples` folder and added more examples.
+
+
+# 0.10.4
+
+- [Mac] Added aliases for modifiers (control->ctrl, option->alt, command->windows).
+- [All] Add reference to mouse project.
+- [All] Use WinDLL for mouse part instead of raw ctypes.windll.user32.
+
+
+# 0.10.3
+
+- [All] Fix PyPI readme (https://github.com/pypa/setuptools/issues/1126).
+- [All] Remove bdist from release (PEP 527).
+
+
+# 0.10.2
+
+- [All] Removed ctypes type-hints to avoid runtime errors in unusual systems.
+- [All] Add mention of new `mouse` project.
+- [All] Add mention of experimental OS X support.
+- [All] Fixes to release process.
+
+
+# 0.10.0
+
+- [OS X] Added experimental OS X support (thanks @glitchassassin!).
+- [Windows] Fixed error on fractional `mouse.wheel()` (thanks @bobonthenet!).
+- [Windows] Fixed name for arrow keys` virtual key codes.
+- [Windows] Make backend easier to use in other projects (e.g. `_winkeyboard.prepare_intercept`).
+- [Linux] Fixed mouse support in Mint VirtualBox guest (thanks @foodforarabbit!).
+- [All] Added mouse alias `hold = press` (thanks @DanMossa!).
+- [All] Added `mouse.drag`.
+- [All] Added examples on how to use the library.
+- [All] Update docs to mention how to differentiate key presses and releases (thanks @TrakJohnson!).
+- [All] Change the default value of `add_abbreviation(..., match_suffix)`.
+
+
 # 0.9.13
 
 - [Windows] Fix bug when listening to alt-gr.

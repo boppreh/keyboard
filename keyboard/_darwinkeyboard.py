@@ -15,7 +15,7 @@ except NameError:
 Carbon = ctypes.cdll.LoadLibrary(ctypes.util.find_library('Carbon'))
 
 class KeyMap(object):
-    non_layout_keys = {
+    non_layout_keys = dict((vk, normalize_name(name)) for vk, name in {
         0x24: 'return',
         0x30: 'tab',
         0x31: 'space',
@@ -39,7 +39,7 @@ class KeyMap(object):
         0x77: 'end',
         0x74: 'page up',
         0x79: 'page down',
-    }
+    }.items())
     layout_specific_keys = {}
     def __init__(self):
         # Virtual key codes are usually the same for any given key, unless you have a different
