@@ -64,7 +64,7 @@ canonical_names = {
     'win': 'windows',
 
     # Mac keys
-    'command': 'command',
+    'command': 'windows',
     'control': 'ctrl',
     'option': 'alt',
 

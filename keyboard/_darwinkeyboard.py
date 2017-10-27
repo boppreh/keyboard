@@ -142,6 +142,10 @@ class KeyMap(object):
     def character_to_vk(self, character):
         """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code
         and ``modifiers`` is an array of string modifier names (like 'shift') """
+        # Mapping to preserve cross-platform hotkeys
+        if character.lower() == "windows":
+            character = "command"
+
         for vk in self.non_layout_keys:
             if self.non_layout_keys[vk] == character.lower():
                 return (vk, [])
