@@ -106,6 +106,8 @@ class KeyMap(object):
         Carbon.LMGetKbdType.restype = ctypes.c_uint32
         Carbon.TISCopyCurrentKeyboardInputSource.argtypes = []
         Carbon.TISCopyCurrentKeyboardInputSource.restype = ctypes.c_void_p
+        Carbon.TISCopyCurrentASCIICapableKeyboardLayoutInputSource.argtypes = []
+        Carbon.TISCopyCurrentASCIICapableKeyboardLayoutInputSource.restype = ctypes.c_void_p
         Carbon.TISGetInputSourceProperty.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
         Carbon.TISGetInputSourceProperty.restype = ctypes.c_void_p
         Carbon.UCKeyTranslate.argtypes = [ctypes.c_void_p,
@@ -123,6 +125,9 @@ class KeyMap(object):
         # Get keyboard layout
         klis = Carbon.TISCopyCurrentKeyboardInputSource()
         k_layout = Carbon.TISGetInputSourceProperty(klis, kTISPropertyUnicodeKeyLayoutData)
+        if k_layout is None:
+            klis = Carbon.TISCopyCurrentASCIICapableKeyboardLayoutInputSource()
+            k_layout = Carbon.TISGetInputSourceProperty(klis, kTISPropertyUnicodeKeyLayoutData)
         k_layout_size = Carbon.CFDataGetLength(k_layout)
         k_layout_buffer = ctypes.create_string_buffer(k_layout_size) # TODO - Verify this works instead of initializing with empty string
         Carbon.CFDataGetBytes(k_layout, CFRange(0, k_layout_size), ctypes.byref(k_layout_buffer))
