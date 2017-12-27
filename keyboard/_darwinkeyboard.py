@@ -435,12 +435,12 @@ def listen(queue, is_allowed=lambda *args: True):
     t.start()
 
 def type_unicode(character):
-    OUTPUT_SOURCE = CGEventSourceCreate(kCGEventSourceStateHIDSystemState)
+    OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
     # Key down
-    event = CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, True)
-    CGEventKeyboardSetUnicodeString(event, len(character), character)
-    CGEventPost(kCGSessionEventTap, event)
+    event = Quartz.CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, True)
+    Quartz.CGEventKeyboardSetUnicodeString(event, len(character.encode('utf-16-le')) // 2, character)
+    Quartz.CGEventPost(Quartz.kCGSessionEventTap, event)
     # Key up
-    event = CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, False)
-    CGEventKeyboardSetUnicodeString(event, len(character), character)
-    CGEventPost(kCGSessionEventTap, event)
+    event = Quartz.CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, False)
+    Quartz.CGEventKeyboardSetUnicodeString(event, len(character.encode('utf-16-le')) // 2, character)
+    Quartz.CGEventPost(Quartz.kCGSessionEventTap, event)
