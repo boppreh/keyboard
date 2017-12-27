@@ -40,7 +40,7 @@ Then check the [API docs](https://github.com/boppreh/keyboard#api) to see what f
 ## Example
 
 
-```
+```py 
 import keyboard
 
 keyboard.press_and_release('shift+s, space')
@@ -133,13 +133,17 @@ key events. In this case `keyboard` will be unable to report events.
 <a name="keyboard.KEY_DOWN"/>
 
 ## keyboard.**KEY\_DOWN**
-    = 'down'
+```py
+= 'down'
+```
 
 
 <a name="keyboard.KEY_UP"/>
 
 ## keyboard.**KEY\_UP**
-    = 'up'
+```py
+= 'up'
+```
 
 
 <a name="keyboard.KeyboardEvent"/>
@@ -174,7 +178,9 @@ key events. In this case `keyboard` will be unable to report events.
 <a name="keyboard.all_modifiers"/>
 
 ## keyboard.**all\_modifiers**
-    = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
+```py
+= ('alt', 'alt gr', 'ctrl', 'shift', 'win')
+```
 
 
 <a name="keyboard.queue"/>
@@ -228,9 +234,11 @@ Returns True if the given event represents the same key as the one given in
 
 Returns True if the key is pressed.
 
-    is_pressed(57) -> True
-    is_pressed('space') -> True
-    is_pressed('ctrl+space') -> True
+```py
+is_pressed(57)  # -> True
+is_pressed('space')  # -> True
+is_pressed('ctrl+space')  # -> True
+```
 
 
 
@@ -245,11 +253,13 @@ Splits a user provided hotkey into a list of steps, each one made of a list
 of scan codes or names. Used to normalize input at the API boundary. When a
 combo is given (e.g. 'ctrl + a, b') spaces are ignored.
 
-    canonicalize(57) -> [[57]]
-    canonicalize([[57]]) -> [[57]]
-    canonicalize('space') -> [['space']]
-    canonicalize('ctrl+space') -> [['ctrl', 'space']]
-    canonicalize('ctrl+space, space') -> [['ctrl', 'space'], ['space']]
+```py
+canonicalize(57)  # -> [[57]]
+canonicalize([[57]])  # -> [[57]]
+canonicalize('space')  # -> [['space']]
+canonicalize('ctrl+space')  # -> [['ctrl', 'space']]
+canonicalize('ctrl+space, space')  # -> [['ctrl', 'space'], ['space']]
+```
 
 Note we must not convert names into scan codes because a name may represent
 more than one physical key (e.g. two 'ctrl' keys).
@@ -320,13 +330,15 @@ Note: hotkeys are activated when the last key is *pressed*, not released.
 Note: the callback is executed in a separate thread, asynchronously. For an
 example of how to use a callback synchronously, see [`wait`](#keyboard.wait).
 
-    add_hotkey(57, print, args=['space was pressed'])
-    add_hotkey(' ', print, args=['space was pressed'])
-    add_hotkey('space', print, args=['space was pressed'])
-    add_hotkey('Space', print, args=['space was pressed'])
+```py
+add_hotkey(57, print, args=['space was pressed'])
+add_hotkey(' ', print, args=['space was pressed'])
+add_hotkey('space', print, args=['space was pressed'])
+add_hotkey('Space', print, args=['space was pressed'])
 
-    add_hotkey('ctrl+q', quit)
-    add_hotkey('ctrl+alt+enter, space', some_callback)
+add_hotkey('ctrl+q', quit)
+add_hotkey('ctrl+alt+enter, space', some_callback)
+```
 
 
 
@@ -507,7 +519,9 @@ Alias for [`remove_word_listener`](#keyboard.remove_word_listener).
 
 Registers a hotkey that replaces one typed text with another. For example
 
-    add_abbreviation('tm', u'™')
+```py
+add_abbreviation('tm', u'™')
+```
 
 Replaces every "tm" followed by a space with a ™ symbol (and no space). The
 replacement is done by sending backspace events.
@@ -603,10 +617,12 @@ Sends OS events that perform the given hotkey combination.
 - `do_press` if true then press events are sent. Defaults to True.
 - `do_release` if true then release events are sent. Defaults to True.
 
-    send(57)
-    send('ctrl+alt+del')
-    send('alt+F4, enter')
-    send('shift+s')
+```py
+send(57)
+send('ctrl+alt+del')
+send('alt+F4, enter')
+send('shift+s')
+```
 
 Note: keys are released in the opposite order they were pressed.
 
@@ -722,7 +738,9 @@ Note this functions is merely an heuristic. Windows for example keeps per-
 process keyboard state such as keyboard layout, and this information is not
 available for our hooks.
 
-    get_type_strings(record()) -> ['This is what', 'I recorded', '']
+```py
+get_type_strings(record())  # -> ['This is what', 'I recorded', '']
+```
 
 
 
@@ -771,8 +789,10 @@ the currently pressed keys if not given.  This function:
 
 Example:
 
-    get_shortcut_name(['+', 'left ctrl', 'shift'])
-    # "ctrl+shift+plus"
+```py
+get_shortcut_name(['+', 'left ctrl', 'shift'])
+# "ctrl+shift+plus"
+```
 
 
 
@@ -789,8 +809,10 @@ pressed.
 
 Example:
 
-    read_shortcut()
-    # "ctrl+shift+p"
+```py
+read_shortcut()
+# "ctrl+shift+p"
+```
 
 
 
