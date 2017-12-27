@@ -21,7 +21,7 @@ class KeyMap(object):
         0x24: 'return',
         0x30: 'tab',
         0x31: 'space',
-        0x33: 'backspace',
+        0x33: 'delete',
         0x35: 'escape',
         0x37: 'command',
         0x38: 'shift',
@@ -55,7 +55,7 @@ class KeyMap(object):
         0x72: 'help',
         0x73: 'home',
         0x74: 'page up',
-        0x75: 'delete',
+        0x75: 'forward delete',
         0x76: 'f4',
         0x77: 'end',
         0x78: 'f2',
@@ -173,10 +173,6 @@ class KeyMap(object):
     def character_to_vk(self, character):
         """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code
         and ``modifiers`` is an array of string modifier names (like 'shift') """
-        # Mapping to preserve cross-platform hotkeys
-        if character.lower() == "windows":
-            character = "command"
-
         for vk in self.non_layout_keys:
             if self.non_layout_keys[vk] == character.lower():
                 return (vk, [])
@@ -437,3 +433,14 @@ def listen(queue, is_allowed=lambda *args: True):
     t = threading.Thread(target=listener.run, args=())
     t.daemon = True
     t.start()
+
+def type_unicode(character):
+    OUTPUT_SOURCE = CGEventSourceCreate(kCGEventSourceStateHIDSystemState)
+    # Key down
+    event = CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, True)
+    CGEventKeyboardSetUnicodeString(event, len(character), character)
+    CGEventPost(kCGSessionEventTap, event)
+    # Key up
+    event = CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, False)
+    CGEventKeyboardSetUnicodeString(event, len(character), character)
+    CGEventPost(kCGSessionEventTap, event)
