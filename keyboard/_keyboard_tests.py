@@ -90,6 +90,8 @@ u_alt = [make_event(KEY_UP, 'alt')]
 du_alt = d_alt+u_alt
 du_backspace = [make_event(KEY_DOWN, 'backspace'), make_event(KEY_UP, 'backspace')]
 du_capslock = [make_event(KEY_DOWN, 'caps lock'), make_event(KEY_UP, 'caps lock')]
+d_space = [make_event(KEY_DOWN, 'space')]
+u_space = [make_event(KEY_UP, 'space')]
 du_space = [make_event(KEY_DOWN, 'space'), make_event(KEY_UP, 'space')]
 
 trigger = lambda e=None: keyboard.press(999)
@@ -443,8 +445,10 @@ class TestKeyboard(unittest.TestCase):
         t = Thread(target=process)
         t.daemon = True
         t.start()
+        # 0.01s sleep failed once already. Better solutions?
         time.sleep(0.01)
-        self.do(du_a+du_b+du_space, du_a+du_b)
+        # Compromise on u_a.
+        self.do(du_a+du_b+du_space, du_a+du_b+u_space)
         self.assertEqual(queue.get(timeout=0.5), du_a+du_b+du_space)
 
     def test_play_nodelay(self):
@@ -602,7 +606,8 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_shift+d_ctrl+d_a, triggered_event)
     def test_add_hotkey_single_step_suppress_with_modifiers_repeated(self):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
-        self.do(d_ctrl+du_a+du_b+du_a, triggered_event+d_ctrl+du_b+triggered_event)
+        # Compromise on u_a.
+        self.do(d_ctrl+du_a+du_b+du_a, triggered_event+u_a+d_ctrl+du_b+triggered_event+u_a)
     def test_add_hotkey_single_step_suppress_with_modifiers_release(self):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True, trigger_on_release=True)
         self.do(d_ctrl+du_a+du_b+du_a, triggered_event+d_ctrl+du_b+triggered_event)
@@ -632,23 +637,30 @@ class TestKeyboard(unittest.TestCase):
         self.assertTrue(queue.get(timeout=0.5))
     def test_add_hotkey_single_step_suppress_regression_1(self):
         keyboard.add_hotkey('a', trigger, suppress=True)
-        self.do(d_c+d_a+u_c+u_a+du_c, d_c+d_a+u_c+u_a+du_c)
+        self.do(d_c+d_a+u_c+u_a, d_c+d_a+u_c+u_a)
+    def test_add_hotkey_single_step_suppress_regression_2(self):
+        #https://github.com/boppreh/keyboard/issues/115#issuecomment-353828948
+        keyboard.add_hotkey('alt+a', trigger, suppress=True)
+        self.do(d_alt+d_a+u_alt+u_a, triggered_event+u_a)
 
     def test_remap_hotkey_single(self):
         keyboard.remap_hotkey('a', 'b')
-        self.do(d_a+u_a, d_b+u_b)
+        # Compromise on u_a.
+        self.do(d_a+u_a, d_b+u_b+u_a)
     def test_remap_hotkey_complex_dst(self):
         keyboard.remap_hotkey('a', 'ctrl+b, c')
-        self.do(d_a+u_a, d_ctrl+du_b+u_ctrl+du_c)
+        # Compromise on u_a.
+        self.do(d_a+u_a, d_ctrl+du_b+u_ctrl+du_c+u_a)
     def test_remap_hotkey_modifiers(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
-        self.do(d_ctrl+d_shift+d_a+u_a, du_b)
+        self.do(d_ctrl+d_shift+d_a+u_a, du_b+u_a)
     def test_remap_hotkey_modifiers_repeat(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
-        self.do(d_ctrl+d_shift+du_a+du_a, du_b+du_b)
+        # Compromise on u_a.
+        self.do(d_ctrl+d_shift+du_a+du_a, du_b+u_a+du_b+u_a)
     def test_remap_hotkey_modifiers_state(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
-        self.do(d_ctrl+d_shift+du_c+du_a+du_a, d_shift+d_ctrl+du_c+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_shift+u_ctrl+du_b+d_ctrl+d_shift)
+        self.do(d_ctrl+d_shift+du_c+du_a+du_a, d_shift+d_ctrl+du_c+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_a+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_a)
     def test_remap_hotkey_release_incomplete(self):
         keyboard.remap_hotkey('a', 'b', trigger_on_release=True)
         self.do(d_a, [])

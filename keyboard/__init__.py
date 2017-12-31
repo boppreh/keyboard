@@ -611,7 +611,11 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
 
     event_type = KEY_UP if trigger_on_release else KEY_DOWN
     if len(steps) == 1:
-        handler = lambda e: e.event_type == event_type and callback()
+        # Deciding when to allow a KEY_UP event is far harder than I thought,
+        # and any mistake will make that key "sticky". Therefore just let all
+        # KEY_UP events go through as long as that's not what we are listening
+        # for.
+        handler = lambda e: (event_type == KEY_DOWN and e.event_type == KEY_UP) or (event_type == e.event_type and callback())
         return _add_hotkey_step(handler, steps[0], suppress)
 
     state = _State()
@@ -685,6 +689,7 @@ def remove_hotkey(remove):
     Removes a previously hooked hotkey. Must be called wtih the value returned
     by `add_hotkey`.
     """
+    # TODO: allow passing string hotkeys
     remove()
 unregister_hotkey = clear_hotkey = remove_hotkey
 
