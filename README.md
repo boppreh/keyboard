@@ -6,8 +6,8 @@ Take full control of your keyboard with this small Python library. Hook global e
 
 ## Features
 
-- Global event hook on all keyboards (captures keys regardless of focus).
-- **Listen** and **sends** keyboard events.
+- **Global event hook** on all keyboards (captures keys regardless of focus).
+- **Listen** and **send** keyboard events.
 - Works with **Windows** and **Linux** (requires sudo), with experimental **OS X** support (thanks @glitchassassin!).
 - **Pure Python**, no C modules to be compiled.
 - **Zero dependencies**. Trivial to install and deploy, just copy the files.
@@ -19,8 +19,6 @@ Take full control of your keyboard with this small Python library. Hook global e
 - Tested and documented.
 - Doesn't break accented dead keys (I'm looking at you, pyHook).
 - Mouse support available via project [mouse](https://github.com/boppreh/mouse) (`pip install mouse`).
-
-This program makes no attempt to hide itself, so don't use it for keyloggers.
 
 ## Usage
 
@@ -65,12 +63,13 @@ keyboard.wait()
 ## Known limitations:
 
 - Events generated under Windows don't report device id (`event.device == None`). [#21](https://github.com/boppreh/keyboard/issues/21)
-- Linux doesn't seem to report media keys. [#20](https://github.com/boppreh/keyboard/issues/20)
-- Currently no way to suppress keys ('catch' events and block them). [#22](https://github.com/boppreh/keyboard/issues/22)
-- To avoid depending on X the Linux parts reads raw device files (`/dev/input/input*`)
+- Media keys on Linux may appear nameless (scan-code only) or not at all. [#20](https://github.com/boppreh/keyboard/issues/20)
+- Key suppression/blocking only available on Windows. [#22](https://github.com/boppreh/keyboard/issues/22)
+- To avoid depending on X, the Linux parts reads raw device files (`/dev/input/input*`)
 but this requries root.
 - Other applications, such as some games, may register hooks that swallow all 
 key events. In this case `keyboard` will be unable to report events.
+- This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming bots. Be responsible.
 
 
 
@@ -81,64 +80,80 @@ key events. In this case `keyboard` will be unable to report events.
 - [keyboard.**KEY\_UP**](#keyboard.KEY_UP)
 - [keyboard.**KeyboardEvent**](#keyboard.KeyboardEvent)
 - [keyboard.**all\_modifiers**](#keyboard.all_modifiers)
-- [keyboard.**queue**](#keyboard.queue)
-- [keyboard.**recording**](#keyboard.recording)
-- [keyboard.**is\_str**](#keyboard.is_str)
-- [keyboard.**is\_number**](#keyboard.is_number)
-- [keyboard.**matches**](#keyboard.matches)
+- [keyboard.**itertools**](#keyboard.itertools)
+- [keyboard.**print\_function**](#keyboard.print_function)
+- [keyboard.**re**](#keyboard.re)
+- [keyboard.**sided\_modifiers**](#keyboard.sided_modifiers)
+- [keyboard.**is\_modifier**](#keyboard.is_modifier)
+- [keyboard.**key\_to\_scan\_codes**](#keyboard.key_to_scan_codes)
+- [keyboard.**parse\_hotkey**](#keyboard.parse_hotkey)
+- [keyboard.**send**](#keyboard.send)
+- [keyboard.**press\_and\_release**](#keyboard.press_and_release) *(alias)*
+- [keyboard.**press**](#keyboard.press)
+- [keyboard.**release**](#keyboard.release)
 - [keyboard.**is\_pressed**](#keyboard.is_pressed)
-- [keyboard.**canonicalize**](#keyboard.canonicalize)
 - [keyboard.**call\_later**](#keyboard.call_later)
-- [keyboard.**clear\_all\_hotkeys**](#keyboard.clear_all_hotkeys)
-- [keyboard.**remove\_all\_hotkeys**](#keyboard.remove_all_hotkeys) *(alias)*
-- [keyboard.**add\_hotkey**](#keyboard.add_hotkey)
-- [keyboard.**register\_hotkey**](#keyboard.register_hotkey) *(alias)*
 - [keyboard.**hook**](#keyboard.hook)
-- [keyboard.**unhook**](#keyboard.unhook)
-- [keyboard.**unhook\_all**](#keyboard.unhook_all)
-- [keyboard.**hook\_key**](#keyboard.hook_key)
 - [keyboard.**on\_press**](#keyboard.on_press)
 - [keyboard.**on\_release**](#keyboard.on_release)
-- [keyboard.**remove\_hotkey**](#keyboard.remove_hotkey)
+- [keyboard.**hook\_key**](#keyboard.hook_key)
+- [keyboard.**on\_press\_key**](#keyboard.on_press_key)
+- [keyboard.**on\_release\_key**](#keyboard.on_release_key)
+- [keyboard.**unhook**](#keyboard.unhook)
+- [keyboard.**unblock\_key**](#keyboard.unblock_key) *(alias)*
 - [keyboard.**unhook\_key**](#keyboard.unhook_key) *(alias)*
+- [keyboard.**unremap\_key**](#keyboard.unremap_key) *(alias)*
+- [keyboard.**unhook\_all**](#keyboard.unhook_all)
+- [keyboard.**block\_key**](#keyboard.block_key)
+- [keyboard.**remap\_key**](#keyboard.remap_key)
+- [keyboard.**parse\_hotkey\_combinations**](#keyboard.parse_hotkey_combinations)
+- [keyboard.**add\_hotkey**](#keyboard.add_hotkey)
+- [keyboard.**register\_hotkey**](#keyboard.register_hotkey) *(alias)*
+- [keyboard.**remove\_hotkey**](#keyboard.remove_hotkey)
+- [keyboard.**clear\_hotkey**](#keyboard.clear_hotkey) *(alias)*
+- [keyboard.**unregister\_hotkey**](#keyboard.unregister_hotkey) *(alias)*
+- [keyboard.**unremap\_hotkey**](#keyboard.unremap_hotkey) *(alias)*
+- [keyboard.**unhook\_all\_hotkeys**](#keyboard.unhook_all_hotkeys)
+- [keyboard.**clear\_all\_hotkeys**](#keyboard.clear_all_hotkeys) *(alias)*
+- [keyboard.**remove\_all\_hotkeys**](#keyboard.remove_all_hotkeys) *(alias)*
+- [keyboard.**unregister\_all\_hotkeys**](#keyboard.unregister_all_hotkeys) *(alias)*
+- [keyboard.**remap\_hotkey**](#keyboard.remap_hotkey)
+- [keyboard.**stash\_state**](#keyboard.stash_state)
+- [keyboard.**restore\_state**](#keyboard.restore_state)
+- [keyboard.**restore\_modifiers**](#keyboard.restore_modifiers)
+- [keyboard.**write**](#keyboard.write)
+- [keyboard.**wait**](#keyboard.wait)
+- [keyboard.**get\_hotkey\_name**](#keyboard.get_hotkey_name)
+- [keyboard.**read\_event**](#keyboard.read_event)
+- [keyboard.**read\_key**](#keyboard.read_key)
+- [keyboard.**read\_hotkey**](#keyboard.read_hotkey)
+- [keyboard.**get\_typed\_strings**](#keyboard.get_typed_strings)
+- [keyboard.**start\_recording**](#keyboard.start_recording)
+- [keyboard.**stop\_recording**](#keyboard.stop_recording)
+- [keyboard.**record**](#keyboard.record)
+- [keyboard.**play**](#keyboard.play)
+- [keyboard.**replay**](#keyboard.replay) *(alias)*
 - [keyboard.**add\_word\_listener**](#keyboard.add_word_listener)
 - [keyboard.**register\_word\_listener**](#keyboard.register_word_listener) *(alias)*
 - [keyboard.**remove\_word\_listener**](#keyboard.remove_word_listener)
 - [keyboard.**remove\_abbreviation**](#keyboard.remove_abbreviation) *(alias)*
 - [keyboard.**add\_abbreviation**](#keyboard.add_abbreviation)
 - [keyboard.**register\_abbreviation**](#keyboard.register_abbreviation) *(alias)*
-- [keyboard.**stash\_state**](#keyboard.stash_state)
-- [keyboard.**restore\_state**](#keyboard.restore_state)
-- [keyboard.**write**](#keyboard.write)
-- [keyboard.**to\_scan\_code**](#keyboard.to_scan_code)
-- [keyboard.**send**](#keyboard.send)
-- [keyboard.**press**](#keyboard.press)
-- [keyboard.**release**](#keyboard.release)
-- [keyboard.**press\_and\_release**](#keyboard.press_and_release)
-- [keyboard.**wait**](#keyboard.wait)
-- [keyboard.**read\_key**](#keyboard.read_key)
-- [keyboard.**record**](#keyboard.record)
-- [keyboard.**play**](#keyboard.play)
-- [keyboard.**replay**](#keyboard.replay) *(alias)*
-- [keyboard.**get\_typed\_strings**](#keyboard.get_typed_strings)
-- [keyboard.**start\_recording**](#keyboard.start_recording)
-- [keyboard.**stop\_recording**](#keyboard.stop_recording)
-- [keyboard.**get\_shortcut\_name**](#keyboard.get_shortcut_name)
-- [keyboard.**read\_shortcut**](#keyboard.read_shortcut)
-- [keyboard.**read\_hotkey**](#keyboard.read_hotkey) *(alias)*
 
 
 <a name="keyboard.KEY_DOWN"/>
 
-## keyboard.**KEY\_DOWN**
-    = 'down'
-
+##keyboard.**KEY\_DOWN**
+```py
+= 'down'
+```
 
 <a name="keyboard.KEY_UP"/>
 
-## keyboard.**KEY\_UP**
-    = 'up'
-
+##keyboard.**KEY\_UP**
+```py
+= 'up'
+```
 
 <a name="keyboard.KeyboardEvent"/>
 
@@ -167,61 +182,285 @@ key events. In this case `keyboard` will be unable to report events.
 ### KeyboardEvent.**time**
 
 
+<a name="KeyboardEvent.to_json"/>
+
+### KeyboardEvent.**to\_json**(self)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\_keyboard_event.py#L30)
+
+
+
+
 
 
 <a name="keyboard.all_modifiers"/>
 
 ## keyboard.**all\_modifiers**
-    = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
+
+set() -> new empty set object
+set(iterable) -> new set object
+
+Build an unordered collection of unique elements.
 
 
-<a name="keyboard.queue"/>
+<a name="keyboard.itertools"/>
 
-## keyboard.**queue**
+## keyboard.**itertools**
 
-A multi-producer, multi-consumer queue.
+Functional tools for creating and using iterators.
 
+Infinite iterators:
+count(start=0, step=1) --> start, start+step, start+2*step, ...
+cycle(p) --> p0, p1, ... plast, p0, p1, ...
+repeat(elem [,n]) --> elem, elem, elem, ... endlessly or up to n times
 
-<a name="keyboard.recording"/>
+Iterators terminating on the shortest input sequence:
+accumulate(p[, func]) --> p0, p0+p1, p0+p1+p2
+chain(p, q, ...) --> p0, p1, ... plast, q0, q1, ... 
+chain.from_iterable([p, q, ...]) --> p0, p1, ... plast, q0, q1, ... 
+compress(data, selectors) --> (d[0] if s[0]), (d[1] if s[1]), ...
+dropwhile(pred, seq) --> seq[n], seq[n+1], starting when pred fails
+groupby(iterable[, keyfunc]) --> sub-iterators grouped by value of keyfunc(v)
+filterfalse(pred, seq) --> elements of seq where pred(elem) is False
+islice(seq, [start,] stop [, step]) --> elements from
+       seq[start:stop:step]
+starmap(fun, seq) --> fun(*seq[0]), fun(*seq[1]), ...
+tee(it, n=2) --> (it1, it2 , ... itn) splits one iterator into n
+takewhile(pred, seq) --> seq[0], seq[1], until pred fails
+zip_longest(p, q, ...) --> (p[0], q[0]), (p[1], q[1]), ... 
 
-## keyboard.**recording**
-
-
-<a name="keyboard.is_str"/>
-
-## keyboard.**is\_str**(x)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L90)
-
-
-
-
-<a name="keyboard.is_number"/>
-
-## keyboard.**is\_number**(x)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L91)
-
-
-
-
-<a name="keyboard.matches"/>
-
-## keyboard.**matches**(event, name)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L141)
+Combinatoric generators:
+product(p, q, ... [repeat=1]) --> cartesian product
+permutations(p[, r])
+combinations(p, r)
+combinations_with_replacement(p, r)
 
 
-Returns True if the given event represents the same key as the one given in
-`name`.
 
+<a name="keyboard.print_function"/>
+
+## keyboard.**print\_function**
+
+
+
+
+<a name="keyboard.re"/>
+
+## keyboard.**re**
+
+Support for regular expressions (RE).
+
+This module provides regular expression matching operations similar to
+those found in Perl.  It supports both 8-bit and Unicode strings; both
+the pattern and the strings being processed can contain null bytes and
+characters outside the US ASCII range.
+
+Regular expressions can contain both special and ordinary characters.
+Most ordinary characters, like "A", "a", or "0", are the simplest
+regular expressions; they simply match themselves.  You can
+concatenate ordinary characters, so last matches the string 'last'.
+
+The special characters are:
+    "."      Matches any character except a newline.
+    "^"      Matches the start of the string.
+    "$"      Matches the end of the string or just before the newline at
+             the end of the string.
+    "*"      Matches 0 or more (greedy) repetitions of the preceding RE.
+             Greedy means that it will match as many repetitions as possible.
+    "+"      Matches 1 or more (greedy) repetitions of the preceding RE.
+    "?"      Matches 0 or 1 (greedy) of the preceding RE.
+    *?,+?,?? Non-greedy versions of the previous three special characters.
+    {m,n}    Matches from m to n repetitions of the preceding RE.
+    {m,n}?   Non-greedy version of the above.
+    "\\"     Either escapes special characters or signals a special sequence.
+    []       Indicates a set of characters.
+             A "^" as the first character indicates a complementing set.
+    "|"      A|B, creates an RE that will match either A or B.
+    (...)    Matches the RE inside the parentheses.
+             The contents can be retrieved or matched later in the string.
+    (?aiLmsux) Set the A, I, L, M, S, U, or X flag for the RE (see below).
+    (?:...)  Non-grouping version of regular parentheses.
+    (?P<name>...) The substring matched by the group is accessible by name.
+    (?P=name)     Matches the text matched earlier by the group named name.
+    (?#...)  A comment; ignored.
+    (?=...)  Matches if ... matches next, but doesn't consume the string.
+    (?!...)  Matches if ... doesn't match next.
+    (?<=...) Matches if preceded by ... (must be fixed length).
+    (?<!...) Matches if not preceded by ... (must be fixed length).
+    (?(id/name)yes|no) Matches yes pattern if the group with id/name matched,
+                       the (optional) no pattern otherwise.
+
+The special sequences consist of "\\" and a character from the list
+below.  If the ordinary character is not on the list, then the
+resulting RE will match the second character.
+    \number  Matches the contents of the group of the same number.
+    \A       Matches only at the start of the string.
+    \Z       Matches only at the end of the string.
+    \b       Matches the empty string, but only at the start or end of a word.
+    \B       Matches the empty string, but not at the start or end of a word.
+    \d       Matches any decimal digit; equivalent to the set [0-9] in
+             bytes patterns or string patterns with the ASCII flag.
+             In string patterns without the ASCII flag, it will match the whole
+             range of Unicode digits.
+    \D       Matches any non-digit character; equivalent to [^\d].
+    \s       Matches any whitespace character; equivalent to [ \t\n\r\f\v] in
+             bytes patterns or string patterns with the ASCII flag.
+             In string patterns without the ASCII flag, it will match the whole
+             range of Unicode whitespace characters.
+    \S       Matches any non-whitespace character; equivalent to [^\s].
+    \w       Matches any alphanumeric character; equivalent to [a-zA-Z0-9_]
+             in bytes patterns or string patterns with the ASCII flag.
+             In string patterns without the ASCII flag, it will match the
+             range of Unicode alphanumeric characters (letters plus digits
+             plus underscore).
+             With LOCALE, it will match the set [0-9_] plus characters defined
+             as letters for the current locale.
+    \W       Matches the complement of \w.
+    \\       Matches a literal backslash.
+
+This module exports the following functions:
+    match     Match a regular expression pattern to the beginning of a string.
+    fullmatch Match a regular expression pattern to all of a string.
+    search    Search a string for the presence of a pattern.
+    sub       Substitute occurrences of a pattern found in a string.
+    subn      Same as sub, but also return the number of substitutions made.
+    split     Split a string by the occurrences of a pattern.
+    findall   Find all occurrences of a pattern in a string.
+    finditer  Return an iterator yielding a match object for each match.
+    compile   Compile a pattern into a RegexObject.
+    purge     Clear the regular expression cache.
+    escape    Backslash all non-alphanumerics in a string.
+
+Some of the functions in this module takes flags as optional parameters:
+    A  ASCII       For string patterns, make \w, \W, \b, \B, \d, \D
+                   match the corresponding ASCII character categories
+                   (rather than the whole Unicode categories, which is the
+                   default).
+                   For bytes patterns, this flag is the only available
+                   behaviour and needn't be specified.
+    I  IGNORECASE  Perform case-insensitive matching.
+    L  LOCALE      Make \w, \W, \b, \B, dependent on the current locale.
+    M  MULTILINE   "^" matches the beginning of lines (after a newline)
+                   as well as the string.
+                   "$" matches the end of lines (before a newline) as well
+                   as the end of the string.
+    S  DOTALL      "." matches any character at all, including the newline.
+    X  VERBOSE     Ignore whitespace and comments for nicer looking RE's.
+    U  UNICODE     For compatibility only. Ignored for string patterns (it
+                   is the default), and forbidden for bytes patterns.
+
+This module also defines an exception 'error'.
+
+
+
+
+<a name="keyboard.sided_modifiers"/>
+
+## keyboard.**sided\_modifiers**
+
+set() -> new empty set object
+set(iterable) -> new set object
+
+Build an unordered collection of unique elements.
+
+
+<a name="keyboard.is_modifier"/>
+
+## keyboard.**is\_modifier**(key)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L130)
+
+
+Returns True if `key` is a scan code or name of a modifier key.
+
+
+
+<a name="keyboard.key_to_scan_codes"/>
+
+## keyboard.**key\_to\_scan\_codes**(key, error\_if\_missing=True)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L286)
+
+
+Returns a list of scan codes associated with this key (name or scan code).
+
+
+
+<a name="keyboard.parse_hotkey"/>
+
+## keyboard.**parse\_hotkey**(hotkey)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L316)
+
+
+Parses a user-provided hotkey into nested tuples representing the
+parsed structure, with the bottom values being lists of scan codes.
+Also accepts raw scan codes, which are then wrapped in the required
+number of nestings.
+
+Example:
+
+    parse_hotkey("alt+shift+a, alt+b, c")
+    #    Keys:    ^~^ ^~~~^ ^  ^~^ ^  ^
+    #    Steps:   ^~~~~~~~~~^  ^~~~^  ^
+
+    # ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,))
+
+
+
+<a name="keyboard.send"/>
+
+## keyboard.**send**(hotkey, do\_press=True, do\_release=True)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L349)
+
+
+Sends OS events that perform the given *hotkey* hotkey.
+
+- `hotkey` can be either a scan code (e.g. 57 for space), single key
+(e.g. 'space') or multi-key, multi-step hotkey (e.g. 'alt+F4, enter').
+- `do_press` if true then press events are sent. Defaults to True.
+- `do_release` if true then release events are sent. Defaults to True.
+
+    send(57)
+    send('ctrl+alt+del')
+    send('alt+F4, enter')
+    send('shift+s')
+
+Note: keys are released in the opposite order they were pressed.
+
+
+
+<a name="keyboard.press_and_release"/>
+
+## keyboard.**press\_and\_release**
+
+Alias for [`send`](#keyboard.send).
+
+
+<a name="keyboard.press"/>
+
+## keyboard.**press**(hotkey)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L382)
+
+Presses and holds down a hotkey (see [`send`](#keyboard.send)). 
+
+
+<a name="keyboard.release"/>
+
+## keyboard.**release**(hotkey)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L386)
+
+Releases a hotkey (see [`send`](#keyboard.send)). 
 
 
 <a name="keyboard.is_pressed"/>
 
-## keyboard.**is\_pressed**(key)
+## keyboard.**is\_pressed**(hotkey)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L158)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L390)
 
 
 Returns True if the key is pressed.
@@ -232,33 +471,11 @@ Returns True if the key is pressed.
 
 
 
-<a name="keyboard.canonicalize"/>
-
-## keyboard.**canonicalize**(hotkey)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L180)
-
-
-Splits a user provided hotkey into a list of steps, each one made of a list
-of scan codes or names. Used to normalize input at the API boundary. When a
-combo is given (e.g. 'ctrl + a, b') spaces are ignored.
-
-    canonicalize(57) -> [[57]]
-    canonicalize([[57]]) -> [[57]]
-    canonicalize('space') -> [['space']]
-    canonicalize('ctrl+space') -> [['ctrl', 'space']]
-    canonicalize('ctrl+space, space') -> [['ctrl', 'space'], ['space']]
-
-Note we must not convert names into scan codes because a name may represent
-more than one physical key (e.g. two 'ctrl' keys).
-
-
-
 <a name="keyboard.call_later"/>
 
 ## keyboard.**call\_later**(fn, args=(), delay=0.001)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L214)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L413)
 
 
 Calls the provided function in a new thread after waiting some time.
@@ -267,79 +484,11 @@ the current execution flow.
 
 
 
-<a name="keyboard.clear_all_hotkeys"/>
-
-## keyboard.**clear\_all\_hotkeys**()
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L232)
-
-
-Removes all hotkey handlers. Note some functions such as 'wait' and 'record'
-internally use hotkeys and will be affected by this call.
-
-Abbreviations and word listeners are not hotkeys and therefore not affected.  
-To remove all hooks use [`unhook_all()`](#keyboard.unhook_all).
-
-
-
-<a name="keyboard.remove_all_hotkeys"/>
-
-## keyboard.**remove\_all\_hotkeys**
-
-Alias for [`clear_all_hotkeys`](#keyboard.clear_all_hotkeys).
-
-
-<a name="keyboard.add_hotkey"/>
-
-## keyboard.**add\_hotkey**(hotkey, callback, args=(), suppress=False, timeout=1, trigger\_on\_release=False)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L249)
-
-
-Invokes a callback every time a key combination is pressed. The hotkey must
-be in the format "ctrl+shift+a, s". This would trigger when the user holds
-ctrl, shift and "a" at once, releases, and then presses "s". To represent
-literal commas, pluses and spaces use their names ('comma', 'plus',
-'space').
-
-- `args` is an optional list of arguments to passed to the callback during
-each invocation.
-- `suppress` defines if the it should block processing other hotkeys after
-a match is found. Currently Windows-only.
-- `timeout` is the amount of seconds allowed to pass between key presses.
-- `trigger_on_release` if true, the callback is invoked on key release instead
-of key press.
-
-The event handler function is returned. To remove a hotkey call
-[`remove_hotkey(hotkey)`](#keyboard.remove_hotkey) or [`remove_hotkey(handler)`](#keyboard.remove_hotkey).
-before the combination state is reset.
-
-Note: hotkeys are activated when the last key is *pressed*, not released.
-Note: the callback is executed in a separate thread, asynchronously. For an
-example of how to use a callback synchronously, see [`wait`](#keyboard.wait).
-
-    add_hotkey(57, print, args=['space was pressed'])
-    add_hotkey(' ', print, args=['space was pressed'])
-    add_hotkey('space', print, args=['space was pressed'])
-    add_hotkey('Space', print, args=['space was pressed'])
-
-    add_hotkey('ctrl+q', quit)
-    add_hotkey('ctrl+alt+enter, space', some_callback)
-
-
-
-<a name="keyboard.register_hotkey"/>
-
-## keyboard.**register\_hotkey**
-
-Alias for [`add_hotkey`](#keyboard.add_hotkey).
-
-
 <a name="keyboard.hook"/>
 
-## keyboard.**hook**(callback)
+## keyboard.**hook**(callback, suppress=False, on\_remove=&lt;function &lt;lambda&gt; at 0x000001554F0B5F28&gt;)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L328)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L421)
 
 
 Installs a global listener on all available keyboards, invoking `callback`
@@ -358,32 +507,33 @@ Returns the given callback for easier development.
 
 
 
-<a name="keyboard.unhook"/>
+<a name="keyboard.on_press"/>
 
-## keyboard.**unhook**(callback)
+## keyboard.**on\_press**(callback, suppress=False)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L347)
-
-Removes a previously hooked callback. 
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L446)
 
 
-<a name="keyboard.unhook_all"/>
-
-## keyboard.**unhook\_all**()
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L351)
+Invokes `callback` for every KEY_DOWN event. For details see [`hook`](#keyboard.hook).
 
 
-Removes all keyboard hooks in use, including hotkeys, abbreviations, word
-listeners, [`record`](#keyboard.record)ers and [`wait`](#keyboard.wait)s.
+
+<a name="keyboard.on_release"/>
+
+## keyboard.**on\_release**(callback, suppress=False)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L452)
+
+
+Invokes `callback` for every KEY_UP event. For details see [`hook`](#keyboard.hook).
 
 
 
 <a name="keyboard.hook_key"/>
 
-## keyboard.**hook\_key**(key, keydown\_callback=&lt;lambda&gt;, keyup\_callback=&lt;lambda&gt;)
+## keyboard.**hook\_key**(key, callback, suppress=False)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L360)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L458)
 
 
 Hooks key up and key down events for a single key. Returns the event handler
@@ -395,53 +545,471 @@ affects it aswell.
 
 
 
-<a name="keyboard.on_press"/>
+<a name="keyboard.on_press_key"/>
 
-## keyboard.**on\_press**(callback)
+## keyboard.**on\_press\_key**(key, callback, suppress=False)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L381)
-
-
-Invokes `callback` for every KEY_DOWN event. For details see [`hook`](#keyboard.hook).
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L474)
 
 
-
-<a name="keyboard.on_release"/>
-
-## keyboard.**on\_release**(callback)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L387)
-
-
-Invokes `callback` for every KEY_UP event. For details see [`hook`](#keyboard.hook).
+Invokes `callback` for KEY_DOWN event related to the given key. For details see [`hook`](#keyboard.hook).
 
 
 
-<a name="keyboard.remove_hotkey"/>
+<a name="keyboard.on_release_key"/>
 
-## keyboard.**remove\_hotkey**(hotkey\_or\_handler)
+## keyboard.**on\_release\_key**(key, callback, suppress=False)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L416)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L480)
 
 
-Removes a previously registered hotkey. Accepts either the hotkey used
-during registration (exact string) or the event handler returned by the
-[`add_hotkey`](#keyboard.add_hotkey) or [`hook_key`](#keyboard.hook_key) functions.
+Invokes `callback` for KEY_UP event related to the given key. For details see [`hook`](#keyboard.hook).
 
+
+
+<a name="keyboard.unhook"/>
+
+## keyboard.**unhook**(remove)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L486)
+
+
+Removes a previously added hook. Must be called with the value returned by
+the hook.
+
+
+
+<a name="keyboard.unblock_key"/>
+
+## keyboard.**unblock\_key**
+
+Alias for [`unhook`](#keyboard.unhook).
 
 
 <a name="keyboard.unhook_key"/>
 
 ## keyboard.**unhook\_key**
 
+Alias for [`unhook`](#keyboard.unhook).
+
+
+<a name="keyboard.unremap_key"/>
+
+## keyboard.**unremap\_key**
+
+Alias for [`unhook`](#keyboard.unhook).
+
+
+<a name="keyboard.unhook_all"/>
+
+## keyboard.**unhook\_all**()
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L494)
+
+
+Removes all keyboard hooks in use, including hotkeys, abbreviations, word
+listeners, [`record`](#keyboard.record)ers and [`wait`](#keyboard.wait)s.
+
+
+
+<a name="keyboard.block_key"/>
+
+## keyboard.**block\_key**(key)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L505)
+
+
+Suppresses all key events of the given key, regardless of modifiers.
+
+
+
+<a name="keyboard.remap_key"/>
+
+## keyboard.**remap\_key**(src, dst)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L512)
+
+
+Whenever the key `src` is pressed or released, regardless of modifiers,
+press or release the hotkey `dst` instead.
+
+
+
+<a name="keyboard.parse_hotkey_combinations"/>
+
+## keyboard.**parse\_hotkey\_combinations**(hotkey)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L526)
+
+
+Parses a user-provided hotkey. Differently from [`parse_hotkey`](#keyboard.parse_hotkey),
+instead of each step being a list of the different scan codes for each key,
+each step is a list of all possible combinations of those scan codes.
+
+
+
+<a name="keyboard.add_hotkey"/>
+
+## keyboard.**add\_hotkey**(hotkey, callback, args=(), suppress=True, timeout=0, trigger\_on\_release=False)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L565)
+
+
+Invokes a callback every time a hotkey is pressed. The hotkey must
+be in the format "ctrl+shift+a, s". This would trigger when the user holds
+ctrl, shift and "a" at once, releases, and then presses "s". To represent
+literal commas, pluses and spaces use their names ('comma', 'plus',
+'space').
+
+- `args` is an optional list of arguments to passed to the callback during
+each invocation.
+- `suppress` defines if the it should block processing other hotkeys after
+a match is found. Currently Windows-only.
+- `timeout` is the amount of seconds allowed to pass between key presses.
+- `trigger_on_release` if true, the callback is invoked on key release instead
+of key press.
+
+The event handler function is returned. To remove a hotkey call
+[`remove_hotkey(hotkey)`](#keyboard.remove_hotkey) or [`remove_hotkey(handler)`](#keyboard.remove_hotkey).
+before the hotkey state is reset.
+
+Note: hotkeys are activated when the last key is *pressed*, not released.
+Note: the callback is executed in a separate thread, asynchronously. For an
+example of how to use a callback synchronously, see [`wait`](#keyboard.wait).
+
+Examples:
+
+    # Different but equivalent ways to listen for a spacebar key press.
+    add_hotkey(' ', print, args=['space was pressed'])
+    add_hotkey('space', print, args=['space was pressed'])
+    add_hotkey('Space', print, args=['space was pressed'])
+    # Here 57 represents the keyboard code for spacebar; so you will be
+    # pressing 'spacebar', not '57' to activate the print function.
+    add_hotkey(57, print, args=['space was pressed'])
+
+    add_hotkey('ctrl+q', quit)
+    add_hotkey('ctrl+alt+enter, space', some_callback)
+
+
+
+<a name="keyboard.register_hotkey"/>
+
+## keyboard.**register\_hotkey**
+
+Alias for [`add_hotkey`](#keyboard.add_hotkey).
+
+
+<a name="keyboard.remove_hotkey"/>
+
+## keyboard.**remove\_hotkey**(remove)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L687)
+
+
+Removes a previously hooked hotkey. Must be called wtih the value returned
+by [`add_hotkey`](#keyboard.add_hotkey).
+
+
+
+<a name="keyboard.clear_hotkey"/>
+
+## keyboard.**clear\_hotkey**
+
 Alias for [`remove_hotkey`](#keyboard.remove_hotkey).
+
+
+<a name="keyboard.unregister_hotkey"/>
+
+## keyboard.**unregister\_hotkey**
+
+Alias for [`remove_hotkey`](#keyboard.remove_hotkey).
+
+
+<a name="keyboard.unremap_hotkey"/>
+
+## keyboard.**unremap\_hotkey**
+
+Alias for [`remove_hotkey`](#keyboard.remove_hotkey).
+
+
+<a name="keyboard.unhook_all_hotkeys"/>
+
+## keyboard.**unhook\_all\_hotkeys**()
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L696)
+
+
+Removes all keyboard hotkeys in use, including abbreviations, word listeners,
+[`record`](#keyboard.record)ers and [`wait`](#keyboard.wait)s.
+
+
+
+<a name="keyboard.clear_all_hotkeys"/>
+
+## keyboard.**clear\_all\_hotkeys**
+
+Alias for [`unhook_all_hotkeys`](#keyboard.unhook_all_hotkeys).
+
+
+<a name="keyboard.remove_all_hotkeys"/>
+
+## keyboard.**remove\_all\_hotkeys**
+
+Alias for [`unhook_all_hotkeys`](#keyboard.unhook_all_hotkeys).
+
+
+<a name="keyboard.unregister_all_hotkeys"/>
+
+## keyboard.**unregister\_all\_hotkeys**
+
+Alias for [`unhook_all_hotkeys`](#keyboard.unhook_all_hotkeys).
+
+
+<a name="keyboard.remap_hotkey"/>
+
+## keyboard.**remap\_hotkey**(src, dst, suppress=True, trigger\_on\_release=False)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L707)
+
+
+Whenever the hotkey `src` is pressed, suppress it and send
+`dst` instead.
+
+Example:
+
+    remap('alt+w', 'ctrl+up')
+
+
+
+<a name="keyboard.stash_state"/>
+
+## keyboard.**stash\_state**()
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L727)
+
+
+Builds a list of all currently pressed scan codes, releases them and returns
+the list. Pairs well with [`restore_state`](#keyboard.restore_state) and [`restore_modifiers`](#keyboard.restore_modifiers).
+
+
+
+<a name="keyboard.restore_state"/>
+
+## keyboard.**restore\_state**(scan\_codes)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L738)
+
+
+Given a list of scan_codes ensures these keys, and only these keys, are
+pressed. Pairs well with [`stash_state`](#keyboard.stash_state), alternative to [`restore_modifiers`](#keyboard.restore_modifiers).
+
+
+
+<a name="keyboard.restore_modifiers"/>
+
+## keyboard.**restore\_modifiers**(scan\_codes)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L754)
+
+
+Like [`restore_state`](#keyboard.restore_state), but only restores modifier keys.
+
+
+
+<a name="keyboard.write"/>
+
+## keyboard.**write**(text, delay=0, exact=None)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L760)
+
+
+Sends artificial keyboard events to the OS, simulating the typing of a given
+text. Characters not available on the keyboard are typed as explicit unicode
+characters using OS-specific functionality, such as alt+codepoint.
+
+To ensure text integrity all currently pressed keys are released before
+the text is typed.
+
+- `delay` is the number of seconds to wait between keypresses, defaults to
+no delay.
+- `exact` forces typing all characters as explicit unicode (e.g.
+alt+codepoint or special events). If None, uses platform-specific suggested
+value.
+
+
+
+<a name="keyboard.wait"/>
+
+## keyboard.**wait**(hotkey=None, suppress=False, trigger\_on\_release=False)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L806)
+
+
+Blocks the program execution until the given hotkey is pressed or,
+if given no parameters, blocks forever.
+
+
+
+<a name="keyboard.get_hotkey_name"/>
+
+## keyboard.**get\_hotkey\_name**(names=None)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L820)
+
+
+Returns a string representation of hotkey from the given key names, or
+the currently pressed keys if not given.  This function:
+
+- normalizes names;
+- removes "left" and "right" prefixes;
+- replaces the "+" key name with "plus" to avoid ambiguity;
+- puts modifier keys first, in a standardized order;
+- sort remaining keys;
+- finally, joins everything with "+".
+
+Example:
+
+    get_hotkey_name(['+', 'left ctrl', 'shift'])
+    # "ctrl+shift+plus"
+
+
+
+<a name="keyboard.read_event"/>
+
+## keyboard.**read\_event**(suppress=False)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L850)
+
+
+Blocks until a keyboard event happens, then returns that event.
+
+
+
+<a name="keyboard.read_key"/>
+
+## keyboard.**read\_key**(suppress=False)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L861)
+
+
+Blocks until a keyboard event happens, then returns that event's name or,
+if missing, its scan code.
+
+
+
+<a name="keyboard.read_hotkey"/>
+
+## keyboard.**read\_hotkey**(suppress=True)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L869)
+
+
+Similar to [`read_key()`](#keyboard.read_key), but blocks until the user presses and releases a key
+hotkey (or single key), then returns a string representing the hotkey
+pressed.
+
+Example:
+
+    read_hotkey()
+    # "ctrl+shift+p"
+
+
+
+<a name="keyboard.get_typed_strings"/>
+
+## keyboard.**get\_typed\_strings**(events, allow\_backspace=True)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L890)
+
+
+Given a sequence of events, tries to deduce what strings were typed.
+Strings are separated when a non-textual key is pressed (such as tab or
+enter). Characters are converted to uppercase according to shift and
+capslock status. If `allow_backspace` is True, backspaces remove the last
+character typed.
+
+This function is a generator, so you can pass an infinite stream of events
+and convert them to strings in real time.
+
+Note this functions is merely an heuristic. Windows for example keeps per-
+process keyboard state such as keyboard layout, and this information is not
+available for our hooks.
+
+    get_type_strings(record()) -> ['This is what', 'I recorded', '']
+
+
+
+<a name="keyboard.start_recording"/>
+
+## keyboard.**start\_recording**(recorded\_events\_queue=None)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L935)
+
+
+Starts recording all keyboard events into a global variable, or the given
+queue if any. Returns the queue of events and the hooked function.
+
+Use [`stop_recording()`](#keyboard.stop_recording) or [`unhook(hooked_function)`](#keyboard.unhook) to stop.
+
+
+
+<a name="keyboard.stop_recording"/>
+
+## keyboard.**stop\_recording**()
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L947)
+
+
+Stops the global recording of events and returns a list of the events
+captured.
+
+
+
+<a name="keyboard.record"/>
+
+## keyboard.**record**(until=&#x27;escape&#x27;, suppress=False, trigger\_on\_release=False)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L959)
+
+
+Records all keyboard events from all keyboards until the user presses the
+given hotkey. Then returns the list of events recorded, of type
+`keyboard.KeyboardEvent`. Pairs well with
+[`play(events)`](#keyboard.play).
+
+Note: this is a blocking function.
+Note: for more details on the keyboard hook and events see [`hook`](#keyboard.hook).
+
+
+
+<a name="keyboard.play"/>
+
+## keyboard.**play**(events, speed\_factor=1.0)
+
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L973)
+
+
+Plays a sequence of recorded events, maintaining the relative time
+intervals. If speed_factor is <= 0 then the actions are replayed as fast
+as the OS allows. Pairs well with [`record()`](#keyboard.record).
+
+Note: the current keyboard state is cleared at the beginning and restored at
+the end of the function.
+
+
+
+<a name="keyboard.replay"/>
+
+## keyboard.**replay**
+
+Alias for [`play`](#keyboard.play).
 
 
 <a name="keyboard.add_word_listener"/>
 
 ## keyboard.**add\_word\_listener**(word, callback, triggers=[&#x27;space&#x27;], match\_suffix=False, timeout=2)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L435)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L997)
 
 
 Invokes a callback every time a sequence of characters is typed (e.g. 'pet')
@@ -453,8 +1021,8 @@ shift) are ignored.
 is typed.
 - `triggers` is the list of keys that will cause a match to be checked. If
 the user presses some key that is not a character (len>1) and not in
-triggers, the characters so far will be discarded. By default only space
-bar triggers match checks.
+triggers, the characters so far will be discarded. By default the trigger
+is only `space`.
 - `match_suffix` defines if endings of words should also be checked instead
 of only whole words. E.g. if true, typing 'carpet'+space will trigger the
 listener for 'pet'. Defaults to false, only whole words are checked.
@@ -480,7 +1048,7 @@ Alias for [`add_word_listener`](#keyboard.add_word_listener).
 
 ## keyboard.**remove\_word\_listener**(word\_or\_handler)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L486)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L1056)
 
 
 Removes a previously registered word listener. Accepts either the word used
@@ -500,7 +1068,7 @@ Alias for [`remove_word_listener`](#keyboard.remove_word_listener).
 
 ## keyboard.**add\_abbreviation**(source\_text, replacement\_text, match\_suffix=False, timeout=2)
 
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L494)
+[\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L1064)
 
 
 Registers a hotkey that replaces one typed text with another. For example
@@ -525,277 +1093,5 @@ For more details see [`add_word_listener`](#keyboard.add_word_listener).
 ## keyboard.**register\_abbreviation**
 
 Alias for [`add_abbreviation`](#keyboard.add_abbreviation).
-
-
-<a name="keyboard.stash_state"/>
-
-## keyboard.**stash\_state**()
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L520)
-
-
-Builds a list of all currently pressed scan codes, releases them and returns
-the list. Pairs well with [`restore_state`](#keyboard.restore_state).
-
-
-
-<a name="keyboard.restore_state"/>
-
-## keyboard.**restore\_state**(scan\_codes)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L530)
-
-
-Given a list of scan_codes ensures these keys, and only these keys, are
-pressed. Pairs well with [`stash_state`](#keyboard.stash_state).
-
-
-
-<a name="keyboard.write"/>
-
-## keyboard.**write**(text, delay=0, restore\_state\_after=True, exact=False)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L542)
-
-
-Sends artificial keyboard events to the OS, simulating the typing of a given
-text. Characters not available on the keyboard are typed as explicit unicode
-characters using OS-specific functionality, such as alt+codepoint.
-
-To ensure text integrity all currently pressed keys are released before
-the text is typed.
-
-- `delay` is the number of seconds to wait between keypresses, defaults to
-no delay.
-- `restore_state_after` can be used to restore the state of pressed keys
-after the text is typed, i.e. presses the keys that were released at the
-beginning. Defaults to True.
-- `exact` forces typing all characters as explicit unicode (e.g. alt+codepoint)
-
-
-
-<a name="keyboard.to_scan_code"/>
-
-## keyboard.**to\_scan\_code**(key)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L592)
-
-
-Returns the scan code for a given key name (or scan code, i.e. do nothing).
-Note that a name may belong to more than one physical key, in which case
-one of the scan codes will be chosen.
-
-
-
-<a name="keyboard.send"/>
-
-## keyboard.**send**(combination, do\_press=True, do\_release=True)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L604)
-
-
-Sends OS events that perform the given hotkey combination.
-
-- `combination` can be either a scan code (e.g. 57 for space), single key
-(e.g. 'space') or multi-key, multi-step combination (e.g. 'alt+F4, enter').
-- `do_press` if true then press events are sent. Defaults to True.
-- `do_release` if true then release events are sent. Defaults to True.
-
-    send(57)
-    send('ctrl+alt+del')
-    send('alt+F4, enter')
-    send('shift+s')
-
-Note: keys are released in the opposite order they were pressed.
-
-
-
-<a name="keyboard.press"/>
-
-## keyboard.**press**(combination)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L629)
-
-Presses and holds down a key combination (see [`send`](#keyboard.send)). 
-
-
-<a name="keyboard.release"/>
-
-## keyboard.**release**(combination)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L633)
-
-Releases a key combination (see [`send`](#keyboard.send)). 
-
-
-<a name="keyboard.press_and_release"/>
-
-## keyboard.**press\_and\_release**(combination)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L637)
-
-Presses and releases the key combination (see [`send`](#keyboard.send)). 
-
-
-<a name="keyboard.wait"/>
-
-## keyboard.**wait**(combination=None)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L655)
-
-
-Blocks the program execution until the given key combination is pressed or,
-if given no parameters, blocks forever.
-
-
-
-<a name="keyboard.read_key"/>
-
-## keyboard.**read\_key**(filter=&lt;lambda&gt;)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L666)
-
-
-Blocks until a keyboard event happens, then returns that event.
-
-
-
-<a name="keyboard.record"/>
-
-## keyboard.**record**(until=&#x27;escape&#x27;)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L678)
-
-
-Records all keyboard events from all keyboards until the user presses the
-given key combination. Then returns the list of events recorded, of type
-`keyboard.KeyboardEvent`. Pairs well with
-[`play(events)`](#keyboard.play).
-
-Note: this is a blocking function.
-Note: for more details on the keyboard hook and events see [`hook`](#keyboard.hook).
-
-
-
-<a name="keyboard.play"/>
-
-## keyboard.**play**(events, speed\_factor=1.0)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L694)
-
-
-Plays a sequence of recorded events, maintaining the relative time
-intervals. If speed_factor is <= 0 then the actions are replayed as fast
-as the OS allows. Pairs well with [`record()`](#keyboard.record).
-
-Note: the current keyboard state is cleared at the beginning and restored at
-the end of the function.
-
-
-
-<a name="keyboard.replay"/>
-
-## keyboard.**replay**
-
-Alias for [`play`](#keyboard.play).
-
-
-<a name="keyboard.get_typed_strings"/>
-
-## keyboard.**get\_typed\_strings**(events, allow\_backspace=True)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L722)
-
-
-Given a sequence of events, tries to deduce what strings were typed.
-Strings are separated when a non-textual key is pressed (such as tab or
-enter). Characters are converted to uppercase according to shift and
-capslock status. If `allow_backspace` is True, backspaces remove the last
-character typed.
-
-This function is a generator, so you can pass an infinite stream of events
-and convert them to strings in real time.
-
-Note this functions is merely an heuristic. Windows for example keeps per-
-process keyboard state such as keyboard layout, and this information is not
-available for our hooks.
-
-    get_type_strings(record()) -> ['This is what', 'I recorded', '']
-
-
-
-<a name="keyboard.start_recording"/>
-
-## keyboard.**start\_recording**(recorded\_events\_queue=None)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L769)
-
-
-Starts recording all keyboard events into a global variable, or the given
-queue if any. Returns the queue of events and the hooked function.
-
-Use [`stop_recording()`](#keyboard.stop_recording) or [`unhook(hooked_function)`](#keyboard.unhook) to stop.
-
-
-
-<a name="keyboard.stop_recording"/>
-
-## keyboard.**stop\_recording**()
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L781)
-
-
-Stops the global recording of events and returns a list of the events
-captured.
-
-
-
-<a name="keyboard.get_shortcut_name"/>
-
-## keyboard.**get\_shortcut\_name**(names=None)
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L795)
-
-
-Returns a string representation of shortcut from the given key names, or
-the currently pressed keys if not given.  This function:
-
-- normalizes names;
-- removes "left" and "right" prefixes;
-- replaces the "+" key name with "plus" to avoid ambiguity;
-- puts modifier keys first, in a standardized order;
-- sort remaining keys;
-- finally, joins everything with "+".
-
-Example:
-
-    get_shortcut_name(['+', 'left ctrl', 'shift'])
-    # "ctrl+shift+plus"
-
-
-
-<a name="keyboard.read_shortcut"/>
-
-## keyboard.**read\_shortcut**()
-
-[\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L825)
-
-
-Similar to [`read_key()`](#keyboard.read_key), but blocks until the user presses and releases a key
-combination (or single key), then returns a string representing the shortcut
-pressed.
-
-Example:
-
-    read_shortcut()
-    # "ctrl+shift+p"
-
-
-
-<a name="keyboard.read_hotkey"/>
-
-## keyboard.**read\_hotkey**
-
-Alias for [`read_shortcut`](#keyboard.read_shortcut).
 
 

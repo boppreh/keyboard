@@ -80,7 +80,7 @@ def listen(queue):
         if type == EV_SYN or type == EV_MSC:
             continue
 
-        event_type = None
+        event = None
         arg = None
 
         if type == EV_KEY:
