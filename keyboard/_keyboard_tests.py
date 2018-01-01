@@ -638,10 +638,6 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_single_step_suppress_regression_1(self):
         keyboard.add_hotkey('a', trigger, suppress=True)
         self.do(d_c+d_a+u_c+u_a, d_c+d_a+u_c+u_a)
-    def test_add_hotkey_single_step_suppress_regression_2(self):
-        #https://github.com/boppreh/keyboard/issues/115#issuecomment-353828948
-        keyboard.add_hotkey('alt+a', trigger, suppress=True)
-        self.do(d_alt+d_a+u_alt+u_a, triggered_event+u_a)
 
     def test_remap_hotkey_single(self):
         keyboard.remap_hotkey('a', 'b')

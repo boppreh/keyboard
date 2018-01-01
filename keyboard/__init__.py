@@ -298,7 +298,7 @@ def key_to_scan_codes(key, error_if_missing=True):
     if normalized in sided_modifiers:
         left_scan_codes = key_to_scan_codes('left ' + normalized, False)
         right_scan_codes = key_to_scan_codes('right ' + normalized, False)
-        return left_scan_codes + right_scan_codes
+        return tuple(set(left_scan_codes + right_scan_codes))
 
     e = None
     try:
