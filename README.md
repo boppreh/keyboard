@@ -14,7 +14,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 - **Python 2 and 3**.
 - Complex hotkey support (e.g. `Ctrl+Shift+M, Ctrl+Space`) with controllable timeout.
 - Includes **high level API** (e.g. [record](#keyboard.record) and [play](#keyboard.play), [add_abbreviation](#keyboard.add_abbreviation)).
-- Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+ç`).
+- Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+Ã§`).
 - Events automatically captured in separate thread, doesn't block main program.
 - Tested and documented.
 - Doesn't break accented dead keys (I'm looking at you, pyHook).
@@ -514,15 +514,15 @@ each step is a list of all possible combinations of those scan codes.
 
 
 Invokes a callback every time a hotkey is pressed. The hotkey must
-be in the format "ctrl+shift+a, s". This would trigger when the user holds
+be in the format `ctrl+shift+a, s`. This would trigger when the user holds
 ctrl, shift and "a" at once, releases, and then presses "s". To represent
-literal commas, pluses and spaces use their names ('comma', 'plus',
+literal commas, pluses, and spaces, use their names ('comma', 'plus',
 'space').
 
 - `args` is an optional list of arguments to passed to the callback during
 each invocation.
-- `suppress` defines if the it should block processing other hotkeys after
-a match is found. Currently Windows-only.
+- `suppress` defines if successful triggers should block the keys from being
+sent to other programs.
 - `timeout` is the amount of seconds allowed to pass between key presses.
 - `trigger_on_release` if true, the callback is invoked on key release instead
 of key press.
@@ -938,9 +938,9 @@ Alias for [`remove_word_listener`](#keyboard.remove_word_listener).
 Registers a hotkey that replaces one typed text with another. For example
 
 ```py
-add_abbreviation('tm', u'™')
+add_abbreviation('tm', u'â„¢')
 ```
-Replaces every "tm" followed by a space with a ™ symbol (and no space). The
+Replaces every "tm" followed by a space with a â„¢ symbol (and no space). The
 replacement is done by sending backspace events.
 
 - `match_suffix` defines if endings of words should also be checked instead
