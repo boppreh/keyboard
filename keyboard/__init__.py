@@ -74,8 +74,8 @@ key events. In this case `keyboard` will be unable to report events.
 """
 from __future__ import print_function
 
-import re
-import itertools
+import re as _re
+import itertools as _itertools
 import time as _time
 import collections as _collections
 from threading import Thread as _Thread
@@ -341,8 +341,8 @@ def parse_hotkey(hotkey):
         return hotkey
 
     steps = []
-    for step in re.split(r',\s?', hotkey):
-        keys = re.split(r'\s?\+\s?', step)
+    for step in _re.split(r',\s?', hotkey):
+        keys = _re.split(r'\s?\+\s?', step)
         steps.append(tuple(key_to_scan_codes(key) for key in keys))
     return tuple(steps)
 
@@ -535,7 +535,7 @@ def parse_hotkey_combinations(hotkey):
         # event delays, we list all possible combinations of scan codes for these
         # keys. Hotkeys are usually small, and there are not many combinations, so
         # this is not as insane as it sounds.
-        return (tuple(sorted(scan_codes)) for scan_codes in itertools.product(*step))
+        return (tuple(sorted(scan_codes)) for scan_codes in _itertools.product(*step))
 
     return tuple(tuple(combine_step(step)) for step in parse_hotkey(hotkey))
 
