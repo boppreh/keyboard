@@ -36,7 +36,7 @@ Then check the [API docs](https://github.com/boppreh/keyboard#api) to see what f
 ## Example
 
 
-```
+```py
 import keyboard
 
 keyboard.press_and_release('shift+s, space')
@@ -323,9 +323,9 @@ Releases a hotkey (see [`send`](#keyboard.send)).
 Returns True if the key is pressed.
 
 ```py
-is_pressed(57) -> True
-is_pressed('space') -> True
-is_pressed('ctrl+space') -> True
+is_pressed(57) #-> True
+is_pressed('space') #-> True
+is_pressed('ctrl+space') #-> True
 ```
 
 
@@ -344,7 +344,7 @@ the current execution flow.
 
 <a name="keyboard.hook"/>
 
-## keyboard.**hook**(callback, suppress=False, on\_remove=&lt;function &lt;lambda&gt; at 0x00000202B0EE8E18&gt;)
+## keyboard.**hook**(callback, suppress=False, on\_remove=&lt;lambda&gt;)
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L421)
 
@@ -799,7 +799,7 @@ process keyboard state such as keyboard layout, and this information is not
 available for our hooks.
 
 ```py
-get_type_strings(record()) -> ['This is what', 'I recorded', '']
+get_type_strings(record()) #-> ['This is what', 'I recorded', '']
 ```
 
 

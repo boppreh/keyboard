@@ -37,7 +37,7 @@ Then check the [API docs](https://github.com/boppreh/keyboard#api) to see what f
 ## Example
 
 
-```
+```py
 import keyboard
 
 keyboard.press_and_release('shift+s, space')
@@ -391,9 +391,9 @@ def is_pressed(hotkey):
     """
     Returns True if the key is pressed.
 
-        is_pressed(57) -> True
-        is_pressed('space') -> True
-        is_pressed('ctrl+space') -> True
+        is_pressed(57) #-> True
+        is_pressed('space') #-> True
+        is_pressed('ctrl+space') #-> True
     """
     _listener.start_if_necessary()
 
@@ -902,7 +902,7 @@ def get_typed_strings(events, allow_backspace=True):
     process keyboard state such as keyboard layout, and this information is not
     available for our hooks.
 
-        get_type_strings(record()) -> ['This is what', 'I recorded', '']
+        get_type_strings(record()) #-> ['This is what', 'I recorded', '']
     """
     shift_pressed = False
     capslock_pressed = False
