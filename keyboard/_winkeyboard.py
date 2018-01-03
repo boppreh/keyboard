@@ -403,10 +403,9 @@ def _setup_name_tables():
         # Windows is consistent in its inconsistency.
         from_name['alt gr'] = []
         for extended in [0, 1]:
-            for shift_state in [0, 1]:
-                for altgr_state in [0, 1]:
-                    to_name[(541, 162, extended, shift_state, altgr_state)] = ['alt gr']
-                    from_name['alt gr'].append((541, 162, extended, shift_state, altgr_state))
+            for modifiers in distinct_modifiers:
+                to_name[(541, 162, extended, modifiers)] = ['alt gr']
+                from_name['alt gr'].append((541, 162, extended, modifiers))
 
 # Called by keyboard/__init__.py
 init = _setup_name_tables
