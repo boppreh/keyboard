@@ -14,7 +14,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 - **Python 2 and 3**.
 - Complex hotkey support (e.g. `Ctrl+Shift+M, Ctrl+Space`) with controllable timeout.
 - Includes **high level API** (e.g. [record](#keyboard.record) and [play](#keyboard.play), [add_abbreviation](#keyboard.add_abbreviation)).
-- Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+Ã§`).
+- Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+ç`).
 - Events automatically captured in separate thread, doesn't block main program.
 - Tested and documented.
 - Doesn't break accented dead keys (I'm looking at you, pyHook).
@@ -223,8 +223,9 @@ dropwhile(pred, seq) --> seq[n], seq[n+1], starting when pred fails
 groupby(iterable[, keyfunc]) --> sub-iterators grouped by value of keyfunc(v)
 filterfalse(pred, seq) --> elements of seq where pred(elem) is False
 islice(seq, [start,] stop [, step]) --> elements from
-       seq[start:stop:step]
-starmap(fun, seq) --> fun(*seq[0]), fun(*seq[1]), ...
+```py
+seq[start:stop:step]
+```starmap(fun, seq) --> fun(*seq[0]), fun(*seq[1]), ...
 tee(it, n=2) --> (it1, it2 , ... itn) splits one iterator into n
 takewhile(pred, seq) --> seq[0], seq[1], until pred fails
 zip_longest(p, q, ...) --> (p[0], q[0]), (p[1], q[1]), ... 
@@ -261,94 +262,98 @@ regular expressions; they simply match themselves.  You can
 concatenate ordinary characters, so last matches the string 'last'.
 
 The special characters are:
-    "."      Matches any character except a newline.
-    "^"      Matches the start of the string.
-    "$"      Matches the end of the string or just before the newline at
-             the end of the string.
-    "*"      Matches 0 or more (greedy) repetitions of the preceding RE.
-             Greedy means that it will match as many repetitions as possible.
-    "+"      Matches 1 or more (greedy) repetitions of the preceding RE.
-    "?"      Matches 0 or 1 (greedy) of the preceding RE.
-    *?,+?,?? Non-greedy versions of the previous three special characters.
-    {m,n}    Matches from m to n repetitions of the preceding RE.
-    {m,n}?   Non-greedy version of the above.
-    "\\"     Either escapes special characters or signals a special sequence.
-    []       Indicates a set of characters.
-             A "^" as the first character indicates a complementing set.
-    "|"      A|B, creates an RE that will match either A or B.
-    (...)    Matches the RE inside the parentheses.
-             The contents can be retrieved or matched later in the string.
-    (?aiLmsux) Set the A, I, L, M, S, U, or X flag for the RE (see below).
-    (?:...)  Non-grouping version of regular parentheses.
-    (?P<name>...) The substring matched by the group is accessible by name.
-    (?P=name)     Matches the text matched earlier by the group named name.
-    (?#...)  A comment; ignored.
-    (?=...)  Matches if ... matches next, but doesn't consume the string.
-    (?!...)  Matches if ... doesn't match next.
-    (?<=...) Matches if preceded by ... (must be fixed length).
-    (?<!...) Matches if not preceded by ... (must be fixed length).
-    (?(id/name)yes|no) Matches yes pattern if the group with id/name matched,
-                       the (optional) no pattern otherwise.
-
+```py
+"."      Matches any character except a newline.
+"^"      Matches the start of the string.
+"$"      Matches the end of the string or just before the newline at
+         the end of the string.
+"*"      Matches 0 or more (greedy) repetitions of the preceding RE.
+         Greedy means that it will match as many repetitions as possible.
+"+"      Matches 1 or more (greedy) repetitions of the preceding RE.
+"?"      Matches 0 or 1 (greedy) of the preceding RE.
+*?,+?,?? Non-greedy versions of the previous three special characters.
+{m,n}    Matches from m to n repetitions of the preceding RE.
+{m,n}?   Non-greedy version of the above.
+"\\"     Either escapes special characters or signals a special sequence.
+[]       Indicates a set of characters.
+         A "^" as the first character indicates a complementing set.
+"|"      A|B, creates an RE that will match either A or B.
+(...)    Matches the RE inside the parentheses.
+         The contents can be retrieved or matched later in the string.
+(?aiLmsux) Set the A, I, L, M, S, U, or X flag for the RE (see below).
+(?:...)  Non-grouping version of regular parentheses.
+(?P<name>...) The substring matched by the group is accessible by name.
+(?P=name)     Matches the text matched earlier by the group named name.
+(?#...)  A comment; ignored.
+(?=...)  Matches if ... matches next, but doesn't consume the string.
+(?!...)  Matches if ... doesn't match next.
+(?<=...) Matches if preceded by ... (must be fixed length).
+(?<!...) Matches if not preceded by ... (must be fixed length).
+(?(id/name)yes|no) Matches yes pattern if the group with id/name matched,
+                   the (optional) no pattern otherwise.
+```
 The special sequences consist of "\\" and a character from the list
 below.  If the ordinary character is not on the list, then the
 resulting RE will match the second character.
-    \number  Matches the contents of the group of the same number.
-    \A       Matches only at the start of the string.
-    \Z       Matches only at the end of the string.
-    \b       Matches the empty string, but only at the start or end of a word.
-    \B       Matches the empty string, but not at the start or end of a word.
-    \d       Matches any decimal digit; equivalent to the set [0-9] in
-             bytes patterns or string patterns with the ASCII flag.
-             In string patterns without the ASCII flag, it will match the whole
-             range of Unicode digits.
-    \D       Matches any non-digit character; equivalent to [^\d].
-    \s       Matches any whitespace character; equivalent to [ \t\n\r\f\v] in
-             bytes patterns or string patterns with the ASCII flag.
-             In string patterns without the ASCII flag, it will match the whole
-             range of Unicode whitespace characters.
-    \S       Matches any non-whitespace character; equivalent to [^\s].
-    \w       Matches any alphanumeric character; equivalent to [a-zA-Z0-9_]
-             in bytes patterns or string patterns with the ASCII flag.
-             In string patterns without the ASCII flag, it will match the
-             range of Unicode alphanumeric characters (letters plus digits
-             plus underscore).
-             With LOCALE, it will match the set [0-9_] plus characters defined
-             as letters for the current locale.
-    \W       Matches the complement of \w.
-    \\       Matches a literal backslash.
-
+```py
+\number  Matches the contents of the group of the same number.
+\A       Matches only at the start of the string.
+\Z       Matches only at the end of the string.
+\b       Matches the empty string, but only at the start or end of a word.
+\B       Matches the empty string, but not at the start or end of a word.
+\d       Matches any decimal digit; equivalent to the set [0-9] in
+         bytes patterns or string patterns with the ASCII flag.
+         In string patterns without the ASCII flag, it will match the whole
+         range of Unicode digits.
+\D       Matches any non-digit character; equivalent to [^\d].
+\s       Matches any whitespace character; equivalent to [ \t\n\r\f\v] in
+         bytes patterns or string patterns with the ASCII flag.
+         In string patterns without the ASCII flag, it will match the whole
+         range of Unicode whitespace characters.
+\S       Matches any non-whitespace character; equivalent to [^\s].
+\w       Matches any alphanumeric character; equivalent to [a-zA-Z0-9_]
+         in bytes patterns or string patterns with the ASCII flag.
+         In string patterns without the ASCII flag, it will match the
+         range of Unicode alphanumeric characters (letters plus digits
+         plus underscore).
+         With LOCALE, it will match the set [0-9_] plus characters defined
+         as letters for the current locale.
+\W       Matches the complement of \w.
+\\       Matches a literal backslash.
+```
 This module exports the following functions:
-    match     Match a regular expression pattern to the beginning of a string.
-    fullmatch Match a regular expression pattern to all of a string.
-    search    Search a string for the presence of a pattern.
-    sub       Substitute occurrences of a pattern found in a string.
-    subn      Same as sub, but also return the number of substitutions made.
-    split     Split a string by the occurrences of a pattern.
-    findall   Find all occurrences of a pattern in a string.
-    finditer  Return an iterator yielding a match object for each match.
-    compile   Compile a pattern into a RegexObject.
-    purge     Clear the regular expression cache.
-    escape    Backslash all non-alphanumerics in a string.
-
+```py
+match     Match a regular expression pattern to the beginning of a string.
+fullmatch Match a regular expression pattern to all of a string.
+search    Search a string for the presence of a pattern.
+sub       Substitute occurrences of a pattern found in a string.
+subn      Same as sub, but also return the number of substitutions made.
+split     Split a string by the occurrences of a pattern.
+findall   Find all occurrences of a pattern in a string.
+finditer  Return an iterator yielding a match object for each match.
+compile   Compile a pattern into a RegexObject.
+purge     Clear the regular expression cache.
+escape    Backslash all non-alphanumerics in a string.
+```
 Some of the functions in this module takes flags as optional parameters:
-    A  ASCII       For string patterns, make \w, \W, \b, \B, \d, \D
-                   match the corresponding ASCII character categories
-                   (rather than the whole Unicode categories, which is the
-                   default).
-                   For bytes patterns, this flag is the only available
-                   behaviour and needn't be specified.
-    I  IGNORECASE  Perform case-insensitive matching.
-    L  LOCALE      Make \w, \W, \b, \B, dependent on the current locale.
-    M  MULTILINE   "^" matches the beginning of lines (after a newline)
-                   as well as the string.
-                   "$" matches the end of lines (before a newline) as well
-                   as the end of the string.
-    S  DOTALL      "." matches any character at all, including the newline.
-    X  VERBOSE     Ignore whitespace and comments for nicer looking RE's.
-    U  UNICODE     For compatibility only. Ignored for string patterns (it
-                   is the default), and forbidden for bytes patterns.
-
+```py
+A  ASCII       For string patterns, make \w, \W, \b, \B, \d, \D
+               match the corresponding ASCII character categories
+               (rather than the whole Unicode categories, which is the
+               default).
+               For bytes patterns, this flag is the only available
+               behaviour and needn't be specified.
+I  IGNORECASE  Perform case-insensitive matching.
+L  LOCALE      Make \w, \W, \b, \B, dependent on the current locale.
+M  MULTILINE   "^" matches the beginning of lines (after a newline)
+               as well as the string.
+               "$" matches the end of lines (before a newline) as well
+               as the end of the string.
+S  DOTALL      "." matches any character at all, including the newline.
+X  VERBOSE     Ignore whitespace and comments for nicer looking RE's.
+U  UNICODE     For compatibility only. Ignored for string patterns (it
+               is the default), and forbidden for bytes patterns.
+```
 This module also defines an exception 'error'.
 
 
@@ -400,12 +405,14 @@ number of nestings.
 
 Example:
 
-    parse_hotkey("alt+shift+a, alt+b, c")
-    #    Keys:    ^~^ ^~~~^ ^  ^~^ ^  ^
-    #    Steps:   ^~~~~~~~~~^  ^~~~^  ^
-
-    # ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,))
-
+```py
+parse_hotkey("alt+shift+a, alt+b, c")
+#    Keys:    ^~^ ^~~~^ ^  ^~^ ^  ^
+#    Steps:   ^~~~~~~~~~^  ^~~~^  ^
+```
+```py
+# ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,))
+```
 
 
 <a name="keyboard.send"/>
@@ -422,11 +429,12 @@ Sends OS events that perform the given *hotkey* hotkey.
 - `do_press` if true then press events are sent. Defaults to True.
 - `do_release` if true then release events are sent. Defaults to True.
 
-    send(57)
-    send('ctrl+alt+del')
-    send('alt+F4, enter')
-    send('shift+s')
-
+```py
+send(57)
+send('ctrl+alt+del')
+send('alt+F4, enter')
+send('shift+s')
+```
 Note: keys are released in the opposite order they were pressed.
 
 
@@ -465,10 +473,11 @@ Releases a hotkey (see [`send`](#keyboard.send)).
 
 Returns True if the key is pressed.
 
-    is_pressed(57) -> True
-    is_pressed('space') -> True
-    is_pressed('ctrl+space') -> True
-
+```py
+is_pressed(57) -> True
+is_pressed('space') -> True
+is_pressed('ctrl+space') -> True
+```
 
 
 <a name="keyboard.call_later"/>
@@ -486,7 +495,7 @@ the current execution flow.
 
 <a name="keyboard.hook"/>
 
-## keyboard.**hook**(callback, suppress=False, on\_remove=&lt;function &lt;lambda&gt; at 0x000001554F0B5F28&gt;)
+## keyboard.**hook**(callback, suppress=False, on\_remove=&lt;function &lt;lambda&gt; at 0x00000150AF4F5F28&gt;)
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/.\keyboard\__init__.py#L421)
 
@@ -679,17 +688,19 @@ example of how to use a callback synchronously, see [`wait`](#keyboard.wait).
 
 Examples:
 
-    # Different but equivalent ways to listen for a spacebar key press.
-    add_hotkey(' ', print, args=['space was pressed'])
-    add_hotkey('space', print, args=['space was pressed'])
-    add_hotkey('Space', print, args=['space was pressed'])
-    # Here 57 represents the keyboard code for spacebar; so you will be
-    # pressing 'spacebar', not '57' to activate the print function.
-    add_hotkey(57, print, args=['space was pressed'])
-
-    add_hotkey('ctrl+q', quit)
-    add_hotkey('ctrl+alt+enter, space', some_callback)
-
+```py
+# Different but equivalent ways to listen for a spacebar key press.
+add_hotkey(' ', print, args=['space was pressed'])
+add_hotkey('space', print, args=['space was pressed'])
+add_hotkey('Space', print, args=['space was pressed'])
+# Here 57 represents the keyboard code for spacebar; so you will be
+# pressing 'spacebar', not '57' to activate the print function.
+add_hotkey(57, print, args=['space was pressed'])
+```
+```py
+add_hotkey('ctrl+q', quit)
+add_hotkey('ctrl+alt+enter, space', some_callback)
+```
 
 
 <a name="keyboard.register_hotkey"/>
@@ -777,8 +788,9 @@ Whenever the hotkey `src` is pressed, suppress it and send
 
 Example:
 
-    remap('alt+w', 'ctrl+up')
-
+```py
+remap('alt+w', 'ctrl+up')
+```
 
 
 <a name="keyboard.stash_state"/>
@@ -869,9 +881,10 @@ the currently pressed keys if not given.  This function:
 
 Example:
 
-    get_hotkey_name(['+', 'left ctrl', 'shift'])
-    # "ctrl+shift+plus"
-
+```py
+get_hotkey_name(['+', 'left ctrl', 'shift'])
+# "ctrl+shift+plus"
+```
 
 
 <a name="keyboard.read_event"/>
@@ -910,9 +923,10 @@ pressed.
 
 Example:
 
-    read_hotkey()
-    # "ctrl+shift+p"
-
+```py
+read_hotkey()
+# "ctrl+shift+p"
+```
 
 
 <a name="keyboard.get_typed_strings"/>
@@ -935,8 +949,9 @@ Note this functions is merely an heuristic. Windows for example keeps per-
 process keyboard state such as keyboard layout, and this information is not
 available for our hooks.
 
-    get_type_strings(record()) -> ['This is what', 'I recorded', '']
-
+```py
+get_type_strings(record()) -> ['This is what', 'I recorded', '']
+```
 
 
 <a name="keyboard.start_recording"/>
@@ -1073,9 +1088,10 @@ Alias for [`remove_word_listener`](#keyboard.remove_word_listener).
 
 Registers a hotkey that replaces one typed text with another. For example
 
-    add_abbreviation('tm', u'â„¢')
-
-Replaces every "tm" followed by a space with a â„¢ symbol (and no space). The
+```py
+add_abbreviation('tm', u'™')
+```
+Replaces every "tm" followed by a space with a ™ symbol (and no space). The
 replacement is done by sending backspace events.
 
 - `match_suffix` defines if endings of words should also be checked instead
