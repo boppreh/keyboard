@@ -565,15 +565,15 @@ def _add_hotkey_step(handler, combinations, suppress):
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_release=False):
     """
     Invokes a callback every time a hotkey is pressed. The hotkey must
-    be in the format "ctrl+shift+a, s". This would trigger when the user holds
+    be in the format `ctrl+shift+a, s`. This would trigger when the user holds
     ctrl, shift and "a" at once, releases, and then presses "s". To represent
-    literal commas, pluses and spaces use their names ('comma', 'plus',
+    literal commas, pluses, and spaces, use their names ('comma', 'plus',
     'space').
 
     - `args` is an optional list of arguments to passed to the callback during
     each invocation.
-    - `suppress` defines if the it should block processing other hotkeys after
-    a match is found. Currently Windows-only.
+    - `suppress` defines if successful triggers should block the keys from being
+    sent to other programs.
     - `timeout` is the amount of seconds allowed to pass between key presses.
     - `trigger_on_release` if true, the callback is invoked on key release instead
     of key press.
