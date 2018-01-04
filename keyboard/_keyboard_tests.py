@@ -110,6 +110,8 @@ class TestKeyboard(unittest.TestCase):
         del output_events[:]
         keyboard._recording = None
         keyboard._pressed_events.clear()
+        keyboard._physically_pressed_keys.clear()
+        keyboard._logically_pressed_keys.clear()
         keyboard._listener.init()
         keyboard._word_listeners = {} 
 
@@ -447,8 +449,7 @@ class TestKeyboard(unittest.TestCase):
         t.start()
         # 0.01s sleep failed once already. Better solutions?
         time.sleep(0.01)
-        # Compromise on u_a.
-        self.do(du_a+du_b+du_space, du_a+du_b+u_space)
+        self.do(du_a+du_b+du_space, du_a+du_b)
         self.assertEqual(queue.get(timeout=0.5), du_a+du_b+du_space)
 
     def test_play_nodelay(self):
@@ -606,8 +607,7 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_shift+d_ctrl+d_a, triggered_event)
     def test_add_hotkey_single_step_suppress_with_modifiers_repeated(self):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
-        # Compromise on u_a.
-        self.do(d_ctrl+du_a+du_b+du_a, triggered_event+u_a+d_ctrl+du_b+triggered_event+u_a)
+        self.do(d_ctrl+du_a+du_b+du_a, triggered_event+d_ctrl+du_b+triggered_event)
     def test_add_hotkey_single_step_suppress_with_modifiers_release(self):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True, trigger_on_release=True)
         self.do(d_ctrl+du_a+du_b+du_a, triggered_event+d_ctrl+du_b+triggered_event)
@@ -641,22 +641,19 @@ class TestKeyboard(unittest.TestCase):
 
     def test_remap_hotkey_single(self):
         keyboard.remap_hotkey('a', 'b')
-        # Compromise on u_a.
-        self.do(d_a+u_a, d_b+u_b+u_a)
+        self.do(d_a+u_a, d_b+u_b)
     def test_remap_hotkey_complex_dst(self):
         keyboard.remap_hotkey('a', 'ctrl+b, c')
-        # Compromise on u_a.
-        self.do(d_a+u_a, d_ctrl+du_b+u_ctrl+du_c+u_a)
+        self.do(d_a+u_a, d_ctrl+du_b+u_ctrl+du_c)
     def test_remap_hotkey_modifiers(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
-        self.do(d_ctrl+d_shift+d_a+u_a, du_b+u_a)
+        self.do(d_ctrl+d_shift+d_a+u_a, du_b)
     def test_remap_hotkey_modifiers_repeat(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
-        # Compromise on u_a.
-        self.do(d_ctrl+d_shift+du_a+du_a, du_b+u_a+du_b+u_a)
+        self.do(d_ctrl+d_shift+du_a+du_a, du_b+du_b)
     def test_remap_hotkey_modifiers_state(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
-        self.do(d_ctrl+d_shift+du_c+du_a+du_a, d_shift+d_ctrl+du_c+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_a+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_a)
+        self.do(d_ctrl+d_shift+du_c+du_a+du_a, d_shift+d_ctrl+du_c+u_shift+u_ctrl+du_b+d_ctrl+d_shift+u_shift+u_ctrl+du_b+d_ctrl+d_shift)
     def test_remap_hotkey_release_incomplete(self):
         keyboard.remap_hotkey('a', 'b', trigger_on_release=True)
         self.do(d_a, [])

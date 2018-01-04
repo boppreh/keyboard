@@ -140,6 +140,8 @@ def is_modifier(key):
         return key in _modifier_scan_codes
 
 _pressed_events = {}
+_physically_pressed_keys = _pressed_events
+_logically_pressed_keys = {}
 class _KeyboardListener(_GenericListener):
     transition_table = {
         #Current state of the modifier, per `modifier_states`.
@@ -272,6 +274,12 @@ class _KeyboardListener(_GenericListener):
         if event_type == KEY_UP:
             self.active_modifiers.discard(event.scan_code)
             if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
+
+        if accept:
+            if event_type == KEY_DOWN:
+                _logically_pressed_keys[event.scan_code] = event
+            elif event_type == KEY_UP and event.scan_code in _logically_pressed_keys:
+                del _logically_pressed_keys[event.scan_code]
 
         # Queue for handlers that won't block the event.
         self.queue.put(event)
@@ -615,7 +623,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         # and any mistake will make that key "sticky". Therefore just let all
         # KEY_UP events go through as long as that's not what we are listening
         # for.
-        handler = lambda e: (event_type == KEY_DOWN and e.event_type == KEY_UP) or (event_type == e.event_type and callback())
+        handler = lambda e: (event_type == KEY_DOWN and e.event_type == KEY_UP and e.scan_code in _logically_pressed_keys) or (event_type == e.event_type and callback())
         return _add_hotkey_step(handler, steps[0], suppress)
 
     state = _State()
