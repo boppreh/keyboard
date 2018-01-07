@@ -202,19 +202,18 @@ class _KeyboardListener(_GenericListener):
         # https://github.com/boppreh/keyboard/issues/22
         self.modifier_states = {} # "alt" -> "allowed"
 
-    def invoke_callbacks(self, event, blocking):
+    def invoke_callbacks(self, event, mapping):
         # Currently only Windows is filling this value
         # TODO: change to event.modifiers to avoid race conditions on
         # non-blocking callbacks.
         hotkey = tuple(sorted(_pressed_events))
-        mapping = self.blocking_hotkeys if blocking else self.nonblocking_hotkeys
         return [callback(event) for callback in mapping[hotkey]]
         
     def pre_process_event(self, event):
         for key_hook in self.nonblocking_keys[event.scan_code]:
             key_hook(event)
 
-        self.invoke_callbacks(event, False)
+        self.invoke_callbacks(event, self.nonblocking_hotkeys)
 
         return event.scan_code or (event.name and event.name != 'unknown')
 
@@ -256,7 +255,7 @@ class _KeyboardListener(_GenericListener):
                 modifiers_to_update = set([event.scan_code])
             else:
                 modifiers_to_update = self.active_modifiers
-                callback_results = self.invoke_callbacks(event, True)
+                callback_results = self.invoke_callbacks(event, self.blocking_hotkeys)
                 if callback_results:
                     accept = all(callback_results)
                     origin = 'hotkey'
@@ -342,7 +341,7 @@ def parse_hotkey(hotkey):
         steps = (step,)
         return steps
     elif _is_list(hotkey):
-        if all(not _is_list(k) for k in hotkey):
+        if not any(map(_is_list, hotkey)):
             step = tuple(key_to_scan_codes(k) for k in hotkey)
             steps = (step,)
             return steps
@@ -662,7 +661,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
                 if event.event_type == KEY_UP:
                     remove()
                     set_index(0)
-                accept = event.event_type == event_type and callback()
+                accept = event.event_type == event_type and callback() 
                 del state.suppressed_events[:]
                 if accept:
                     return True
@@ -771,8 +770,8 @@ def write(text, delay=0, exact=None):
     text. Characters not available on the keyboard are typed as explicit unicode
     characters using OS-specific functionality, such as alt+codepoint.
 
-    To ensure text integrity all currently pressed keys are released before
-    the text is typed.
+    To ensure text integrity, all currently pressed keys are released before
+    the text is typed, and modifiers are restored afterwards.
 
     - `delay` is the number of seconds to wait between keypresses, defaults to
     no delay.

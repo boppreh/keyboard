@@ -673,6 +673,8 @@ class TestKeyboard(unittest.TestCase):
         self.assertEqual(keyboard.parse_hotkey_combinations('a, b'), (((1,),), ((2,),)))
     def test_parse_hotkey_combinations_multi_modifier(self):
         self.assertEqual(keyboard.parse_hotkey_combinations('shift+a, b'), (((1, 5), (1, 6)), ((2,),)))
+    def test_parse_hotkey_combinations_list_list(self):
+        self.assertEqual(keyboard.parse_hotkey_combinations(keyboard.parse_hotkey_combinations('a, b')), keyboard.parse_hotkey_combinations('a, b'))
     def test_parse_hotkey_combinations_fail_empty(self):
         with self.assertRaises(ValueError):
             keyboard.parse_hotkey_combinations('')
