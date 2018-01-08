@@ -640,7 +640,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
     state.suppressed_events = []
     state.last_update = float('-inf')
     
-    def catch_misses(event):
+    def catch_misses(event, force_fail=False):
         if (
                 event.event_type == event_type
                 and state.index
@@ -648,7 +648,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
             ) or (
                 timeout
                 and _time.monotonic() - state.last_update >= timeout
-            ): # Weird formatting to ensure short-circuit.
+            ) or force_fail: # Weird formatting to ensure short-circuit.
 
             state.remove_last_step()
 
@@ -681,11 +681,10 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
                     remove()
                     set_index(0)
                 accept = event.event_type == event_type and callback() 
-                del state.suppressed_events[:]
                 if accept:
-                    return True
+                    return catch_misses(event, force_fail=True)
                 else:
-                    state.suppressed_events.append(event)
+                    state.suppressed_events[:] = [event]
                     return False
             remove = _add_hotkey_step(handler, steps[state.index], suppress)
         else:

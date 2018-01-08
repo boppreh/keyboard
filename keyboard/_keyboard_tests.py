@@ -669,6 +669,9 @@ class TestKeyboard(unittest.TestCase):
         time.sleep(0.05)
         self.do(du_a, du_a+du_b)
         self.do(du_b+du_a, triggered_event)
+    def test_add_hotkey_multi_step_allow(self):
+        keyboard.add_hotkey('a, b', lambda: trigger() or True)
+        self.do(du_a+du_b, triggered_event+du_a+du_b)
 
     def test_add_hotkey_single_step_nonsuppress(self):
         queue = keyboard._queue.Queue()
