@@ -646,6 +646,29 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_single_step_suppress_with_modifier_superset(self):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+du_a+u_shift+u_ctrl, d_ctrl+d_shift+du_a+u_shift+u_ctrl)
+    def test_add_hotkey_single_step_timeout(self):
+        keyboard.add_hotkey('a', trigger, timeout=1)
+        self.do(du_a, triggered_event)
+    def test_add_hotkey_multi_step_first_timeout(self):
+        keyboard.add_hotkey('a, b', trigger, timeout=0.01)
+        time.sleep(0.03)
+        self.do(du_a+du_b, triggered_event)
+    def test_add_hotkey_multi_step_last_timeout(self):
+        keyboard.add_hotkey('a, b', trigger, timeout=0.01)
+        self.do(du_a, [])
+        time.sleep(0.05)
+        self.do(du_b, du_a+du_b)
+    def test_add_hotkey_multi_step_success_timeout(self):
+        keyboard.add_hotkey('a, b', trigger, timeout=0.05)
+        self.do(du_a, [])
+        time.sleep(0.01)
+        self.do(du_b, triggered_event)
+    def test_add_hotkey_multi_step_suffix_timeout(self):
+        keyboard.add_hotkey('a, b, a', trigger, timeout=0.01)
+        self.do(du_a+du_b, [])
+        time.sleep(0.05)
+        self.do(du_a, du_a+du_b)
+        self.do(du_b+du_a, triggered_event)
 
     def test_add_hotkey_single_step_nonsuppress(self):
         queue = keyboard._queue.Queue()

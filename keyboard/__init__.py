@@ -76,10 +76,12 @@ from __future__ import print_function
 
 import re as _re
 import itertools as _itertools
-import time as _time
 import collections as _collections
 from threading import Thread as _Thread
 from ._keyboard_event import KeyboardEvent
+import time as _time
+# Python2... Buggy on time changes and leap seconds, but no other good option (https://stackoverflow.com/questions/1205722/how-do-i-get-monotonic-time-durations-in-python).
+_time.monotonic = getattr(_time, 'monotonic', None) or _time.time
 
 try:
     # Python2
@@ -607,9 +609,6 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         add_hotkey('ctrl+q', quit)
         add_hotkey('ctrl+alt+enter, space', some_callback)
     """
-    if timeout:
-        # TODO: timeout
-        raise NotImplementedError()
     if args:
         callback = lambda callback=callback: callback(*args)
 
@@ -639,9 +638,18 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
     state.remove_catch_misses = None
     state.remove_last_step = None
     state.suppressed_events = []
+    state.last_update = float('-inf')
     
     def catch_misses(event):
-        if event.event_type == event_type and state.index and event.scan_code not in allowed_keys_by_step[state.index]:
+        if (
+                event.event_type == event_type
+                and state.index
+                and event.scan_code not in allowed_keys_by_step[state.index]
+            ) or (
+                timeout
+                and _time.monotonic() - state.last_update >= timeout
+            ): # Weird formatting to ensure short-circuit.
+
             state.remove_last_step()
 
             for event in state.suppressed_events:
@@ -690,6 +698,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
                 return False
             remove = _add_hotkey_step(handler, steps[state.index], suppress)
         state.remove_last_step = remove
+        state.last_update = _time.monotonic()
         return False
     set_index(0)
 
