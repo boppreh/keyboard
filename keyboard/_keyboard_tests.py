@@ -112,6 +112,7 @@ class TestKeyboard(unittest.TestCase):
         keyboard._pressed_events.clear()
         keyboard._physically_pressed_keys.clear()
         keyboard._logically_pressed_keys.clear()
+        keyboard._hotkeys.clear()
         keyboard._listener.init()
         keyboard._word_listeners = {} 
 
@@ -591,24 +592,30 @@ class TestKeyboard(unittest.TestCase):
         remove = keyboard.add_hotkey('shift+a', trigger)
         self.assertTrue(all(keyboard._listener.blocking_hotkeys.values()))
         self.assertTrue(all(keyboard._listener.filtered_modifiers.values()))
+        self.assertNotEqual(keyboard._hotkeys, {})
         remove()
         self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
         self.assertTrue(not any(keyboard._listener.blocking_hotkeys.values()))
+        self.assertEqual(keyboard._hotkeys, {})
     def test_remove_hotkey_internal_multistep_start(self):
         remove = keyboard.add_hotkey('shift+a, b', trigger)
         self.assertTrue(all(keyboard._listener.blocking_hotkeys.values()))
         self.assertTrue(all(keyboard._listener.filtered_modifiers.values()))
+        self.assertNotEqual(keyboard._hotkeys, {})
         remove()
         self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
         self.assertTrue(not any(keyboard._listener.blocking_hotkeys.values()))
+        self.assertEqual(keyboard._hotkeys, {})
     def test_remove_hotkey_internal_multistep_end(self):
         remove = keyboard.add_hotkey('shift+a, b', trigger)
         self.do(d_shift+du_a+u_shift)
         self.assertTrue(any(keyboard._listener.blocking_hotkeys.values()))
         self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
+        self.assertNotEqual(keyboard._hotkeys, {})
         remove()
         self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
         self.assertTrue(not any(keyboard._listener.blocking_hotkeys.values()))
+        self.assertEqual(keyboard._hotkeys, {})
     def test_add_hotkey_single_step_suppress_with_modifiers(self):
         keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+d_a, triggered_event)

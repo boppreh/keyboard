@@ -569,6 +569,7 @@ def _add_hotkey_step(handler, combinations, suppress):
             container[scan_codes].remove(handler)
     return remove
 
+_hotkeys = {}
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_release=False):
     """
     Invokes a callback every time a hotkey is pressed. The hotkey must
@@ -623,7 +624,16 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         # KEY_UP events go through as long as that's not what we are listening
         # for.
         handler = lambda e: (event_type == KEY_DOWN and e.event_type == KEY_UP and e.scan_code in _logically_pressed_keys) or (event_type == e.event_type and callback())
-        return _add_hotkey_step(handler, steps[0], suppress)
+        remove_step = _add_hotkey_step(handler, steps[0], suppress)
+        def remove_():
+            remove_step()
+            del _hotkeys[hotkey]
+            del _hotkeys[remove_]
+            del _hotkeys[callback]
+        # TODO: allow multiple callbacks for each hotkey without overwriting the
+        # remover.
+        _hotkeys[hotkey] = _hotkeys[remove_] = _hotkeys[callback] = remove_
+        return remove_
 
     state = _State()
     state.remove_catch_misses = None
@@ -688,16 +698,24 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         for step in steps
     ]
 
-    return lambda: (state.remove_catch_misses(), state.remove_last_step())
+    def remove_():
+        state.remove_catch_misses()
+        state.remove_last_step()
+        del _hotkeys[hotkey]
+        del _hotkeys[remove_]
+        del _hotkeys[callback]
+    # TODO: allow multiple callbacks for each hotkey without overwriting the
+    # remover.
+    _hotkeys[hotkey] = _hotkeys[remove_] = _hotkeys[callback] = remove_
+    return remove_
 register_hotkey = add_hotkey
 
-def remove_hotkey(remove):
+def remove_hotkey(hotkey_or_callback):
     """
     Removes a previously hooked hotkey. Must be called wtih the value returned
     by `add_hotkey`.
     """
-    # TODO: allow passing string hotkeys
-    remove()
+    _hotkeys[hotkey_or_callback]()
 unregister_hotkey = clear_hotkey = remove_hotkey
 
 def unhook_all_hotkeys():
