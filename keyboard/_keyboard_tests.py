@@ -587,6 +587,28 @@ class TestKeyboard(unittest.TestCase):
         keyboard.remove_hotkey(keyboard.add_hotkey('ctrl+a', trigger, suppress=True))
         self.do(d_ctrl+d_a, d_ctrl+d_a)
         self.assertEqual(keyboard._listener.filtered_modifiers[dummy_keys['left ctrl'][0][0]], 0)
+    def test_remove_hotkey_internal(self):
+        remove = keyboard.add_hotkey('shift+a', trigger)
+        self.assertTrue(all(keyboard._listener.blocking_hotkeys.values()))
+        self.assertTrue(all(keyboard._listener.filtered_modifiers.values()))
+        remove()
+        self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
+        self.assertTrue(not any(keyboard._listener.blocking_hotkeys.values()))
+    def test_remove_hotkey_internal_multistep_start(self):
+        remove = keyboard.add_hotkey('shift+a, b', trigger)
+        self.assertTrue(all(keyboard._listener.blocking_hotkeys.values()))
+        self.assertTrue(all(keyboard._listener.filtered_modifiers.values()))
+        remove()
+        self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
+        self.assertTrue(not any(keyboard._listener.blocking_hotkeys.values()))
+    def test_remove_hotkey_internal_multistep_end(self):
+        remove = keyboard.add_hotkey('shift+a, b', trigger)
+        self.do(d_shift+du_a+u_shift)
+        self.assertTrue(any(keyboard._listener.blocking_hotkeys.values()))
+        self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
+        remove()
+        self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
+        self.assertTrue(not any(keyboard._listener.blocking_hotkeys.values()))
     def test_add_hotkey_single_step_suppress_with_modifiers(self):
         keyboard.add_hotkey('ctrl+shift+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+d_a, triggered_event)
@@ -737,8 +759,7 @@ class TestKeyboard(unittest.TestCase):
             queue.get(timeout=0.01)
     def test_duplicated_word_listener(self):
         keyboard.add_word_listener('abc', trigger)
-        with self.assertRaises(ValueError):
-            keyboard.add_word_listener('abc', trigger)
+        keyboard.add_word_listener('abc', trigger)
     def test_add_word_listener_remove(self):
         queue = keyboard._queue.Queue()
         def free():

@@ -626,8 +626,8 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         return _add_hotkey_step(handler, steps[0], suppress)
 
     state = _State()
-    state.remove_catch_misses = lambda: None
-    state.remove_last_step = lambda: None
+    state.remove_catch_misses = None
+    state.remove_last_step = None
     state.suppressed_events = []
     
     def catch_misses(event):
@@ -651,8 +651,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         if new_index == 0:
             # This is done for performance reasons, avoiding a global key hook
             # that is always on.
-            state.remove_catch_misses()
+            state.remove_catch_misses = lambda: None
         elif new_index == 1:
+            state.remove_catch_misses()
             # Must be `suppress=True` to ensure `send` has priority.
             state.remove_catch_misses = hook(catch_misses, suppress=True)
 
@@ -687,8 +688,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_r
         for step in steps
     ]
 
-    # TODO
-    return
+    return lambda: (state.remove_catch_misses(), state.remove_last_step())
 register_hotkey = add_hotkey
 
 def remove_hotkey(remove):
@@ -1026,10 +1026,6 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     Note: all actions are performed on key down. Key up events are ignored.
     Note: word mathes are **case sensitive**.
     """
-    # TODO: allow multiple word listeners.
-    if word in _word_listeners:
-        raise ValueError('Already listening for word {}'.format(repr(word)))
-
     state = _State()
     state.current = ''
     state.time = -1
@@ -1058,6 +1054,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
         del _word_listeners[handler]
         del _word_listeners[remove]
     _word_listeners[word] = _word_listeners[handler] = _word_listeners[remove] = remove
+    # TODO: allow multiple word listeners and removing them correctly.
     return remove
 
 def remove_word_listener(word_or_handler):
