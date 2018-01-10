@@ -198,5 +198,7 @@ if platform.system() == 'Darwin':
         "windows": "command",
         "cmd": "command",
         "win": "command",
-        "backspace": "delete"
+        "backspace": "delete",
+        "altgr": "alt",
+        "alt gr": "alt"
     })
