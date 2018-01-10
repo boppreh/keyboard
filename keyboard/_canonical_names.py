@@ -8,7 +8,6 @@ canonical_names = {
     'return': 'enter',
     'del': 'delete',
     'control': 'ctrl',
-    'altgr': 'alt gr',
 
     'left arrow': 'left',
     'up arrow': 'up',
@@ -189,6 +188,7 @@ canonical_names = {
     'right control': 'right ctrl',
     'left menu': 'left alt', # Windows...
 }
+all_modifiers = ('alt', 'alt gr', 'ctrl', 'shift', 'win')
 
 # Platform-specific canonical overrides
 
@@ -198,7 +198,6 @@ if platform.system() == 'Darwin':
         "windows": "command",
         "cmd": "command",
         "win": "command",
-        "backspace": "delete",
-        "altgr": "alt",
-        "alt gr": "alt"
+        "backspace": "delete"
     })
+    all_modifiers = ('alt', 'ctrl', 'shift', 'win')
