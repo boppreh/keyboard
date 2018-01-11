@@ -21,7 +21,7 @@ class KeyMap(object):
         0x24: 'return',
         0x30: 'tab',
         0x31: 'space',
-        0x33: 'backspace',
+        0x33: 'delete',
         0x35: 'escape',
         0x37: 'command',
         0x38: 'shift',
@@ -55,7 +55,7 @@ class KeyMap(object):
         0x72: 'help',
         0x73: 'home',
         0x74: 'page up',
-        0x75: 'delete',
+        0x75: 'forward delete',
         0x76: 'f4',
         0x77: 'end',
         0x78: 'f2',
@@ -433,3 +433,14 @@ def listen(queue, is_allowed=lambda *args: True):
     t = threading.Thread(target=listener.run, args=())
     t.daemon = True
     t.start()
+
+def type_unicode(character):
+    OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
+    # Key down
+    event = Quartz.CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, True)
+    Quartz.CGEventKeyboardSetUnicodeString(event, len(character.encode('utf-16-le')) // 2, character)
+    Quartz.CGEventPost(Quartz.kCGSessionEventTap, event)
+    # Key up
+    event = Quartz.CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, False)
+    Quartz.CGEventKeyboardSetUnicodeString(event, len(character.encode('utf-16-le')) // 2, character)
+    Quartz.CGEventPost(Quartz.kCGSessionEventTap, event)
