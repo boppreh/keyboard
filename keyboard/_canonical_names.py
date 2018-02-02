@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import platform
 
 # TODO: add values from https://svn.apache.org/repos/asf/xmlgraphics/commons/tags/commons-1_0/src/java/org/apache/xmlgraphics/fonts/Glyphs.java
