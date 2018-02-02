@@ -447,8 +447,8 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     shift) are ignored.
 
     - `word` the typed text to be matched. E.g. 'pet'.
-    - `callback` is an argument-less function to be invoked each time the word
-    is typed.
+    - `callback` is the function to be invoked each time the word
+    is typed. Includes the word that was matched.
     - `triggers` is the list of keys that will cause a match to be checked. If
     the user presses some key that is not a character (len>1) and not in
     triggers, the characters so far will be discarded. By default only space
