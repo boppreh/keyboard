@@ -463,8 +463,7 @@ and followed by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl,
 shift) are ignored.
 
 - `word` the typed text to be matched. E.g. 'pet'.
-- `callback` is the function to be invoked each time the word
-is typed. Includes the word that was matched.
+- `callback` is an argument-less function to be invoked each time the word is typed.
 - `triggers` is the list of keys that will cause a match to be checked. If
 the user presses some key that is not a character (len>1) and not in
 triggers, the characters so far will be discarded. By default only space
