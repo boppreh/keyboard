@@ -478,7 +478,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
 
         matched = state.current == word or (match_suffix and state.current.endswith(word))
         if name in triggers and matched:
-            callback(word)
+            callback()
             state.current = ''
         elif len(name) > 1:
             state.current = ''
