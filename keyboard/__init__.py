@@ -77,7 +77,7 @@ from __future__ import print_function
 import re as _re
 import itertools as _itertools
 import collections as _collections
-from threading import Thread as _Thread
+from threading import Thread as _Thread, Lock as _Lock
 from ._keyboard_event import KeyboardEvent
 import time as _time
 # Python2... Buggy on time changes and leap seconds, but no other good option (https://stackoverflow.com/questions/1205722/how-do-i-get-monotonic-time-durations-in-python).
@@ -141,6 +141,7 @@ def is_modifier(key):
             _modifier_scan_codes.update(*scan_codes)
         return key in _modifier_scan_codes
 
+_pressed_events_lock = _Lock()
 _pressed_events = {}
 _physically_pressed_keys = _pressed_events
 _logically_pressed_keys = {}
@@ -208,7 +209,8 @@ class _KeyboardListener(_GenericListener):
         # Currently only Windows is filling this value
         # TODO: change to event.modifiers to avoid race conditions on
         # non-blocking callbacks.
-        hotkey = tuple(sorted(_pressed_events))
+        with _pressed_events_lock:
+            hotkey = tuple(sorted(_pressed_events))
         return [callback(event) for callback in mapping[hotkey]]
         
     def pre_process_event(self, event):
@@ -246,7 +248,8 @@ class _KeyboardListener(_GenericListener):
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_DOWN:
             if is_modifier(event.scan_code): self.active_modifiers.add(event.scan_code)
-            _pressed_events[event.scan_code] = event
+            with _pressed_events_lock:
+                _pressed_events[event.scan_code] = event
 
         # Default accept.
         accept = True
@@ -274,7 +277,8 @@ class _KeyboardListener(_GenericListener):
         # Update tables of currently pressed keys and modifiers.
         if event_type == KEY_UP:
             self.active_modifiers.discard(event.scan_code)
-            if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
+            with _pressed_events_lock:
+                if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
 
         if accept:
             if event_type == KEY_DOWN:
@@ -408,14 +412,18 @@ def is_pressed(hotkey):
 
     if _is_number(hotkey):
         # Shortcut.
-        return hotkey in _pressed_events
+        with _pressed_events_lock:
+            return hotkey in _pressed_events
 
     steps = parse_hotkey(hotkey)
     if len(steps) > 1:
         raise ValueError("Impossible to check if multi-step hotkeys are pressed (`a+b` is ok, `a, b` isn't).")
 
+    # Convert _pressed_events into a set 
+    with _pressed_events_lock:
+        pressed_scan_codes = set(_pressed_events)
     for scan_codes in steps[0]:
-        if not any(scan_code in _pressed_events for scan_code in scan_codes):
+        if not any(scan_code in pressed_scan_codes for scan_code in scan_codes):
             return False
     return True
 
@@ -763,7 +771,8 @@ def stash_state():
     the list. Pairs well with `restore_state` and `restore_modifiers`.
     """
     # TODO: stash caps lock / numlock /scrollock state.
-    state = sorted(_pressed_events)
+    with _pressed_events_lock:
+        state = sorted(_pressed_events)
     for scan_code in state:
         _os_keyboard.release(scan_code)
     return state
@@ -775,7 +784,8 @@ def restore_state(scan_codes):
     """
     _listener.is_replaying = True
 
-    current = set(_pressed_events)
+    with _pressed_events_lock:
+        current = set(_pressed_events)
     target = set(scan_codes)
     for scan_code in current - target:
         _os_keyboard.release(scan_code)
@@ -790,7 +800,7 @@ def restore_modifiers(scan_codes):
     """
     restore_state((scan_code for scan_code in scan_codes if is_modifier(scan_code)))
 
-def write(text, delay=0, exact=None):
+def write(text, delay=0, exact=_platform.system() == 'Windows'):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Characters not available on the keyboard are typed as explicit unicode
@@ -808,11 +818,10 @@ def write(text, delay=0, exact=None):
     state = stash_state()
     
     # Window's typing of unicode characters is quite efficient and should be preferred.
-    if exact or (exact is None and _platform.system() == 'Windows'):
+    if exact:
         for letter in text:
             _os_keyboard.type_unicode(letter)
             if delay: _time.sleep(delay)
-
     else:
         for letter in text:
             try:
@@ -869,7 +878,8 @@ def get_hotkey_name(names=None):
     """
     if names is None:
         _listener.start_if_necessary()
-        names = [e.name for e in _pressed_events.values()]
+        with _pressed_events_lock:
+            names = [e.name for e in _pressed_events.values()]
     else:
         names = [_normalize_name(name) for name in names]
     clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
@@ -917,7 +927,8 @@ def read_hotkey(suppress=True):
         event = queue.get()
         if event.event_type == KEY_UP:
             unhook(hooked)
-            names = [e.name for e in _pressed_events.values()] + [event.name]
+            with _pressed_events_lock:
+                names = [e.name for e in _pressed_events.values()] + [event.name]
             return get_hotkey_name(names)
 
 def get_typed_strings(events, allow_backspace=True):
