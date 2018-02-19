@@ -493,7 +493,15 @@ def hook_key(key, callback, suppress=False):
     scan_codes = key_to_scan_codes(key)
     for scan_code in scan_codes:
         store[scan_code].append(callback)
-    return lambda: [store[scan_code].remove(callback) for scan_code in scan_codes]
+
+    def remove_():
+        del _hooks[callback]
+        del _hooks[key]
+        del _hooks[remove_]
+        for scan_code in scan_codes:
+            store[scan_code].remove(callback)
+    _hooks[callback] = _hooks[key] = _hooks[remove_] = remove_
+    return remove_
 
 def on_press_key(key, callback, suppress=False):
     """
