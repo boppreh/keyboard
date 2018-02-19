@@ -435,6 +435,7 @@ def call_later(fn, args=(), delay=0.001):
     """
     _Thread(target=lambda: (_time.sleep(delay), fn(*args))).start()
 
+_hooks = {}
 def hook(callback, suppress=False, on_remove=lambda: None):
     """
     Installs a global listener on all available keyboards, invoking `callback`
@@ -458,7 +459,13 @@ def hook(callback, suppress=False, on_remove=lambda: None):
         append, remove = _listener.add_handler, _listener.remove_handler
 
     append(callback)
-    return lambda: (remove(callback), on_remove())
+    def remove_():
+        del _hooks[callback]
+        del _hooks[remove_]
+        remove(callback)
+        on_remove()
+    _hooks[callback] = _hooks[remove_] = remove_
+    return remove_
 
 def on_press(callback, suppress=False):
     """
@@ -502,10 +509,10 @@ def on_release_key(key, callback, suppress=False):
 
 def unhook(remove):
     """
-    Removes a previously added hook. Must be called with the value returned by
-    the hook.
+    Removes a previously added hook, either by callback or by the return value
+    of `hook`.
     """
-    remove()
+    _hooks[remove]()
 unhook_key = unhook
 
 def unhook_all():
