@@ -334,18 +334,27 @@ distinct_modifiers = [
     (),
     ('shift',),
     ('alt gr',),
-    #('num lock',),
-    #('shift', 'num lock')
+    ('num lock',),
+    ('shift', 'num lock'),
+    ('caps lock',),
+    ('shift', 'caps lock'),
 ]
 
 name_buffer = ctypes.create_unicode_buffer(32)
 unicode_buffer = ctypes.create_unicode_buffer(32)
 keyboard_state = keyboard_state_type()
 def get_event_names(scan_code, vk, is_extended, modifiers):
+    is_keypad = (scan_code, vk, is_extended) in keypad_keys
+    is_official = vk in official_virtual_keys
+    if is_keypad and is_official:
+        yield official_virtual_keys[vk][0]
+
     keyboard_state[0x10] = 0x80 * ('shift' in modifiers)
     keyboard_state[0x11] = 0x80 * ('alt gr' in modifiers)
     keyboard_state[0x12] = 0x80 * ('alt gr' in modifiers)
+    keyboard_state[0x14] = 0x01 * ('caps lock' in modifiers)
     keyboard_state[0x90] = 0x01 * ('num lock' in modifiers)
+    keyboard_state[0x91] = 0x01 * ('scroll lock' in modifiers)
     unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
     if unicode_ret and unicode_buffer.value:
         yield unicode_buffer.value
@@ -363,7 +372,7 @@ def get_event_names(scan_code, vk, is_extended, modifiers):
     if char != '\x00' and char:
         yield char
 
-    if vk in official_virtual_keys:
+    if not is_keypad and is_official:
         yield official_virtual_keys[vk][0]
 
 def _setup_name_tables():
@@ -480,7 +489,13 @@ def prepare_intercept(callback):
         if vk == 165:
             return True
 
-        modifiers = ('shift',) * shift_is_pressed + ('alt gr',) *  altgr_is_pressed# + ('num lock',) * (user32.GetKeyState(0x90) & 1)
+        modifiers = (
+            ('shift',) * shift_is_pressed +
+            ('alt gr',) * altgr_is_pressed +
+            ('num lock',) * (user32.GetKeyState(0x90) & 1) +
+            ('caps lock',) * (user32.GetKeyState(0x14) & 1) +
+            ('scroll lock',) * (user32.GetKeyState(0x91) & 1)
+        )
         entry = (scan_code, vk, is_extended, modifiers)
         if entry not in to_name:
             to_name[entry] = list(get_event_names(*entry))
