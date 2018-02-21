@@ -194,12 +194,9 @@ key events. In this case `keyboard` will be unable to report events.
 <a name="keyboard.all_modifiers"/>
 
 ## keyboard.**all\_modifiers**
-
-set() -> new empty set object
-set(iterable) -> new set object
-
-Build an unordered collection of unique elements.
-
+```py
+= {'right alt', 'left alt', 'alt', 'ctrl', 'left windows', 'right shift', 'windows', 'right windows', 'alt gr', 'right ctrl', 'left shift', 'shift', 'left ctrl'}
+```
 
 <a name="keyboard.print_function"/>
 
@@ -211,12 +208,9 @@ Build an unordered collection of unique elements.
 <a name="keyboard.sided_modifiers"/>
 
 ## keyboard.**sided\_modifiers**
-
-set() -> new empty set object
-set(iterable) -> new set object
-
-Build an unordered collection of unique elements.
-
+```py
+= {'windows', 'ctrl', 'shift', 'alt'}
+```
 
 <a name="keyboard.is_modifier"/>
 
