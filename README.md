@@ -179,14 +179,14 @@ key events. In this case `keyboard` will be unable to report events.
 
 ## keyboard.**all\_modifiers**
 ```py
-= ['alt', 'alt gr', 'ctrl', 'left alt', 'left ctrl', 'left shift', 'left windows', 'right alt', 'right ctrl', 'right shift', 'right windows', 'shift', 'windows']
+= {'alt', 'alt gr', 'ctrl', 'left alt', 'left ctrl', 'left shift', 'left windows', 'right alt', 'right ctrl', 'right shift', 'right windows', 'shift', 'windows'}
 ```
 
 <a name="keyboard.sided_modifiers"/>
 
 ## keyboard.**sided\_modifiers**
 ```py
-= ['alt', 'ctrl', 'shift', 'windows']
+= {'alt', 'ctrl', 'shift', 'windows'}
 ```
 
 <a name="keyboard.is_modifier"/>
@@ -226,12 +226,11 @@ number of nestings.
 Example:
 
 ```py
+
 parse_hotkey("alt+shift+a, alt+b, c")
 #    Keys:    ^~^ ^~~~^ ^  ^~^ ^  ^
 #    Steps:   ^~~~~~~~~~^  ^~~~^  ^
-```
 
-```py
 # ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,))
 ```
 
@@ -252,6 +251,7 @@ Sends OS events that perform the given *hotkey* hotkey.
 - `do_release` if true then release events are sent. Defaults to True.
 
 ```py
+
 send(57)
 send('ctrl+alt+del')
 send('alt+F4, enter')
@@ -290,6 +290,7 @@ Releases a hotkey (see [`send`](#keyboard.send)).
 Returns True if the key is pressed.
 
 ```py
+
 is_pressed(57) #-> True
 is_pressed('space') #-> True
 is_pressed('ctrl+space') #-> True
@@ -485,6 +486,7 @@ example of how to use a callback synchronously, see [`wait`](#keyboard.wait).
 Examples:
 
 ```py
+
 # Different but equivalent ways to listen for a spacebar key press.
 add_hotkey(' ', print, args=['space was pressed'])
 add_hotkey('space', print, args=['space was pressed'])
@@ -492,9 +494,7 @@ add_hotkey('Space', print, args=['space was pressed'])
 # Here 57 represents the keyboard code for spacebar; so you will be
 # pressing 'spacebar', not '57' to activate the print function.
 add_hotkey(57, print, args=['space was pressed'])
-```
 
-```py
 add_hotkey('ctrl+q', quit)
 add_hotkey('ctrl+alt+enter, space', some_callback)
 ```
@@ -538,6 +538,7 @@ Whenever the hotkey `src` is pressed, suppress it and send
 Example:
 
 ```py
+
 remap('alt+w', 'ctrl+up')
 ```
 
@@ -632,6 +633,7 @@ the currently pressed keys if not given.  This function:
 Example:
 
 ```py
+
 get_hotkey_name(['+', 'left ctrl', 'shift'])
 # "ctrl+shift+plus"
 ```
@@ -675,6 +677,7 @@ pressed.
 Example:
 
 ```py
+
 read_hotkey()
 # "ctrl+shift+p"
 ```
@@ -702,6 +705,7 @@ process keyboard state such as keyboard layout, and this information is not
 available for our hooks.
 
 ```py
+
 get_type_strings(record()) #-> ['This is what', 'I recorded', '']
 ```
 
@@ -821,6 +825,7 @@ during registration (exact string) or the event handler returned by the
 Registers a hotkey that replaces one typed text with another. For example
 
 ```py
+
 add_abbreviation('tm', u'™')
 ```
 
