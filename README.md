@@ -141,14 +141,14 @@ key events. In this case `keyboard` will be unable to report events.
 
 <a name="keyboard.KEY_DOWN"/>
 
-##keyboard.**KEY\_DOWN**
+## keyboard.**KEY\_DOWN**
 ```py
 = 'down'
 ```
 
 <a name="keyboard.KEY_UP"/>
 
-##keyboard.**KEY\_UP**
+## keyboard.**KEY\_UP**
 ```py
 = 'up'
 ```
