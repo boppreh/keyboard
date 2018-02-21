@@ -28,12 +28,12 @@ class KeyboardEvent(object):
         if name:
             self.name = normalize_name(name)
 
-    def to_json(self):
+    def to_json(self, ensure_ascii=False):
         attrs = dict(
             (attr, getattr(self, attr)) for attr in ['event_type', 'scan_code', 'name', 'time', 'device', 'is_keypad']
             if not attr.startswith('_') and getattr(self, attr) is not None
         )
-        return json.dumps(attrs, ensure_ascii=False)
+        return json.dumps(attrs, ensure_ascii=ensure_ascii)
 
     def __repr__(self):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
