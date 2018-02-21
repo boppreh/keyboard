@@ -72,7 +72,7 @@ but this requries root.
 key events. In this case `keyboard` will be unable to report events.
 - This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming bots. Be responsible.
 """
-from __future__ import print_function
+from __future__ import print_function as _print_function
 
 import re as _re
 import itertools as _itertools
