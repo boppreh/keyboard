@@ -111,13 +111,14 @@ class _Event(_UninterruptibleEvent):
                 break
 
 import platform as _platform
-import importlib
-_os_keyboard = importlib.import_module(
+import importlib as _importlib
+_os_keyboard = _importlib.import_module(
     {
         'Windows': '._winkeyboard',
         'Linux': '._nixkeyboard',
         'Darwin': '._darwinkeyboard',
-    }[_platform.system()], __package__
+    }[_platform.system()],
+    __package__
 ) # 100% coverage or bust.
 
 from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent, normalize_name as _normalize_name

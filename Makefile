@@ -11,7 +11,7 @@ release:
 	python3 make_release.py
 
 readme:
-	PYTHONIOENCODING=utf-8 python3 ../docstring2markdown/docstring2markdown.py keyboard "https://github.com/boppreh/keyboard/blob/master" > README.md
+	python ../docstring2markdown/docstring2markdown.py keyboard "https://github.com/boppreh/keyboard/blob/master" > README.md
 
 clean:
 	rm -rfv dist build coverage_html_report keyboard.egg-info
