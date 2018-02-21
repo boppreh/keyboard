@@ -84,8 +84,7 @@ key events. In this case `keyboard` will be unable to report events.
 - [keyboard.**is\_modifier**](#keyboard.is_modifier)
 - [keyboard.**key\_to\_scan\_codes**](#keyboard.key_to_scan_codes)
 - [keyboard.**parse\_hotkey**](#keyboard.parse_hotkey)
-- [keyboard.**send**](#keyboard.send)
-- [keyboard.**press\_and\_release**](#keyboard.press_and_release) (*alias for* [`send`](#keyboard.send))
+- [keyboard.**send**](#keyboard.send) *(aliases: `press_and_release`)*
 - [keyboard.**press**](#keyboard.press)
 - [keyboard.**release**](#keyboard.release)
 - [keyboard.**is\_pressed**](#keyboard.is_pressed)
@@ -96,24 +95,14 @@ key events. In this case `keyboard` will be unable to report events.
 - [keyboard.**hook\_key**](#keyboard.hook_key)
 - [keyboard.**on\_press\_key**](#keyboard.on_press_key)
 - [keyboard.**on\_release\_key**](#keyboard.on_release_key)
-- [keyboard.**unhook**](#keyboard.unhook)
-- [keyboard.**unblock\_key**](#keyboard.unblock_key) (*alias for* [`unhook`](#keyboard.unhook))
-- [keyboard.**unhook\_key**](#keyboard.unhook_key) (*alias for* [`unhook`](#keyboard.unhook))
-- [keyboard.**unremap\_key**](#keyboard.unremap_key) (*alias for* [`unhook`](#keyboard.unhook))
+- [keyboard.**unhook**](#keyboard.unhook) *(aliases: `unblock_key`, `unhook_key`, `unremap_key`)*
 - [keyboard.**unhook\_all**](#keyboard.unhook_all)
 - [keyboard.**block\_key**](#keyboard.block_key)
 - [keyboard.**remap\_key**](#keyboard.remap_key)
 - [keyboard.**parse\_hotkey\_combinations**](#keyboard.parse_hotkey_combinations)
-- [keyboard.**add\_hotkey**](#keyboard.add_hotkey)
-- [keyboard.**register\_hotkey**](#keyboard.register_hotkey) (*alias for* [`add_hotkey`](#keyboard.add_hotkey))
-- [keyboard.**remove\_hotkey**](#keyboard.remove_hotkey)
-- [keyboard.**clear\_hotkey**](#keyboard.clear_hotkey) (*alias for* [`remove_hotkey`](#keyboard.remove_hotkey))
-- [keyboard.**unregister\_hotkey**](#keyboard.unregister_hotkey) (*alias for* [`remove_hotkey`](#keyboard.remove_hotkey))
-- [keyboard.**unremap\_hotkey**](#keyboard.unremap_hotkey) (*alias for* [`remove_hotkey`](#keyboard.remove_hotkey))
-- [keyboard.**unhook\_all\_hotkeys**](#keyboard.unhook_all_hotkeys)
-- [keyboard.**clear\_all\_hotkeys**](#keyboard.clear_all_hotkeys) (*alias for* [`unhook_all_hotkeys`](#keyboard.unhook_all_hotkeys))
-- [keyboard.**remove\_all\_hotkeys**](#keyboard.remove_all_hotkeys) (*alias for* [`unhook_all_hotkeys`](#keyboard.unhook_all_hotkeys))
-- [keyboard.**unregister\_all\_hotkeys**](#keyboard.unregister_all_hotkeys) (*alias for* [`unhook_all_hotkeys`](#keyboard.unhook_all_hotkeys))
+- [keyboard.**add\_hotkey**](#keyboard.add_hotkey) *(aliases: `register_hotkey`)*
+- [keyboard.**remove\_hotkey**](#keyboard.remove_hotkey) *(aliases: `clear_hotkey`, `unregister_hotkey`, `unremap_hotkey`)*
+- [keyboard.**unhook\_all\_hotkeys**](#keyboard.unhook_all_hotkeys) *(aliases: `clear_all_hotkeys`, `remove_all_hotkeys`, `unregister_all_hotkeys`)*
 - [keyboard.**remap\_hotkey**](#keyboard.remap_hotkey)
 - [keyboard.**stash\_state**](#keyboard.stash_state)
 - [keyboard.**restore\_state**](#keyboard.restore_state)
@@ -128,14 +117,10 @@ key events. In this case `keyboard` will be unable to report events.
 - [keyboard.**start\_recording**](#keyboard.start_recording)
 - [keyboard.**stop\_recording**](#keyboard.stop_recording)
 - [keyboard.**record**](#keyboard.record)
-- [keyboard.**play**](#keyboard.play)
-- [keyboard.**replay**](#keyboard.replay) (*alias for* [`play`](#keyboard.play))
-- [keyboard.**add\_word\_listener**](#keyboard.add_word_listener)
-- [keyboard.**register\_word\_listener**](#keyboard.register_word_listener) (*alias for* [`add_word_listener`](#keyboard.add_word_listener))
-- [keyboard.**remove\_word\_listener**](#keyboard.remove_word_listener)
-- [keyboard.**remove\_abbreviation**](#keyboard.remove_abbreviation) (*alias for* [`remove_word_listener`](#keyboard.remove_word_listener))
-- [keyboard.**add\_abbreviation**](#keyboard.add_abbreviation)
-- [keyboard.**register\_abbreviation**](#keyboard.register_abbreviation) (*alias for* [`add_abbreviation`](#keyboard.add_abbreviation))
+- [keyboard.**play**](#keyboard.play) *(aliases: `replay`)*
+- [keyboard.**add\_word\_listener**](#keyboard.add_word_listener) *(aliases: `register_word_listener`)*
+- [keyboard.**remove\_word\_listener**](#keyboard.remove_word_listener) *(aliases: `remove_abbreviation`)*
+- [keyboard.**add\_abbreviation**](#keyboard.add_abbreviation) *(aliases: `register_abbreviation`)*
 
 
 <a name="keyboard.KEY_DOWN"/>
@@ -276,8 +261,6 @@ send('shift+s')
 Note: keys are released in the opposite order they were pressed.
 
 
-
-<a name="keyboard.press_and_release"/>
 
 <a name="keyboard.press"/>
 
@@ -422,12 +405,6 @@ of [`hook`](#keyboard.hook).
 
 
 
-<a name="keyboard.unblock_key"/>
-
-<a name="keyboard.unhook_key"/>
-
-<a name="keyboard.unremap_key"/>
-
 <a name="keyboard.unhook_all"/>
 
 ## keyboard.**unhook\_all**()
@@ -524,8 +501,6 @@ add_hotkey('ctrl+alt+enter, space', some_callback)
 
 
 
-<a name="keyboard.register_hotkey"/>
-
 <a name="keyboard.remove_hotkey"/>
 
 ## keyboard.**remove\_hotkey**(hotkey\_or\_callback)
@@ -538,12 +513,6 @@ by [`add_hotkey`](#keyboard.add_hotkey).
 
 
 
-<a name="keyboard.clear_hotkey"/>
-
-<a name="keyboard.unregister_hotkey"/>
-
-<a name="keyboard.unremap_hotkey"/>
-
 <a name="keyboard.unhook_all_hotkeys"/>
 
 ## keyboard.**unhook\_all\_hotkeys**()
@@ -555,12 +524,6 @@ Removes all keyboard hotkeys in use, including abbreviations, word listeners,
 [`record`](#keyboard.record)ers and [`wait`](#keyboard.wait)s.
 
 
-
-<a name="keyboard.clear_all_hotkeys"/>
-
-<a name="keyboard.remove_all_hotkeys"/>
-
-<a name="keyboard.unregister_all_hotkeys"/>
 
 <a name="keyboard.remap_hotkey"/>
 
@@ -803,8 +766,6 @@ the end of the function.
 
 
 
-<a name="keyboard.replay"/>
-
 <a name="keyboard.add_word_listener"/>
 
 ## keyboard.**add\_word\_listener**(word, callback, triggers=[&#x27;space&#x27;], match\_suffix=False, timeout=2)
@@ -837,8 +798,6 @@ Note: word mathes are **case sensitive**.
 
 
 
-<a name="keyboard.register_word_listener"/>
-
 <a name="keyboard.remove_word_listener"/>
 
 ## keyboard.**remove\_word\_listener**(word\_or\_handler)
@@ -851,8 +810,6 @@ during registration (exact string) or the event handler returned by the
 [`add_word_listener`](#keyboard.add_word_listener) or [`add_abbreviation`](#keyboard.add_abbreviation) functions.
 
 
-
-<a name="keyboard.remove_abbreviation"/>
 
 <a name="keyboard.add_abbreviation"/>
 
@@ -879,6 +836,4 @@ the current word is discarded. Defaults to 2 seconds.
 For more details see [`add_word_listener`](#keyboard.add_word_listener).
 
 
-
-<a name="keyboard.register_abbreviation"/>
 
