@@ -78,7 +78,6 @@ import re as _re
 import itertools as _itertools
 import collections as _collections
 from threading import Thread as _Thread, Lock as _Lock
-from ._keyboard_event import KeyboardEvent
 import time as _time
 # Python2... Buggy on time changes and leap seconds, but no other good option (https://stackoverflow.com/questions/1205722/how-do-i-get-monotonic-time-durations-in-python).
 _time.monotonic = getattr(_time, 'monotonic', None) or _time.time
@@ -121,12 +120,9 @@ _os_keyboard = importlib.import_module(
     }[_platform.system()], __package__
 ) # 100% coverage or bust.
 
-from ._keyboard_event import KEY_DOWN, KEY_UP
-from ._keyboard_event import normalize_name as _normalize_name
+from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent, normalize_name as _normalize_name
 from ._generic import GenericListener as _GenericListener
-
-sided_modifiers = {'ctrl', 'alt', 'shift', 'windows'}
-all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'} | set('left ' + n for n in sided_modifiers) | set('right ' + n for n in sided_modifiers)
+from ._canonical_names import all_modifiers, sided_modifiers
 
 _modifier_scan_codes = set()
 def is_modifier(key):
