@@ -10,12 +10,18 @@ well documented on Microsoft's webstie and scattered examples.
 - Keypad numbers still print as numbers even when numlock is off.
 - No way to specify if user wants a keypad key or not in `map_char`.
 """
+from __future__ import unicode_literals
 import re
 import atexit
 import traceback
 from threading import Lock
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+try:
+    # Force Python2 to convert to unicode and not to str.
+    chr = unichr
+except NameError:
+    pass
 
 # This part is just declaring Win32 API structures using ctypes. In C
 # this would be simply #include "windows.h".
