@@ -13,7 +13,7 @@ Take full control of your keyboard with this small Python library. Hook global e
 - **Pure Python**, no C modules to be compiled.
 - **Zero dependencies**. Trivial to install and deploy, just copy the files.
 - **Python 2 and 3**.
-- Complex hotkey support (e.g. `Ctrl+Shift+M, Ctrl+Space`) with controllable timeout.
+- Complex hotkey support (e.g. `ctrl+shift+m, ctrl+space`) with controllable timeout.
 - Includes **high level API** (e.g. [record](#keyboard.record) and [play](#keyboard.play), [add_abbreviation](#keyboard.add_abbreviation)).
 - Maps keys as they actually are in your layout, with **full internationalization support** (e.g. `Ctrl+ç`).
 - Events automatically captured in separate thread, doesn't block main program.
@@ -25,13 +25,15 @@ Take full control of your keyboard with this small Python library. Hook global e
 
 Install the [PyPI package](https://pypi.python.org/pypi/keyboard/):
 
-    $ sudo pip install keyboard
+    pip install keyboard
 
 or clone the repository (no installation required, source files are sufficient):
 
-    $ git clone https://github.com/boppreh/keyboard
+    git clone https://github.com/boppreh/keyboard
 
-Then check the [API docs](https://github.com/boppreh/keyboard#api) to see what features are available.
+or [download and extract the zip](https://github.com/boppreh/keyboard/archive/master.zip) into your project folder.
+
+Then check the [API docs below](https://github.com/boppreh/keyboard#api) to see what features are available.
 
 
 ## Example
