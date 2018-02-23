@@ -40,15 +40,16 @@ then parse the output and built a table. For each scan code and modifiers we
 have a list of names and vice-versa.
 """
 from subprocess import check_output
+from collections import defaultdict
 import re
 
-to_name = {}
-from_name = {}
+to_name = defaultdict(list)
+from_name = defaultdict(list)
 keypad_scan_codes = set()
 
 def register_key(key_and_modifiers, name):
-    to_name[key_and_modifiers] = name
-    from_name[name] = key_and_modifiers
+    to_name[key_and_modifiers].append(name)
+    from_name[name].append(key_and_modifiers)
 
 def build_tables():
     if to_name and from_name: return
@@ -61,19 +62,17 @@ def build_tables():
         modifiers = tuple(sorted(set(cleanup_modifier(m) for m in str_modifiers.strip().split())))
         scan_code = int(str_scan_code)
         name, is_keypad = cleanup_key(str_names.strip().split()[0])
-        to_name[(scan_code, modifiers)] = name
+        to_name[(scan_code, modifiers)].append(name)
         if is_keypad:
             keypad_scan_codes.add(scan_code)
-            from_name['keypad ' + name] = (scan_code, ())
-        if name not in from_name or len(modifiers) < len(from_name[name][1]):
-            from_name[name] = (scan_code, modifiers)
+            from_name['keypad ' + name].append((scan_code, ()))
+        from_name[name].append((scan_code, modifiers))
 
     # Assume Shift uppercases keys that are single characters.
     # Hackish, but a good heuristic so far.
-    for name, (scan_code, modifiers) in list(from_name.items()):
-        upper = name.upper()
-        if len(name) == 1 and upper not in from_name:
-            register_key((scan_code, modifiers + ('shift',)), upper)
+    for name, entries in list(from_name.items()):
+        for (scan_code, modifiers) in list(entries):
+            register_key((scan_code, modifiers + ('shift',)), name.upper())
 
     # dumpkeys consistently misreports the Windows key, sometimes
     # skipping it completely or reporting as 'alt. 125 = left win,
@@ -92,11 +91,7 @@ def build_tables():
     for synonym_str, original_str in re.findall(synonyms_template, dump, re.MULTILINE):
         synonym, _ = cleanup_key(synonym_str)
         original, _ = cleanup_key(original_str)
-        try:
-            from_name[synonym] = from_name[original]
-        except KeyError:
-            # Dumpkeys reported a synonym to an unknown key.
-            pass
+        from_name[synonym].extend(from_name[original])
 
 device = None
 def build_device():
@@ -123,10 +118,10 @@ def listen(callback):
         scan_code = code
         event_type = KEY_DOWN if value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
 
-        try:
-            name = to_name[(scan_code, tuple(sorted(pressed_modifiers)))]
-        except KeyError:
-            name = to_name.get((scan_code, ()), 'unknown')
+        pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
+        names = to_name[(scan_code, pressed_modifiers_tuple)] + to_name[(scan_code, ())] or ['unknown']
+        print(names)
+        name = names[0]
             
         if name in ('alt', 'alt gr', 'ctrl', 'shift'):
             if event_type == KEY_DOWN:
@@ -135,22 +130,19 @@ def listen(callback):
                 pressed_modifiers.discard(name)
 
         is_keypad = scan_code in keypad_scan_codes
-        callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, time=time, device=device_id, is_keypad=is_keypad))
+        callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, time=time, device=device_id, is_keypad=is_keypad, modifiers=pressed_modifiers_tuple))
 
 def write_event(scan_code, is_down):
     build_device()
     device.write_event(EV_KEY, scan_code, int(is_down))
 
-def map_char(name):
+def map_name(name):
     build_tables()
-    if name in from_name:
-        return from_name[name]
+    yield from from_name[name]
 
     parts = name.split(' ', 1)
-    if (name.startswith('left ') or name.startswith('right ')) and parts[1] in from_name:
-        return from_name[parts[1]]
-    else:
-        raise ValueError('Name {} is not mapped to any known key.'.format(repr(name)))
+    if len(parts) > 1 and name.startswith('left ') or name.startswith('right '):
+        yield from from_name[parts[1]]
 
 def press(scan_code):
     write_event(scan_code, True)
