@@ -206,3 +206,8 @@ if platform.system() == 'Darwin':
         "backspace": "delete"
     })
     all_modifiers = {'alt', 'ctrl', 'shift', 'windows'}
+if platform.system() == 'Linux':
+    canonical_names.update({
+        "select": "end",
+        "find": "home",
+    })

@@ -120,7 +120,6 @@ def listen(callback):
 
         pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
         names = to_name[(scan_code, pressed_modifiers_tuple)] + to_name[(scan_code, ())] or ['unknown']
-        print(names)
         name = names[0]
             
         if name in ('alt', 'alt gr', 'ctrl', 'shift'):
