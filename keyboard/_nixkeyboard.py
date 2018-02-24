@@ -4,6 +4,7 @@ import traceback
 from time import time as now
 from collections import namedtuple
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from ._canonical_names import all_modifiers
 from ._nixcommon import EV_KEY, aggregate_devices, ensure_root
 
 # TODO: start by reading current keyboard state, as to not missing any already pressed keys.
@@ -48,8 +49,10 @@ from_name = defaultdict(list)
 keypad_scan_codes = set()
 
 def register_key(key_and_modifiers, name):
-    to_name[key_and_modifiers].append(name)
-    from_name[name].append(key_and_modifiers)
+    if name not in to_name[key_and_modifiers]:
+        to_name[key_and_modifiers].append(name)
+    if key_and_modifiers not in from_name[name]:
+        from_name[name].append(key_and_modifiers)
 
 def build_tables():
     if to_name and from_name: return
@@ -62,15 +65,15 @@ def build_tables():
         modifiers = tuple(sorted(set(cleanup_modifier(m) for m in str_modifiers.strip().split())))
         scan_code = int(str_scan_code)
         name, is_keypad = cleanup_key(str_names.strip().split()[0])
-        to_name[(scan_code, modifiers)].append(name)
+        register_key((scan_code, modifiers), name)
         if is_keypad:
             keypad_scan_codes.add(scan_code)
-            from_name['keypad ' + name].append((scan_code, ()))
-        from_name[name].append((scan_code, modifiers))
+            register_key((scan_code, modifiers), 'keypad ' + name)
 
     # Assume Shift uppercases keys that are single characters.
     # Hackish, but a good heuristic so far.
     for name, entries in list(from_name.items()):
+        if len(name) > 1: continue
         for (scan_code, modifiers) in list(entries):
             register_key((scan_code, modifiers + ('shift',)), name.upper())
 
@@ -91,7 +94,8 @@ def build_tables():
     for synonym_str, original_str in re.findall(synonyms_template, dump, re.MULTILINE):
         synonym, _ = cleanup_key(synonym_str)
         original, _ = cleanup_key(original_str)
-        from_name[synonym].extend(from_name[original])
+        if synonym != original:
+            from_name[synonym].extend(from_name[original])
 
 device = None
 def build_device():
@@ -119,10 +123,10 @@ def listen(callback):
         event_type = KEY_DOWN if value else KEY_UP # 0 = UP, 1 = DOWN, 2 = HOLD
 
         pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
-        names = to_name[(scan_code, pressed_modifiers_tuple)] + to_name[(scan_code, ())] or ['unknown']
+        names = to_name[(scan_code, pressed_modifiers_tuple)] or to_name[(scan_code, ())] or ['unknown']
         name = names[0]
             
-        if name in ('alt', 'alt gr', 'ctrl', 'shift'):
+        if name in all_modifiers:
             if event_type == KEY_DOWN:
                 pressed_modifiers.add(name)
             else:
