@@ -128,6 +128,7 @@ canonical_names = {
     'grave': '`',
     'tilde': '~',
     'asciitilde': '~',
+    'asciicircum': '^',
     'til': '~',
     'cedilla': ',',
     'circumflex': '^',
@@ -190,6 +191,7 @@ canonical_names = {
     'left control': 'left ctrl',
     'right control': 'right ctrl',
     'left menu': 'left alt', # Windows...
+    'altgr': 'alt gr',
 }
 sided_modifiers = {'ctrl', 'alt', 'shift', 'windows'}
 all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'} | set('left ' + n for n in sided_modifiers) | set('right ' + n for n in sided_modifiers)
@@ -205,3 +207,8 @@ if platform.system() == 'Darwin':
         "backspace": "delete"
     })
     all_modifiers = {'alt', 'ctrl', 'shift', 'windows'}
+if platform.system() == 'Linux':
+    canonical_names.update({
+        "select": "end",
+        "find": "home",
+    })
