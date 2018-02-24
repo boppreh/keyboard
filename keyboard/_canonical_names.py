@@ -128,6 +128,7 @@ canonical_names = {
     'grave': '`',
     'tilde': '~',
     'asciitilde': '~',
+    'asciicircum': '^',
     'til': '~',
     'cedilla': ',',
     'circumflex': '^',

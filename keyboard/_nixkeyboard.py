@@ -24,14 +24,19 @@ def cleanup_key(name):
     elif name == 'Delete':
         name = 'Backspace'
 
+    if name.endswith('_r'):
+        name = 'right ' + name[:-2]
+    if name.endswith('_l'):
+        name = 'left ' + name[:-2]
+
+
     return normalize_name(name), is_keypad
 
 def cleanup_modifier(modifier):
-    expected = ('alt', 'ctrl', 'shift', 'alt gr')
     modifier = normalize_name(modifier)
-    if modifier in expected:
+    if modifier in all_modifiers:
         return modifier
-    if modifier[:-1] in expected:
+    if modifier[:-1] in all_modifiers:
         return modifier[:-1]
     raise ValueError('Unknown modifier {}'.format(modifier))
 
@@ -58,24 +63,23 @@ def build_tables():
     if to_name and from_name: return
     ensure_root()
 
-    keycode_template = r'^(.*?)keycode\s+(\d+)\s+=(.*?)$'
+    modifiers_bits = {
+        'shift': 1,
+        'alt gr': 2,
+        'ctrl': 4,
+        'alt': 8,
+    }
+    keycode_template = r'^keycode\s+(\d+)\s+=(.*?)$'
     dump = check_output(['dumpkeys', '--keys-only'], universal_newlines=True)
-    for str_modifiers, str_scan_code, str_names in re.findall(keycode_template, dump, re.MULTILINE):
-        if not str_names: continue
-        modifiers = tuple(sorted(set(cleanup_modifier(m) for m in str_modifiers.strip().split())))
+    for str_scan_code, str_names in re.findall(keycode_template, dump, re.MULTILINE):
         scan_code = int(str_scan_code)
-        name, is_keypad = cleanup_key(str_names.strip().split()[0])
-        register_key((scan_code, modifiers), name)
-        if is_keypad:
-            keypad_scan_codes.add(scan_code)
-            register_key((scan_code, modifiers), 'keypad ' + name)
-
-    # Assume Shift uppercases keys that are single characters.
-    # Hackish, but a good heuristic so far.
-    for name, entries in list(from_name.items()):
-        if len(name) > 1: continue
-        for (scan_code, modifiers) in list(entries):
-            register_key((scan_code, modifiers + ('shift',)), name.upper())
+        for i, str_name in enumerate(str_names.strip().split()):
+            modifiers = tuple(sorted(modifier for modifier, bit in modifiers_bits.items() if i & bit))
+            name, is_keypad = cleanup_key(str_name)
+            register_key((scan_code, modifiers), name)
+            if is_keypad:
+                keypad_scan_codes.add(scan_code)
+                register_key((scan_code, modifiers), 'keypad ' + name)
 
     # dumpkeys consistently misreports the Windows key, sometimes
     # skipping it completely or reporting as 'alt. 125 = left win,
@@ -95,6 +99,7 @@ def build_tables():
         synonym, _ = cleanup_key(synonym_str)
         original, _ = cleanup_key(original_str)
         if synonym != original:
+            from_name[original].extend(from_name[synonym])
             from_name[synonym].extend(from_name[original])
 
 device = None
@@ -141,11 +146,13 @@ def write_event(scan_code, is_down):
 
 def map_name(name):
     build_tables()
-    yield from from_name[name]
+    for entry in from_name[name]:
+        yield entry
 
     parts = name.split(' ', 1)
-    if len(parts) > 1 and name.startswith('left ') or name.startswith('right '):
-        yield from from_name[parts[1]]
+    if len(parts) > 1 and parts[0] in ('left', 'right'):
+        for entry in from_name[parts[1]]:
+            yield entry
 
 def press(scan_code):
     write_event(scan_code, True)
@@ -158,16 +165,16 @@ def type_unicode(character):
     hexadecimal = hex(codepoint)[len('0x'):]
 
     for key in ['ctrl', 'shift', 'u']:
-        scan_code, _ = map_char(key)
+        scan_code, _ = next(map_name(key))
         press(scan_code)
 
     for key in hexadecimal:
-        scan_code, _ = map_char(key)
+        scan_code, _ = next(map_name(key))
         press(scan_code)
         release(scan_code)
 
     for key in ['ctrl', 'shift', 'u']:
-        scan_code, _ = map_char(key)
+        scan_code, _ = next(map_name(key))
         release(scan_code)
 
 if __name__ == '__main__':
