@@ -402,10 +402,12 @@ def _setup_name_tables():
                     # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
                     names = list(get_event_names(*entry))
                     if names:
-                        to_name[entry] = names
+                        # Also map lowercased key names, but only after the properly cased ones.
+                        lowercase_names = [name.lower() for name in names]
+                        to_name[entry] = names + lowercase_names
                         # Remember the "id" of the name, as the first techniques
                         # have better results and therefore priority.
-                        for i, name in enumerate(map(normalize_name, names)):
+                        for i, name in enumerate(map(normalize_name, names + lowercase_names)):
                             from_name[name].append((i, entry))
 
         # TODO: single quotes on US INTL is returning the dead key (?), and therefore
