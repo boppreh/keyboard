@@ -315,18 +315,18 @@ def key_to_scan_codes(key, error_if_missing=True):
         right_scan_codes = key_to_scan_codes('right ' + normalized, False)
         return tuple(set(left_scan_codes + right_scan_codes))
 
-    e = None
     try:
-        t = _collections.OrderedDict((scan_code, True) for scan_code, modifier in _os_keyboard.map_name(normalized))
-        if t:
-            return tuple(t)
+        # Put items in ordered dict to remove duplicates.
+        t = tuple(_collections.OrderedDict((scan_code, True) for scan_code, modifier in _os_keyboard.map_name(normalized)))
+        e = None
     except (KeyError, ValueError) as exception:
         t = ()
         e = exception
-    if error_if_missing:
+
+    if not t and error_if_missing:
         raise ValueError('Key {} is not mapped to any known key.'.format(repr(key)), e)
     else:
-        return ()
+        return t
 
 def parse_hotkey(hotkey):
     """
@@ -928,7 +928,7 @@ def read_key(suppress=False):
 
 def read_hotkey(suppress=True):
     """
-    Similar to `read_key()`, but blocks until the user presses and releases a key
+    Similar to `read_key()`, but blocks until the user presses and releases a
     hotkey (or single key), then returns a string representing the hotkey
     pressed.
 
