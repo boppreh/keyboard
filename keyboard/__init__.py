@@ -435,7 +435,8 @@ def call_later(fn, args=(), delay=0.001):
     Useful for giving the system some time to process an event, without blocking
     the current execution flow.
     """
-    _Thread(target=lambda: (_time.sleep(delay), fn(*args))).start()
+    thread = _Thread(target=lambda: (_time.sleep(delay), fn(*args)))
+    thread.start()
 
 _hooks = {}
 def hook(callback, suppress=False, on_remove=lambda: None):
@@ -837,6 +838,8 @@ def write(text, delay=0, exact=_platform.system() == 'Windows'):
     # Window's typing of unicode characters is quite efficient and should be preferred.
     if exact:
         for letter in text:
+            if letter == '\n':
+                send(letter)
             _os_keyboard.type_unicode(letter)
             if delay: _time.sleep(delay)
     else:
