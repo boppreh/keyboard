@@ -21,6 +21,9 @@ EV_ABS = 0x03
 EV_MSC = 0x04
 
 def make_uinput():
+    if not os.path.exists('/dev/uinput'):
+        raise IOError('No uinput module found.')
+
     import fcntl, struct
 
     # Requires uinput driver, but it's usually available.
@@ -138,10 +141,15 @@ def aggregate_devices(type_name):
     # on each one, like a notebook with a "keyboard" device exclusive for the
     # power button. Instead of figuring out which keyboard allows which key to
     # send events, we create a fake device and send all events through there.
-    uinput = make_uinput()
-    fake_device = EventDevice('uinput Fake Device')
-    fake_device._input_file = uinput
-    fake_device._output_file = uinput
+    try:
+        uinput = make_uinput()
+        fake_device = EventDevice('uinput Fake Device')
+        fake_device._input_file = uinput
+        fake_device._output_file = uinput
+    except IOError as e:
+        import warnings
+        warnings.warn('Failed to create a device file using `uinput` module. Sending of events may be limited or unavailable depending on plugged-in devices.', stacklevel=2)
+        fake_device = None
 
     # We don't aggregate devices from different sources to avoid
     # duplicates.
@@ -157,6 +165,7 @@ def aggregate_devices(type_name):
         return AggregatedEventDevice(devices_from_by_id, output=fake_device)
 
     # If no keyboards were found we can only use the fake device to send keys.
+    assert fake_device
     return fake_device
 
 
