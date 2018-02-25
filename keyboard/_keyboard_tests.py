@@ -702,7 +702,7 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_a+u_a, d_ctrl+du_b+u_ctrl+du_c)
     def test_remap_hotkey_modifiers(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
-        self.do(d_ctrl+d_shift+d_a+u_a, du_b)
+        self.do(d_ctrl+d_shift+d_a+u_a, d_ctrl+d_shift+du_b)
     def test_remap_hotkey_modifiers_repeat(self):
         keyboard.remap_hotkey('ctrl+shift+a', 'b')
         self.do(d_ctrl+d_shift+du_a+du_a, du_b+du_b)

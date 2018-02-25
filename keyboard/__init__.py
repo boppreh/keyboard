@@ -142,154 +142,116 @@ def is_modifier(key):
             _modifier_scan_codes.update(*scan_codes)
         return key in _modifier_scan_codes
 
-_pressed_events_lock = _Lock()
-_pressed_events = {}
-_physically_pressed_keys = _pressed_events
-_logically_pressed_keys = {}
+_state_lock = _Lock()
+_physically_pressed_events = dict()
+_logically_pressed_events = dict()
+_active_modifiers = frozenset()
+_active_keys = frozenset()
+_pending_presses = list()
+_suppressed_presses = set()
 class _KeyboardListener(_GenericListener):
-    transition_table = {
-        #Current state of the modifier, per `modifier_states`.
-        #|
-        #|             Type of event that triggered this modifier update.
-        #|             |
-        #|             |         Type of key that triggered this modiier update.
-        #|             |         |
-        #|             |         |            Should we send a fake key press?
-        #|             |         |            |
-        #|             |         |     =>     |       Accept the event?
-        #|             |         |            |       |
-        #|             |         |            |       |      Next state.
-        #v             v         v            v       v      v
-        ('free',       KEY_UP,   'modifier'): (False, True,  'free'),
-        ('free',       KEY_DOWN, 'modifier'): (False, False, 'pending'),
-        ('pending',    KEY_UP,   'modifier'): (True,  True,  'free'),
-        ('pending',    KEY_DOWN, 'modifier'): (False, True,  'allowed'),
-        ('suppressed', KEY_UP,   'modifier'): (False, False, 'free'),
-        ('suppressed', KEY_DOWN, 'modifier'): (False, False, 'suppressed'),
-        ('allowed',    KEY_UP,   'modifier'): (False, True,  'free'),
-        ('allowed',    KEY_DOWN, 'modifier'): (False, True,  'allowed'),
-
-        ('free',       KEY_UP,   'hotkey'):   (False, None,  'free'),
-        ('free',       KEY_DOWN, 'hotkey'):   (False, None,  'free'),
-        ('pending',    KEY_UP,   'hotkey'):   (False, None,  'suppressed'),
-        ('pending',    KEY_DOWN, 'hotkey'):   (False, None,  'suppressed'),
-        ('suppressed', KEY_UP,   'hotkey'):   (False, None,  'suppressed'),
-        ('suppressed', KEY_DOWN, 'hotkey'):   (False, None,  'suppressed'),
-        ('allowed',    KEY_UP,   'hotkey'):   (False, None,  'allowed'),
-        ('allowed',    KEY_DOWN, 'hotkey'):   (False, None,  'allowed'),
-
-        ('free',       KEY_UP,   'other'):    (False, True,  'free'),
-        ('free',       KEY_DOWN, 'other'):    (False, True,  'free'),
-        ('pending',    KEY_UP,   'other'):    (True,  True,  'allowed'),
-        ('pending',    KEY_DOWN, 'other'):    (True,  True,  'allowed'),
-        # Necessary when hotkeys are removed after beign triggered, such as
-        # TestKeyboard.test_add_hotkey_multistep_suppress_modifier.
-        ('suppressed', KEY_UP,   'other'):    (False, False, 'allowed'),
-        ('suppressed', KEY_DOWN, 'other'):    (True,  True,  'allowed'),
-        ('allowed',    KEY_UP,   'other'):    (False, True,  'allowed'),
-        ('allowed',    KEY_DOWN, 'other'):    (False, True,  'allowed'),
-    }
-
     def init(self):
         _os_keyboard.init()
 
-        self.active_modifiers = set()
         self.blocking_hooks = []
-        self.blocking_keys = _collections.defaultdict(list)
-        self.nonblocking_keys = _collections.defaultdict(list)
-        self.blocking_hotkeys = _collections.defaultdict(list)
+        self.blocking_key_hooks = _collections.defaultdict(list)
+        self.nonblocking_key_hooks = _collections.defaultdict(list)
+        self.blocking_hotkeys = _collections.defaultdict(lambda: _collections.defaultdict(list))
         self.nonblocking_hotkeys = _collections.defaultdict(list)
-        self.filtered_modifiers = _collections.Counter()
         self.is_replaying = False
 
         # Supporting hotkey suppression is harder than it looks. See
         # https://github.com/boppreh/keyboard/issues/22
         self.modifier_states = {} # "alt" -> "allowed"
 
+        # TODO: this is a hack to populate the _modifier_scan_codes set.
+        is_modifier(0)
+
     def pre_process_event(self, event):
-        for key_hook in self.nonblocking_keys[event.scan_code]:
+        for key_hook in self.nonblocking_key_hooks[event.scan_code]:
             key_hook(event)
 
-        with _pressed_events_lock:
-            hotkey = tuple(sorted(_pressed_events))
+        with _state_lock:
+            hotkey = frozenset(_physically_pressed_events)
         for callback in self.nonblocking_hotkeys[hotkey]:
             callback(event)
 
         return event.scan_code or (event.name and event.name != 'unknown')
 
-    def direct_callback(self, event):
+    def update_active(self):
+        global _active_keys
+        global _active_modifiers
+        _active_keys = frozenset(_physically_pressed_events)
+        _active_modifiers = frozenset(key for key in _physically_pressed_events if is_modifier(key))
+        
+
+    def decide_event(self, event):
         """
         This function is called for every OS keyboard event and decides if the
         event should be blocked or not, and passes a copy of the event to
         other, non-blocking, listeners.
-
-        There are two ways to block events: remapped keys, which translate
-        events by suppressing and re-emitting; and blocked hotkeys, which
-        suppress specific hotkeys.
         """
         # Pass through all fake key events, don't even report to other handlers.
         if self.is_replaying:
+            # TODO: update _logically_pressed_events
             return True
-
-        if not all(hook(event) for hook in self.blocking_hooks):
-            return False
 
         event_type = event.event_type
         scan_code = event.scan_code
+        test_all_callbacks = lambda callbacks: all([c(event) for c in callbacks])
 
-        # Update tables of currently pressed keys and modifiers.
-        with _pressed_events_lock:
-            if event_type == KEY_DOWN:
-                if is_modifier(scan_code): self.active_modifiers.add(scan_code)
-                _pressed_events[scan_code] = event
-            hotkey = tuple(sorted(_pressed_events))
-            if event_type == KEY_UP:
-                self.active_modifiers.discard(scan_code)
-                if scan_code in _pressed_events: del _pressed_events[scan_code]
-
-        # Mappings based on individual keys instead of hotkeys.
-        for key_hook in self.blocking_keys[scan_code]:
-            if not key_hook(event):
-                return False
-
-        # Default accept.
-        accept = True
-
-        if self.blocking_hotkeys:
-            if self.filtered_modifiers[scan_code]:
-                origin = 'modifier'
-                modifiers_to_update = set([scan_code])
-            else:
-                modifiers_to_update = self.active_modifiers
-                if is_modifier(scan_code):
-                    modifiers_to_update = modifiers_to_update | {scan_code}
-                callback_results = [callback(event) for callback in self.blocking_hotkeys[hotkey]]
-                if callback_results:
-                    accept = all(callback_results)
-                    origin = 'hotkey'
-                else:
-                    origin = 'other'
-
-            for key in sorted(modifiers_to_update):
-                transition_tuple = (self.modifier_states.get(key, 'free'), event_type, origin)
-                should_press, new_accept, new_state = self.transition_table[transition_tuple]
-                if should_press: press(key)
-                if new_accept is not None: accept = new_accept
-                self.modifier_states[key] = new_state
-
-        if accept:
-            if event_type == KEY_DOWN:
-                _logically_pressed_keys[scan_code] = event
-            elif event_type == KEY_UP and scan_code in _logically_pressed_keys:
-                del _logically_pressed_keys[scan_code]
+        if not test_all_callbacks(self.blocking_hooks) or not test_all_callbacks(self.blocking_key_hooks[event.scan_code]):
+            return False
 
         # Queue for handlers that won't block the event.
         self.queue.put(event)
 
-        return accept
+        if event_type == KEY_DOWN:
+            with _state_lock:
+                _physically_pressed_events[scan_code] = event
+                self.update_active()
+
+            if is_modifier(scan_code):
+                if any(_active_modifiers.issubset(modifiers) for modifiers in self.blocking_hotkeys):
+                    suppress()
+                else:
+                    open_the_flood_gates()
+            elif self.blocking_hotkeys[_active_modifiers][_active_keys]:
+                if test_all_callbacks(self.blocking_hotkeys[_active_modifiers][_active_keys]):
+                    open_the_flood_gates()
+                else:
+                    suppress()
+            elif any(_active_keys.issubset(keys) for keys in self.blocking_hotkeys[_active_modifiers]):
+                suppress()
+            else:
+                open_the_flood_gates()
+
+        elif event_type == KEY_UP:
+            with _state_lock:
+                _physically_pressed_events.pop(scan_code, None)
+                self.update_active()
+
+            releasing_modifiers = _active_modifiers | {scan_code} if is_modifier(scan_code) else _active_modifiers
+            releasing_keys = _active_keys | {scan_code}
+
+            try:
+                if self.blocking_hotkeys[_active_modifiers][_active_keys]:
+                    if test_all_callbacks(self.blocking_hotkeys[releasing_modifiers][releasing_keys]):
+                        open_the_flood_gates()
+                    else:
+                        suppress()
+                elif scan_code in _suppressed_presses:
+                    suppress()
+                    # TODO: remove assert after testing
+                    assert scan_code not in _pending_presses
+                else:
+                    open_the_flood_gates()
+            finally:
+                _suppressed_presses.discard(scan_code)
+                _pending_presses.discard(scan_code)
 
     def listen(self):
-        _os_keyboard.listen(self.direct_callback)
+        _os_keyboard.listen(self.decide_event)
 
 _listener = _KeyboardListener()
 
@@ -312,7 +274,7 @@ def key_to_scan_codes(key, error_if_missing=True):
 
     try:
         # Put items in ordered dict to remove duplicates.
-        t = tuple(_collections.OrderedDict((scan_code, True) for scan_code, modifier in _os_keyboard.map_name(normalized)))
+        t = tuple(_collections.OrderedDict(_os_keyboard.map_name(normalized)))
         e = None
     except (KeyError, ValueError) as exception:
         t = ()
@@ -409,16 +371,16 @@ def is_pressed(hotkey):
 
     if _is_number(hotkey):
         # Shortcut.
-        with _pressed_events_lock:
-            return hotkey in _pressed_events
+        with _state_lock:
+            return hotkey in _physically_pressed_events
 
     steps = parse_hotkey(hotkey)
     if len(steps) > 1:
         raise ValueError("Impossible to check if multi-step hotkeys are pressed (`a+b` is ok, `a, b` isn't).")
 
-    # Convert _pressed_events into a set 
-    with _pressed_events_lock:
-        pressed_scan_codes = set(_pressed_events)
+    # Convert _physically_pressed_events into a set 
+    with _state_lock:
+        pressed_scan_codes = set(_physically_pressed_events)
     for scan_codes in steps[0]:
         if not any(scan_code in pressed_scan_codes for scan_code in scan_codes):
             return False
@@ -487,7 +449,7 @@ def hook_key(key, callback, suppress=False):
     affects it aswell.
     """
     _listener.start_if_necessary()
-    store = _listener.blocking_keys if suppress else _listener.nonblocking_keys
+    store = _listener.blocking_key_hooks if suppress else _listener.nonblocking_key_hooks
     scan_codes = key_to_scan_codes(key)
     for scan_code in scan_codes:
         store[scan_code].append(callback)
@@ -527,8 +489,8 @@ def unhook_all():
     listeners, `record`ers and `wait`s.
     """
     _listener.start_if_necessary()
-    _listener.blocking_keys.clear()
-    _listener.nonblocking_keys.clear()
+    _listener.blocking_key_hooks.clear()
+    _listener.nonblocking_key_hooks.clear()
     del _listener.blocking_hooks[:]
     del _listener.handlers[:]
     unhook_all_hotkeys()
@@ -574,23 +536,24 @@ def _add_hotkey_step(handler, combinations, suppress):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
-    container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
+    if suppress:
+        containers = []
+        for scan_codes in combinations:
+            modifiers = frozenset(filter(is_modifier, scan_codes))
+            containers.append(_listener.blocking_hotkeys[modifiers])
+    else:
+        containers = [_listener.nonblocking_hotkeys]
 
     # Register the scan codes of every possible combination of
-    # modfiier + main key. Modifiers have to be registered in 
-    # filtered_modifiers too, so suppression and replaying can work.
-    for scan_codes in combinations:
-        for scan_code in scan_codes:
-            if is_modifier(scan_code):
-                _listener.filtered_modifiers[scan_code] += 1
-        container[scan_codes].append(handler)
+    # modfiier + main key.
+    for container in containers:
+        for scan_codes in combinations:
+            container[scan_codes].append(handler)
 
     def remove():
-        for scan_codes in combinations:
-            for scan_code in scan_codes:
-                if is_modifier(scan_code):
-                    _listener.filtered_modifiers[scan_code] -= 1
-            container[scan_codes].remove(handler)
+        for container in containers:
+            for scan_codes in combinations:
+                container[scan_codes].remove(handler)
     return remove
 
 _hotkeys = {}
@@ -644,7 +607,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         # and any mistake will make that key "sticky". Therefore just let all
         # KEY_UP events go through as long as that's not what we are listening
         # for.
-        handler = lambda e: (event_type == KEY_DOWN and e.event_type == KEY_UP and e.scan_code in _logically_pressed_keys) or (event_type == e.event_type and callback())
+        handler = lambda e: (event_type == KEY_DOWN and e.event_type == KEY_UP and e.scan_code in _logically_pressed_events) or (event_type == e.event_type and callback())
         remove_step = _add_hotkey_step(handler, steps[0], suppress)
         def remove_():
             remove_step()
@@ -785,8 +748,8 @@ def stash_state():
     the list. Pairs well with `restore_state` and `restore_modifiers`.
     """
     # TODO: stash caps lock / numlock /scrollock state.
-    with _pressed_events_lock:
-        state = sorted(_pressed_events)
+    with _state_lock:
+        state = sorted(_physically_pressed_events)
     for scan_code in state:
         _os_keyboard.release(scan_code)
     return state
@@ -798,8 +761,8 @@ def restore_state(scan_codes):
     """
     _listener.is_replaying = True
 
-    with _pressed_events_lock:
-        current = set(_pressed_events)
+    with _state_lock:
+        current = set(_physically_pressed_events)
     target = set(scan_codes)
     for scan_code in current - target:
         _os_keyboard.release(scan_code)
@@ -902,8 +865,8 @@ def get_hotkey_name(names=None):
     """
     if names is None:
         _listener.start_if_necessary()
-        with _pressed_events_lock:
-            names = [e.name for e in _pressed_events.values()]
+        with _state_lock:
+            names = [e.name for e in _physically_pressed_events.values()]
     else:
         names = [normalize_name(name) for name in names]
     clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
@@ -951,8 +914,8 @@ def read_hotkey(suppress=True):
         event = queue.get()
         if event.event_type == KEY_UP:
             unhook(hooked)
-            with _pressed_events_lock:
-                names = [e.name for e in _pressed_events.values()] + [event.name]
+            with _state_lock:
+                names = [e.name for e in _physically_pressed_events.values()] + [event.name]
             return get_hotkey_name(names)
 
 def get_typed_strings(events, allow_backspace=True):
