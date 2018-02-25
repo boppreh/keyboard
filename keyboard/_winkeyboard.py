@@ -501,19 +501,25 @@ def prepare_intercept(callback):
         entry = (scan_code, vk, is_extended, modifiers)
         if entry not in to_name:
             to_name[entry] = list(get_event_names(*entry))
-        names = to_name[entry]
-        name = names[0] if names else None
+
+        if scan_code == 541 and vk == 162:
+            # WHen releasing or hold alt gr, we try to find the key name taking
+            # into account that alt gr is pressed. This usually results in 'ctrl'.
+            # So force it back into "alt gr" by manually checking scan_code and vk.
+            name = 'alt gr'
+            if event_type == KEY_DOWN:
+                altgr_is_pressed = True
+            elif event_type == KEY_UP:
+                altgr_is_pressed = False
+        else:
+            names = to_name[entry]
+            name = names[0] if names else None
             
         # TODO: inaccurate when holding multiple different shifts.
         if event_type == KEY_DOWN and vk in shift_vks:
             shift_is_pressed = True
         elif event_type == KEY_UP and vk in shift_vks:
             shift_is_pressed = False
-
-        if event_type == KEY_DOWN and scan_code == 541:
-            altgr_is_pressed = True
-        elif event_type == KEY_UP and scan_code == 541:
-            altgr_is_pressed = False
 
         is_keypad = (scan_code, vk, is_extended) in keypad_keys
         return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
