@@ -132,8 +132,8 @@ def list_devices_from_proc(type_name):
         if type_name in handlers:
             yield EventDevice(path)
 
-def list_devices_from_by_id(type_name):
-    for path in glob('/dev/input/by-id/*-event-' + type_name):
+def list_devices_from_by_id(name_suffix, by_id=True):
+    for path in glob('/dev/input/{}/*-event-{}'.format('by-id' if by_id else 'by-path', name_suffix)):
         yield EventDevice(path)
 
 def aggregate_devices(type_name):
@@ -160,7 +160,7 @@ def aggregate_devices(type_name):
 
     # breaks on mouse for virtualbox
     # was getting /dev/input/by-id/usb-VirtualBox_USB_Tablet-event-mouse
-    devices_from_by_id = list(list_devices_from_by_id(type_name))
+    devices_from_by_id = list(list_devices_from_by_id(type_name)) or list(list_devices_from_by_id(type_name, by_id=False))
     if devices_from_by_id:
         return AggregatedEventDevice(devices_from_by_id, output=fake_device)
 
