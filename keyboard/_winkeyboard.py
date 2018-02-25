@@ -15,6 +15,7 @@ import re
 import atexit
 import traceback
 from threading import Lock
+from collections import defaultdict
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
 try:
@@ -325,10 +326,9 @@ official_virtual_keys = {
 }
 
 tables_lock = Lock()
-to_name = {}
-from_name = {}
+to_name = defaultdict(list)
+from_name = defaultdict(list)
 scan_code_to_vk = {}
-vk_to_scan_code = {}
 
 distinct_modifiers = [
     (),
@@ -394,8 +394,6 @@ def _setup_name_tables():
 
             if scan_code not in scan_code_to_vk:
                 scan_code_to_vk[scan_code] = vk
-            if vk not in vk_to_scan_code:
-                vk_to_scan_code[vk] = scan_code
 
             # Brute force all combinations to find all possible names.
             for extended in [0, 1]:
@@ -408,7 +406,7 @@ def _setup_name_tables():
                         # Remember the "id" of the name, as the first techniques
                         # have better results and therefore priority.
                         for i, name in enumerate(map(normalize_name, names)):
-                            from_name.setdefault(name, set()).add((i, entry))
+                            from_name[name].append((i, entry))
 
         # TODO: single quotes on US INTL is returning the dead key (?), and therefore
         # not typing properly.
@@ -416,11 +414,15 @@ def _setup_name_tables():
         # Alt gr is way outside the usual range of keys (0..127) and on my
         # computer is named as 'ctrl'. Therefore we add it manually and hope
         # Windows is consistent in its inconsistency.
-        from_name['alt gr'] = []
         for extended in [0, 1]:
             for modifiers in distinct_modifiers:
                 to_name[(541, 162, extended, modifiers)] = ['alt gr']
-                from_name['alt gr'].append((541, 162, extended, modifiers))
+                from_name['alt gr'].append((1, (541, 162, extended, modifiers)))
+
+    modifiers_preference = defaultdict(lambda: 10)
+    modifiers_preference.update({(): 0, ('shift',): 1, ('alt gr',): 2, ('ctrl',): 3, ('alt',): 4})
+    for name, entries in list(from_name.items()):
+        from_name[name] = sorted(set(entries), key=lambda e: (modifiers_preference[e[1][-1]], e))
 
 # Called by keyboard/__init__.py
 init = _setup_name_tables
@@ -556,7 +558,7 @@ def map_name(name):
     entries = from_name.get(name)
     if not entries:
         raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
-    for i, entry in sorted(entries):
+    for i, entry in entries:
         scan_code, vk, is_extended, modifiers = entry
         yield scan_code or -vk, modifiers
 

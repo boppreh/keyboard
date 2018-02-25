@@ -847,7 +847,7 @@ def write(text, delay=0, exact=_platform.system() == 'Windows'):
             except (KeyError, ValueError):
                 _os_keyboard.type_unicode(letter)
                 continue
-
+            
             for modifier in modifiers:
                 press(modifier)
 
