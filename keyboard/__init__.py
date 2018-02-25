@@ -838,9 +838,10 @@ def write(text, delay=0, exact=_platform.system() == 'Windows'):
     # Window's typing of unicode characters is quite efficient and should be preferred.
     if exact:
         for letter in text:
-            if letter == '\n':
+            if letter in '\n\b':
                 send(letter)
-            _os_keyboard.type_unicode(letter)
+            else:
+                _os_keyboard.type_unicode(letter)
             if delay: _time.sleep(delay)
     else:
         for letter in text:
