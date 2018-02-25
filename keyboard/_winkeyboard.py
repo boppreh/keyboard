@@ -569,7 +569,11 @@ def map_name(name):
         yield scan_code or -vk, modifiers
 
 def _send_event(code, event_type):
-    if code > 0:
+    if code == 541:
+        # Alt-gr is made of ctrl+alt. Just sending even 541 doesn't do anything.
+        user32.keybd_event(0x11, code, event_type, 0)
+        user32.keybd_event(0x12, code, event_type, 0)
+    elif code > 0:
         vk = scan_code_to_vk.get(code, 0)
         user32.keybd_event(vk, code, event_type, 0)
     else:
