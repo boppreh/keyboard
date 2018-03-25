@@ -524,7 +524,7 @@ def prepare_intercept(callback):
             shift_is_pressed = False
 
         is_keypad = (scan_code, vk, is_extended) in keypad_keys
-        return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
+        return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code or -vk, name=name, is_keypad=is_keypad))
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
         try:
