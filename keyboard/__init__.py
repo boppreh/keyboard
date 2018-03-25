@@ -967,7 +967,7 @@ def get_typed_strings(events, allow_backspace=True):
     process keyboard state such as keyboard layout, and this information is not
     available for our hooks.
 
-        get_type_strings(record()) #-> ['This is what', 'I recorded', '']
+        get_typed_strings(record()) #-> ['This is what', 'I recorded', '']
     """
     shift_pressed = False
     capslock_pressed = False
@@ -975,10 +975,17 @@ def get_typed_strings(events, allow_backspace=True):
     for event in events:
         name = event.name
 
+        #list of characters that will be changed when shift is pressed
+        mapping_original = r"abcdefghijklmnopqrstuvwxyz1234567890-;,./\[]'"
+        mapping_translated = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_:<>?|{}\""
+        mapping = str.maketrans(mapping_original,mapping_translated)
         # Space is the only key that we _parse_hotkey to the spelled out name
         # because of legibility. Now we have to undo that.
         if event.name == 'space':
             name = ' '
+        # Equal signs are incorrectly marked as plus signs.
+        if event.name == '+':
+            name = '='
 
         if 'shift' in event.name:
             shift_pressed = event.event_type == 'down'
@@ -989,7 +996,9 @@ def get_typed_strings(events, allow_backspace=True):
         elif event.event_type == 'down':
             if len(name) == 1:
                 if shift_pressed ^ capslock_pressed:
-                    name = name.upper()
+                    # name = name.upper()
+                    # translate the character if shift is pressed
+                    name = name.translate(mapping)
                 string = string + name
             else:
                 yield string
