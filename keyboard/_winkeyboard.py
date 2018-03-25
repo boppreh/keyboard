@@ -29,9 +29,14 @@ except NameError:
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
-from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG
+from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG, HMODULE, LPCWSTR
 LPMSG = POINTER(MSG)
 ULONG_PTR = POINTER(DWORD)
+
+kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+GetModuleHandleW = kernel32.GetModuleHandleW
+GetModuleHandleW.restype = HMODULE
+#GetModuleHandleW.argtypes = [LPCWSTR]
 
 #https://github.com/boppreh/mouse/issues/1
 #user32 = ctypes.windll.user32
@@ -85,7 +90,7 @@ class INPUT(ctypes.Structure):
 
 LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
 
-SetWindowsHookEx = user32.SetWindowsHookExA
+SetWindowsHookEx = user32.SetWindowsHookExW
 #SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
 SetWindowsHookEx.restype = HHOOK
 
@@ -547,7 +552,7 @@ def prepare_intercept(callback):
 
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
-    keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, NULL, NULL)
+    keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, GetModuleHandleW(NULL), NULL)
 
     # Register to remove the hook when the interpreter exits. Unfortunately a
     # try/finally block doesn't seem to work here.
