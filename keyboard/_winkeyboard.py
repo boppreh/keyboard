@@ -373,9 +373,9 @@ def get_event_names(scan_code, vk, is_extended, modifiers):
     if name_ret and name_buffer.value:
         yield name_buffer.value
 
-    char = chr(user32.MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) & 0xFF)
-    if char != '\x00' and char:
-        yield char
+    char = user32.MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) & 0xFF
+    if char != 0:
+        yield chr(char)
 
     if not is_keypad and is_official:
         yield official_virtual_keys[vk][0]
@@ -390,8 +390,8 @@ def _setup_name_tables():
 
         # Go through every possible scan code, and map them to virtual key codes.
         # Then vice-versa.
-        all_scan_codes = [(sc, user32.MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK_EX, 0) & 0xFF) for sc in range(0x100)]
-        all_vks =        [(user32.MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, 0) & 0xFF, vk) for vk in range(0x100)]
+        all_scan_codes = [(sc, user32.MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK_EX, 0)) for sc in range(0x100)]
+        all_vks =        [(user32.MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, 0), vk) for vk in range(0x100)]
         for scan_code, vk in all_scan_codes + all_vks:
             # `to_name` and `from_name` entries will be a tuple (scan_code, vk, extended, shift_state).
             if (scan_code, vk, 0, 0, 0) in to_name:
@@ -521,7 +521,7 @@ def prepare_intercept(callback):
         else:
             names = to_name[entry]
             name = names[0] if names else None
-            
+
         # TODO: inaccurate when holding multiple different shifts.
         if event_type == KEY_DOWN and vk in shift_vks:
             shift_is_pressed = True
