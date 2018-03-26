@@ -17,6 +17,9 @@ class KeyboardEvent(object):
     scan_code = None
     name = None
     time = None
+    device = None
+    modifiers = None
+    is_keypad = None
 
     def __init__(self, event_type, scan_code, name=None, time=None, device=None, modifiers=None, is_keypad=None):
         self.event_type = event_type

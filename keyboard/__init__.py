@@ -597,7 +597,7 @@ def _add_hotkey_step(handler, combinations, suppress):
     return remove
 
 _hotkeys = {}
-def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=0, trigger_on_release=False):
+def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
     """
     Invokes a callback every time a hotkey is pressed. The hotkey must
     be in the format `ctrl+shift+a, s`. This would trigger when the user holds
@@ -817,7 +817,7 @@ def restore_modifiers(scan_codes):
     """
     restore_state((scan_code for scan_code in scan_codes if is_modifier(scan_code)))
 
-def write(text, delay=0, exact=_platform.system() == 'Windows'):
+def write(text, delay=0, restore_state_after=True, exact=None):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Characters not available on the keyboard are typed as explicit unicode
@@ -828,10 +828,16 @@ def write(text, delay=0, exact=_platform.system() == 'Windows'):
 
     - `delay` is the number of seconds to wait between keypresses, defaults to
     no delay.
+    - `restore_state_after` can be used to restore the state of pressed keys
+    after the text is typed, i.e. presses the keys that were released at the
+    beginning. Defaults to True.
     - `exact` forces typing all characters as explicit unicode (e.g.
     alt+codepoint or special events). If None, uses platform-specific suggested
     value.
     """
+    if exact is None:
+        exact = _platform.system() == 'Windows'
+
     state = stash_state()
     
     # Window's typing of unicode characters is quite efficient and should be preferred.
@@ -863,7 +869,8 @@ def write(text, delay=0, exact=_platform.system() == 'Windows'):
             if delay:
                 _time.sleep(delay)
 
-    restore_modifiers(state)
+    if restore_state_after:
+        restore_modifiers(state)
 
 def wait(hotkey=None, suppress=False, trigger_on_release=False):
     """
