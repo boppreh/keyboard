@@ -589,7 +589,7 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_ctrl+d_a, d_ctrl+d_a)
         self.assertEqual(keyboard._listener.filtered_modifiers[dummy_keys['left ctrl'][0][0]], 0)
     def test_remove_hotkey_internal(self):
-        remove = keyboard.add_hotkey('shift+a', trigger)
+        remove = keyboard.add_hotkey('shift+a', trigger, suppress=True)
         self.assertTrue(all(keyboard._listener.blocking_hotkeys.values()))
         self.assertTrue(all(keyboard._listener.filtered_modifiers.values()))
         self.assertNotEqual(keyboard._hotkeys, {})
@@ -598,7 +598,7 @@ class TestKeyboard(unittest.TestCase):
         self.assertTrue(not any(keyboard._listener.blocking_hotkeys.values()))
         self.assertEqual(keyboard._hotkeys, {})
     def test_remove_hotkey_internal_multistep_start(self):
-        remove = keyboard.add_hotkey('shift+a, b', trigger)
+        remove = keyboard.add_hotkey('shift+a, b', trigger, suppress=True)
         self.assertTrue(all(keyboard._listener.blocking_hotkeys.values()))
         self.assertTrue(all(keyboard._listener.filtered_modifiers.values()))
         self.assertNotEqual(keyboard._hotkeys, {})
@@ -607,7 +607,7 @@ class TestKeyboard(unittest.TestCase):
         self.assertTrue(not any(keyboard._listener.blocking_hotkeys.values()))
         self.assertEqual(keyboard._hotkeys, {})
     def test_remove_hotkey_internal_multistep_end(self):
-        remove = keyboard.add_hotkey('shift+a, b', trigger)
+        remove = keyboard.add_hotkey('shift+a, b', trigger, suppress=True)
         self.do(d_shift+du_a+u_shift)
         self.assertTrue(any(keyboard._listener.blocking_hotkeys.values()))
         self.assertTrue(not any(keyboard._listener.filtered_modifiers.values()))
@@ -647,30 +647,30 @@ class TestKeyboard(unittest.TestCase):
         keyboard.add_hotkey('ctrl+a', trigger, suppress=True)
         self.do(d_ctrl+d_shift+du_a+u_shift+u_ctrl, d_ctrl+d_shift+du_a+u_shift+u_ctrl)
     def test_add_hotkey_single_step_timeout(self):
-        keyboard.add_hotkey('a', trigger, timeout=1)
+        keyboard.add_hotkey('a', trigger, timeout=1, suppress=True)
         self.do(du_a, triggered_event)
     def test_add_hotkey_multi_step_first_timeout(self):
-        keyboard.add_hotkey('a, b', trigger, timeout=0.01)
+        keyboard.add_hotkey('a, b', trigger, timeout=0.01, suppress=True)
         time.sleep(0.03)
         self.do(du_a+du_b, triggered_event)
     def test_add_hotkey_multi_step_last_timeout(self):
-        keyboard.add_hotkey('a, b', trigger, timeout=0.01)
+        keyboard.add_hotkey('a, b', trigger, timeout=0.01, suppress=True)
         self.do(du_a, [])
         time.sleep(0.05)
         self.do(du_b, du_a+du_b)
     def test_add_hotkey_multi_step_success_timeout(self):
-        keyboard.add_hotkey('a, b', trigger, timeout=0.05)
+        keyboard.add_hotkey('a, b', trigger, timeout=0.05, suppress=True)
         self.do(du_a, [])
         time.sleep(0.01)
         self.do(du_b, triggered_event)
     def test_add_hotkey_multi_step_suffix_timeout(self):
-        keyboard.add_hotkey('a, b, a', trigger, timeout=0.01)
+        keyboard.add_hotkey('a, b, a', trigger, timeout=0.01, suppress=True)
         self.do(du_a+du_b, [])
         time.sleep(0.05)
         self.do(du_a, du_a+du_b)
         self.do(du_b+du_a, triggered_event)
     def test_add_hotkey_multi_step_allow(self):
-        keyboard.add_hotkey('a, b', lambda: trigger() or True)
+        keyboard.add_hotkey('a, b', lambda: trigger() or True, suppress=True)
         self.do(du_a+du_b, triggered_event+du_a+du_b)
 
     def test_add_hotkey_single_step_nonsuppress(self):
