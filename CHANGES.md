@@ -1,3 +1,14 @@
+# 0.13.0
+
+- [All] New `remap_` and `block_` functions.
+- [All] New high-level functions for parsing and converting hotkey names.
+- [All] Added `.modifiers` and `.is_keymap` attribute to events.
+- [All] Event name now matches character typed (e.g. now event from key `1` reports as `!` if shift is pressed). This gives `get_typed_strings` more precision.
+- [Windows] New key suppression system should fix most bugs with `suppress=True`.
+- [Linux] Added `.device` attribute to events.
+- [All] Many, many bugfixes.
+
+
 # 0.11.0
 
 - [Windows] Used explicit WinDLL to fix "expected CFunctionType instance instead of CFunctionType".
