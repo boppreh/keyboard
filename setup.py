@@ -4,7 +4,6 @@ Usage instructions:
 - If you are installing: `python setup.py install`
 - If you are developing: `python setup.py sdist bdist --format=zip bdist_wheel --universal`
 """
-import sys
 import keyboard
 try:
     import pypandoc
@@ -19,6 +18,7 @@ last_version = re.search('(\d+(?:\.\d+)+)', open('CHANGES.md').read()).group(1)
 # https://github.com/pypa/setuptools/issues/1126
 long_description = long_description.replace('\r\n', '\n')
 
+import platform
 from setuptools import setup
 setup(
     name='keyboard',
@@ -31,7 +31,7 @@ setup(
     description='Hook and simulate keyboard events on Windows and Linux',
     keywords = 'keyboard hook simulate hotkey',
     long_description=long_description,
-    install_requires=["pyobjc; sys_platform=='darwin'"], # OSX-specific dependency
+    install_requires=["pyobjc"] if platform.system() == 'Darwin' else [], # OSX-specific dependency
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
