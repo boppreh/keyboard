@@ -1,3 +1,8 @@
+# 0.13.1
+
+- [Windows/Linux] Fixed installation.
+
+
 # 0.13.0
 
 - [All] New `remap_` and `block_` functions.
