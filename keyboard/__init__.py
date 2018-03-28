@@ -119,7 +119,10 @@ import platform as _platform
 if _platform.system() == 'Windows':
     from. import _winkeyboard as _os_keyboard
 elif _platform.system() == 'Linux':
-    from. import _nixkeyboard as _os_keyboard
+    try:
+        from. import _xlibkeyboard as _os_keyboard
+    except ImportError as e:
+        from. import _nixkeyboard as _os_keyboard
 elif _platform.system() == 'Darwin':
     from. import _darwinkeyboard as _os_keyboard
 else:

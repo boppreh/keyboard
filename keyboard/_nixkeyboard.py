@@ -29,7 +29,6 @@ def cleanup_key(name):
     if name.endswith('_l'):
         name = 'left ' + name[:-2]
 
-
     return normalize_name(name), is_keypad
 
 def cleanup_modifier(modifier):
