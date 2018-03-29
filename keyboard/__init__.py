@@ -206,19 +206,14 @@ class _KeyboardListener(_GenericListener):
         # https://github.com/boppreh/keyboard/issues/22
         self.modifier_states = {} # "alt" -> "allowed"
 
-    def invoke_callbacks(self, event, mapping):
-        # Currently only Windows is filling this value
-        # TODO: change to event.modifiers to avoid race conditions on
-        # non-blocking callbacks.
-        with _pressed_events_lock:
-            hotkey = tuple(sorted(_pressed_events))
-        return [callback(event) for callback in mapping[hotkey]]
-        
     def pre_process_event(self, event):
         for key_hook in self.nonblocking_keys[event.scan_code]:
             key_hook(event)
 
-        self.invoke_callbacks(event, self.nonblocking_hotkeys)
+        with _pressed_events_lock:
+            hotkey = tuple(sorted(_pressed_events))
+        for callback in self.nonblocking_hotkeys[hotkey]:
+            callback(event)
 
         return event.scan_code or (event.name and event.name != 'unknown')
 
@@ -240,28 +235,35 @@ class _KeyboardListener(_GenericListener):
             return False
 
         event_type = event.event_type
-
-        # Mappings based on individual keys instead of hotkeys.
-        for key_hook in self.blocking_keys[event.scan_code]:
-            if not key_hook(event):
-                return False
+        scan_code = event.scan_code
 
         # Update tables of currently pressed keys and modifiers.
-        if event_type == KEY_DOWN:
-            if is_modifier(event.scan_code): self.active_modifiers.add(event.scan_code)
-            with _pressed_events_lock:
-                _pressed_events[event.scan_code] = event
+        with _pressed_events_lock:
+            if event_type == KEY_DOWN:
+                if is_modifier(scan_code): self.active_modifiers.add(scan_code)
+                _pressed_events[scan_code] = event
+            hotkey = tuple(sorted(_pressed_events))
+            if event_type == KEY_UP:
+                self.active_modifiers.discard(scan_code)
+                if scan_code in _pressed_events: del _pressed_events[scan_code]
+
+        # Mappings based on individual keys instead of hotkeys.
+        for key_hook in self.blocking_keys[scan_code]:
+            if not key_hook(event):
+                return False
 
         # Default accept.
         accept = True
 
         if self.blocking_hotkeys:
-            if self.filtered_modifiers[event.scan_code]:
+            if self.filtered_modifiers[scan_code]:
                 origin = 'modifier'
-                modifiers_to_update = set([event.scan_code])
+                modifiers_to_update = set([scan_code])
             else:
                 modifiers_to_update = self.active_modifiers
-                callback_results = self.invoke_callbacks(event, self.blocking_hotkeys)
+                if is_modifier(scan_code):
+                    modifiers_to_update = modifiers_to_update | {scan_code}
+                callback_results = [callback(event) for callback in self.blocking_hotkeys[hotkey]]
                 if callback_results:
                     accept = all(callback_results)
                     origin = 'hotkey'
@@ -275,17 +277,11 @@ class _KeyboardListener(_GenericListener):
                 if new_accept is not None: accept = new_accept
                 self.modifier_states[key] = new_state
 
-        # Update tables of currently pressed keys and modifiers.
-        if event_type == KEY_UP:
-            self.active_modifiers.discard(event.scan_code)
-            with _pressed_events_lock:
-                if event.scan_code in _pressed_events: del _pressed_events[event.scan_code]
-
         if accept:
             if event_type == KEY_DOWN:
-                _logically_pressed_keys[event.scan_code] = event
-            elif event_type == KEY_UP and event.scan_code in _logically_pressed_keys:
-                del _logically_pressed_keys[event.scan_code]
+                _logically_pressed_keys[scan_code] = event
+            elif event_type == KEY_UP and scan_code in _logically_pressed_keys:
+                del _logically_pressed_keys[scan_code]
 
         # Queue for handlers that won't block the event.
         self.queue.put(event)
