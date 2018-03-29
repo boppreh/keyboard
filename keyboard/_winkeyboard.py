@@ -343,6 +343,7 @@ distinct_modifiers = [
     ('shift', 'num lock'),
     ('caps lock',),
     ('shift', 'caps lock'),
+    ('alt gr', 'num lock'),
 ]
 
 name_buffer = ctypes.create_unicode_buffer(32)
@@ -477,6 +478,7 @@ keypad_keys = [
 
 shift_is_pressed = False
 altgr_is_pressed = False
+ignore_next_right_alt = False
 shift_vks = set([0x10, 0xa0, 0xa1])
 def prepare_intercept(callback):
     """
@@ -491,11 +493,11 @@ def prepare_intercept(callback):
     _setup_name_tables()
     
     def process_key(event_type, vk, scan_code, is_extended):
-        global shift_is_pressed, altgr_is_pressed
+        global shift_is_pressed, altgr_is_pressed, ignore_next_right_alt
 
-        # Pressing AltGr also triggers "right menu" quickly after. We
-        # try to filter out this event.
-        if vk == 165:
+        # Pressing alt-gr also generates an extra "right alt" event
+        if vk == 0xA5 and ignore_next_right_alt:
+            ignore_next_right_alt = False
             return True
 
         modifiers = (
@@ -509,24 +511,15 @@ def prepare_intercept(callback):
         if entry not in to_name:
             to_name[entry] = list(get_event_names(*entry))
 
-        if scan_code == 541 and vk == 162:
-            # WHen releasing or hold alt gr, we try to find the key name taking
-            # into account that alt gr is pressed. This usually results in 'ctrl'.
-            # So force it back into "alt gr" by manually checking scan_code and vk.
-            name = 'alt gr'
-            if event_type == KEY_DOWN:
-                altgr_is_pressed = True
-            elif event_type == KEY_UP:
-                altgr_is_pressed = False
-        else:
-            names = to_name[entry]
-            name = names[0] if names else None
+        names = to_name[entry]
+        name = names[0] if names else None
 
         # TODO: inaccurate when holding multiple different shifts.
-        if event_type == KEY_DOWN and vk in shift_vks:
-            shift_is_pressed = True
-        elif event_type == KEY_UP and vk in shift_vks:
-            shift_is_pressed = False
+        if vk in shift_vks:
+            shift_is_pressed = event_type == KEY_DOWN
+        if scan_code == 541 and vk == 162:
+            ignore_next_right_alt = True
+            altgr_is_pressed = event_type == KEY_DOWN
 
         is_keypad = (scan_code, vk, is_extended) in keypad_keys
         return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code or -vk, name=name, is_keypad=is_keypad))
