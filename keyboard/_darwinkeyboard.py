@@ -415,24 +415,19 @@ def release(scan_code):
     """ Sends an 'up' event for the specified scan code """
     key_controller.release(scan_code)
 
-def map_char(character):
+def map_name(name):
     """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code 
     and ``modifiers`` is an array of string modifier names (like 'shift') """
-    return key_controller.map_char(character)
+    yield key_controller.map_char(name)
 
 def name_from_scancode(scan_code):
     """ Returns the name or character associated with the specified key code """
     return key_controller.map_scan_code(scan_code)
 
 def listen(callback):
-    """ Adds all monitored keyboard events to queue. To use the listener, the script must be run
-    as root (administrator). Otherwise, it throws an OSError. """
     if not os.geteuid() == 0:
         raise OSError("Error 13 - Must be run as administrator")
-    listener = KeyEventListener(callback)
-    t = threading.Thread(target=listener.run, args=())
-    t.daemon = True
-    t.start()
+    KeyEventListener(callback).run()
 
 def type_unicode(character):
     OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
