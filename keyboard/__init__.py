@@ -530,6 +530,7 @@ def unhook_all():
     Removes all keyboard hooks in use, including hotkeys, abbreviations, word
     listeners, `record`ers and `wait`s.
     """
+    _listener.start_if_necessary()
     _listener.blocking_keys.clear()
     _listener.nonblocking_keys.clear()
     del _listener.blocking_hooks[:]
