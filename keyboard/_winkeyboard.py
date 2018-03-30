@@ -590,12 +590,16 @@ def release(code):
 def type_unicode(character):
     # This code and related structures are based on
     # http://stackoverflow.com/a/11910555/252218
-    inputs = []
     surrogates = bytearray(character.encode('utf-16le'))
+    presses = []
+    releases = []
     for i in range(0, len(surrogates), 2):
         higher, lower = surrogates[i:i+2]
         structure = KEYBDINPUT(0, (lower << 8) + higher, KEYEVENTF_UNICODE, 0, None)
-        inputs.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
+        presses.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
+        structure = KEYBDINPUT(0, (lower << 8) + higher, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, 0, None)
+        releases.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
+    inputs = presses + releases
     nInputs = len(inputs)
     LPINPUT = INPUT * nInputs
     pInputs = LPINPUT(*inputs)
