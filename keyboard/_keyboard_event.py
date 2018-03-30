@@ -2,7 +2,7 @@
 
 from time import time as now
 import json
-from ._canonical_names import canonical_names
+from ._canonical_names import canonical_names, normalize_name
 
 try:
     basestring
@@ -51,14 +51,3 @@ class KeyboardEvent(object):
                 not self.name or not other.name or self.name == other.name
             )
         )
-
-def normalize_name(name):
-    if not name or not isinstance(name, basestring):
-        raise ValueError('Can only normalize non-empty string names. Unexpected '+ repr(name))
-
-    if len(name) > 1:
-        name = name.lower()
-    if name != '_' and '_' in name:
-        name = name.replace('_', ' ')
-
-    return canonical_names.get(name, name)

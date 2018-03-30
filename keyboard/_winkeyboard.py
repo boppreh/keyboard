@@ -17,7 +17,8 @@ import traceback
 from threading import Lock
 from collections import defaultdict
 
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from ._canonical_names import normalize_name
 try:
     # Force Python2 to convert to unicode and not to str.
     chr = unichr

@@ -3,8 +3,8 @@ import struct
 import traceback
 from time import time as now
 from collections import namedtuple
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from ._canonical_names import all_modifiers
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from ._canonical_names import all_modifiers, normalize_name
 from ._nixcommon import EV_KEY, aggregate_devices, ensure_root
 
 # TODO: start by reading current keyboard state, as to not missing any already pressed keys.

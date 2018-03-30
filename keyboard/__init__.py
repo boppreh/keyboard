@@ -125,9 +125,9 @@ elif _platform.system() == 'Darwin':
 else:
     raise OSError("Unsupported platform '{}'".format(_platform.system()))
 
-from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent, normalize_name as _normalize_name
+from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
 from ._generic import GenericListener as _GenericListener
-from ._canonical_names import all_modifiers, sided_modifiers
+from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
 
 _modifier_scan_codes = set()
 def is_modifier(key):
@@ -304,7 +304,7 @@ def key_to_scan_codes(key, error_if_missing=True):
     elif not _is_str(key):
         raise ValueError('Unexpected key type ' + str(type(key)) + ', value (' + repr(key) + ')')
 
-    normalized = _normalize_name(key)
+    normalized = normalize_name(key)
     if normalized in sided_modifiers:
         left_scan_codes = key_to_scan_codes('left ' + normalized, False)
         right_scan_codes = key_to_scan_codes('right ' + normalized, False)
@@ -848,7 +848,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
     else:
         for letter in text:
             try:
-                entries = _os_keyboard.map_name(_normalize_name(letter))
+                entries = _os_keyboard.map_name(normalize_name(letter))
                 scan_code, modifiers = next(iter(entries))
             except (KeyError, ValueError):
                 _os_keyboard.type_unicode(letter)
@@ -905,7 +905,7 @@ def get_hotkey_name(names=None):
         with _pressed_events_lock:
             names = [e.name for e in _pressed_events.values()]
     else:
-        names = [_normalize_name(name) for name in names]
+        names = [normalize_name(name) for name in names]
     clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
     # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
     # > List modifier keys in the correct order. If you use more than one modifier key in a
@@ -973,7 +973,7 @@ def get_typed_strings(events, allow_backspace=True):
         get_type_strings(record()) #-> ['This is what', 'I recorded', '']
     """
     backspace_name = 'delete' if _platform.system() == 'Darwin' else 'backspace'
-    
+
     shift_pressed = False
     capslock_pressed = False
     string = ''

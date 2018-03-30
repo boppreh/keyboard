@@ -5,7 +5,8 @@ import time
 import os
 import threading
 from AppKit import NSEvent
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from ._canonical_names import normalize_name
 
 try: # Python 2/3 compatibility
     unichr
