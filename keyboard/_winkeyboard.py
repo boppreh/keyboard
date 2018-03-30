@@ -429,8 +429,12 @@ def _setup_name_tables():
 
     modifiers_preference = defaultdict(lambda: 10)
     modifiers_preference.update({(): 0, ('shift',): 1, ('alt gr',): 2, ('ctrl',): 3, ('alt',): 4})
+    def order_key(line):
+        i, entry = line
+        scan_code, vk, extended, modifiers = entry
+        return modifiers_preference[modifiers], i, extended, vk, scan_code
     for name, entries in list(from_name.items()):
-        from_name[name] = sorted(set(entries), key=lambda e: (modifiers_preference[e[1][-1]], e))
+        from_name[name] = sorted(set(entries), key=order_key)
 
 # Called by keyboard/__init__.py
 init = _setup_name_tables

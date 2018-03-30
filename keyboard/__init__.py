@@ -302,13 +302,13 @@ def key_to_scan_codes(key, error_if_missing=True):
     elif _is_list(key):
         return sum((key_to_scan_codes(i) for i in key), ())
     elif not _is_str(key):
-        raise ValueError('Unexpected key type: ' + repr(key))
+        raise ValueError('Unexpected key type ' + str(type(key)) + ', value (' + repr(key) + ')')
 
     normalized = _normalize_name(key)
     if normalized in sided_modifiers:
         left_scan_codes = key_to_scan_codes('left ' + normalized, False)
         right_scan_codes = key_to_scan_codes('right ' + normalized, False)
-        return tuple(set(left_scan_codes + right_scan_codes))
+        return left_scan_codes + tuple(c for c in right_scan_codes if c not in left_scan_codes)
 
     try:
         # Put items in ordered dict to remove duplicates.
