@@ -1218,7 +1218,8 @@ if platform.system() == 'Darwin':
         "windows": "command",
         "cmd": "command",
         "win": "command",
-        "backspace": "delete"
+        "backspace": "delete",
+        'alt gr': 'alt' # Issue #117
     })
     all_modifiers = {'alt', 'ctrl', 'shift', 'windows'}
 if platform.system() == 'Linux':
