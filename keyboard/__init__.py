@@ -972,6 +972,8 @@ def get_typed_strings(events, allow_backspace=True):
 
         get_type_strings(record()) #-> ['This is what', 'I recorded', '']
     """
+    backspace_name = 'delete' if _platform.system() == 'Darwin' else 'backspace'
+    
     shift_pressed = False
     capslock_pressed = False
     string = ''
@@ -987,7 +989,7 @@ def get_typed_strings(events, allow_backspace=True):
             shift_pressed = event.event_type == 'down'
         elif event.name == 'caps lock' and event.event_type == 'down':
             capslock_pressed = not capslock_pressed
-        elif allow_backspace and event.name == 'backspace' and event.event_type == 'down':
+        elif allow_backspace and event.name == backspace_name and event.event_type == 'down':
             string = string[:-1]
         elif event.event_type == 'down':
             if len(name) == 1:
