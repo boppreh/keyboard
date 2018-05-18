@@ -1,3 +1,10 @@
+# 0.13.2
+
+- [Mac] Fixed "map_name" error (i.e. implement new backend API).
+- [Win] Improve detection of "right alt" key.
+- [All] Misc fixes for edge cases.
+
+
 # 0.13.1
 
 - [Windows/Linux] Fixed installation.
