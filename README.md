@@ -821,7 +821,7 @@ Returns the event handler created. To remove a word listener use
 [`remove_word_listener(word)`](#keyboard.remove_word_listener) or [`remove_word_listener(handler)`](#keyboard.remove_word_listener).
 
 Note: all actions are performed on key down. Key up events are ignored.
-Note: word mathes are **case sensitive**.
+Note: word matches are **case sensitive**.
 
 
 
