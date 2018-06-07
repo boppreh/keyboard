@@ -930,30 +930,38 @@ def get_hotkey_name(names=None):
     sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
     return '+'.join(sorted(clean_names, key=sorting_key))
 
-def read_event(suppress=False):
+def read_event(suppress=False, timeout=None):
     """
     Blocks until a keyboard event happens, then returns that event.
+
+    If `timeout` is a non-negative number, the functions blocks for at most
+    *timeout* seconds and raises the queue.Empty exception if no key events
+    happen within the interval.
     """
     queue = _queue.Queue(maxsize=1)
     hooked = hook(queue.put, suppress=suppress)
     while True:
-        event = queue.get()
+        event = queue.get(timeout=timeout)
         unhook(hooked)
         return event
 
-def read_key(suppress=False):
+def read_key(suppress=False, timeout=None):
     """
     Blocks until a keyboard event happens, then returns that event's name or,
-    if missing, its scan code.
+    if missing, its scan code. See `read_event()`.
     """
     event = read_event(suppress)
     return event.name or event.scan_code
 
-def read_hotkey(suppress=True):
+def read_hotkey(suppress=True, timeout=None):
     """
     Similar to `read_key()`, but blocks until the user presses and releases a
     hotkey (or single key), then returns a string representing the hotkey
     pressed.
+
+    If `timeout` is a non-negative number, the functions blocks for at most
+    *timeout* seconds and raises the queue.Empty exception if no key events
+    happen within the interval. Note that key presses reset the timer.
 
     Example:
 
@@ -964,7 +972,7 @@ def read_hotkey(suppress=True):
     fn = lambda e: queue.put(e) or e.event_type == KEY_DOWN
     hooked = hook(fn, suppress=suppress)
     while True:
-        event = queue.get()
+        event = queue.get(timeout=timeout)
         if event.event_type == KEY_UP:
             unhook(hooked)
             with _state_lock:
