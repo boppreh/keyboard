@@ -30,14 +30,14 @@ except NameError:
 
 import ctypes
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
-from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG, HMODULE, LPCWSTR
+from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG, HMODULE, LPCWSTR, HINSTANCE, HWND
 LPMSG = POINTER(MSG)
 ULONG_PTR = POINTER(DWORD)
 
 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
 GetModuleHandleW = kernel32.GetModuleHandleW
 GetModuleHandleW.restype = HMODULE
-#GetModuleHandleW.argtypes = [LPCWSTR]
+GetModuleHandleW.argtypes = [LPCWSTR]
 
 #https://github.com/boppreh/mouse/issues/1
 #user32 = ctypes.windll.user32
@@ -92,7 +92,7 @@ class INPUT(ctypes.Structure):
 LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
 
 SetWindowsHookEx = user32.SetWindowsHookExW
-#SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
+SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, HINSTANCE , DWORD]
 SetWindowsHookEx.restype = HHOOK
 
 CallNextHookEx = user32.CallNextHookEx
@@ -104,7 +104,7 @@ UnhookWindowsHookEx.argtypes = [HHOOK]
 UnhookWindowsHookEx.restype = BOOL
 
 GetMessage = user32.GetMessageW
-GetMessage.argtypes = [LPMSG, c_int, c_int, c_int]
+GetMessage.argtypes = [LPMSG, HWND, c_uint, c_uint]
 GetMessage.restype = BOOL
 
 TranslateMessage = user32.TranslateMessage
@@ -147,8 +147,6 @@ MAPVK_VSC_TO_VK_EX = 3
 VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
 VkKeyScan.restype = c_short
-
-NULL = c_int(0)
 
 LLKHF_INJECTED = 0x00000010
 
@@ -499,6 +497,7 @@ def prepare_intercept(callback):
     
     def process_key(event_type, vk, scan_code, is_extended):
         global shift_is_pressed, altgr_is_pressed, ignore_next_right_alt
+        #print(event_type, vk, scan_code, is_extended)
 
         # Pressing alt-gr also generates an extra "right alt" event
         if vk == 0xA5 and ignore_next_right_alt:
@@ -546,11 +545,13 @@ def prepare_intercept(callback):
             print('Error in keyboard hook:')
             traceback.print_exc()
 
-        return CallNextHookEx(NULL, nCode, wParam, lParam)
+        return CallNextHookEx(None, nCode, wParam, lParam)
 
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
-    keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, GetModuleHandleW(NULL), NULL)
+    handle =  GetModuleHandleW(None)
+    thread_id = DWORD(0)
+    keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, handle, thread_id)
 
     # Register to remove the hook when the interpreter exits. Unfortunately a
     # try/finally block doesn't seem to work here.
@@ -559,7 +560,7 @@ def prepare_intercept(callback):
 def listen(callback):
     prepare_intercept(callback)
     msg = LPMSG()
-    while not GetMessage(msg, NULL, NULL, NULL):
+    while not GetMessage(msg, 0, 0, 0):
         TranslateMessage(msg)
         DispatchMessage(msg)
 
