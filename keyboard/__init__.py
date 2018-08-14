@@ -1062,6 +1062,7 @@ def record(until='escape', suppress=False, trigger_on_release=False):
     Note: for more details on the keyboard hook and events see `hook`.
     """
     start_recording()
+    # TODO: omit stop hotkey from recording.
     wait(until, suppress=suppress, trigger_on_release=trigger_on_release)
     return stop_recording()
 

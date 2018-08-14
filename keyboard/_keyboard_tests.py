@@ -452,7 +452,7 @@ class TestKeyboard(unittest.TestCase):
         # 0.01s sleep failed once already. Better solutions?
         time.sleep(0.05)
         self.do(du_a+du_b+du_space, du_a+du_b)
-        self.assertEqual(queue.get(timeout=0.5), du_a+du_b+du_space)
+        self.assertEqual(queue.get(timeout=0.5), du_a+du_b+d_space)
 
     def test_play_nodelay(self):
         keyboard.play(d_a+u_a, 0)
