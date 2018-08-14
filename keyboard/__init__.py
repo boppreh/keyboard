@@ -728,20 +728,19 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         del state.suppressed_events[:]
     
     def catch_misses(event, force_fail=False):
-        if event.event_type == target_event_type and event.scan_code not in allowed_keys_by_step[state.index]:
+        t = _time.monotonic()
+        expired = timeout and (t - state.last_update) > timeout
+        if expired or (event.event_type == target_event_type and event.scan_code not in allowed_keys_by_step[state.index]):
             state.remove_last_step()
             state.remove_catch_misses()
-            release_suppressed_keys()
             setup_first_step()
+            release_suppressed_keys()
         return True
 
     allowed_keys_by_step = [
         set().union(*step)
         for step in steps
     ]
-
-    # TODO: timeout
-    # TODO: a, b, a
 
     def remove_():
         state.remove_catch_misses()
