@@ -467,8 +467,8 @@ def hook(callback, suppress=False, on_remove=lambda: None):
 
     Returns the given callback for easier development.
     """
+    _listener.start_if_necessary()
     if suppress:
-        _listener.start_if_necessary()
         append, remove = _listener.blocking_hooks.append, _listener.blocking_hooks.remove
     else:
         append, remove = _listener.add_handler, _listener.remove_handler
@@ -1038,7 +1038,7 @@ def start_recording(recorded_events_queue=None):
     """
     recorded_events_queue = recorded_events_queue or _queue.Queue()
     global _recording
-    _recording = (recorded_events_queue, hook(recorded_events_queue.put))
+    _recording = (recorded_events_queue, hook(lambda e: recorded_events_queue.put(e) or True, suppress=True))
     return _recording
 
 def stop_recording():
