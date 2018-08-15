@@ -47,6 +47,7 @@ dummy_keys = {
 
     'none': [],
     'duplicated': [(20, []), (20, [])],
+    'ambiguous': [(30, []), (31, [])],
 }
 
 def make_event(event_type, name, scan_code=None, time=0):
@@ -576,6 +577,9 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_single_step_suppress_allow(self):
         keyboard.add_hotkey('a', lambda: trigger() or True, suppress=True)
         self.do(d_a, triggered_event+d_a)
+    def test_add_hotkey_single_step_suppress_regression(self):
+        keyboard.add_hotkey('ambiguous', lambda: trigger(), suppress=True)
+        self.assertEqual(len(keyboard._listener.blocking_hotkeys[frozenset()][frozenset({30})]), 1)
     def test_add_hotkey_single_step_suppress_args_allow(self):
         arg = object()
         keyboard.add_hotkey('a', lambda a: self.assertIs(a, arg) or trigger() or True, args=(arg,), suppress=True)

@@ -591,11 +591,14 @@ def _add_hotkey_step(handler, combinations, suppress):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
+    # _listener has hotkey containers arranged as
+    # `_listener.container_hotkey[modifiers][scan_codes] = [handlers]`. The
+    # purpose of this function is to register values inside the
+    # `_listener.container_hotkey[modifiers]` lists.
+
     if suppress:
-        containers = []
-        for scan_codes in combinations:
-            modifiers = frozenset(filter(is_modifier, scan_codes))
-            containers.append(_listener.blocking_hotkeys[modifiers])
+        possible_modifiers = {frozenset(filter(is_modifier, scan_codes)) for scan_codes in combinations}
+        containers = [_listener.blocking_hotkeys[modifiers] for modifiers in possible_modifiers]
     else:
         containers = [_listener.nonblocking_hotkeys]
 
