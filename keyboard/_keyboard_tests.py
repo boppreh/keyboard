@@ -695,7 +695,7 @@ class TestKeyboard(unittest.TestCase):
         self.assertTrue(queue.get(timeout=0.5))
     def test_add_hotkey_single_step_suppress_regression_1(self):
         keyboard.add_hotkey('a', trigger, suppress=True)
-        self.do(d_c+d_a+u_c+u_a, d_c+d_a+u_c+u_a)
+        self.do(d_c+d_a+u_c+u_a, d_c+triggered_event+u_c)
 
     def test_remap_hotkey_single(self):
         keyboard.remap_hotkey('a', 'b')
@@ -767,6 +767,9 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_multi_step_suppress_replays(self):
         keyboard.add_hotkey('a, b, c', trigger, suppress=True)
         self.do(du_a+du_b+du_a+du_b+du_space, du_a+du_b+du_a+du_b+du_space)
+    def test_add_hotkey_multi_step_suppress_hold(self):
+        keyboard.add_hotkey('a, b', trigger, suppress=True)
+        self.do(d_a+du_b, d_a+du_b)
 
     def test_add_word_listener_success(self):
         queue = keyboard._queue.Queue()

@@ -253,7 +253,6 @@ class _KeyboardListener(_GenericListener):
             if scan_code in _suppressed_presses:
                 #print('JUDGEMENT: Suppressed release associated with suppressed press')
                 #assert scan_code not in _pending_presses
-                _suppressed_presses.discard(scan_code)
                 return suppress()
             else:
                 #print('JUDGEMENT: Accepted release as last option')
