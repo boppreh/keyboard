@@ -819,6 +819,19 @@ class TestKeyboard(unittest.TestCase):
         with self.assertRaises(keyboard._queue.Empty):
             queue.get(timeout=0.01)
 
+    def test_regression_182_suppress(self):
+        queue = keyboard._queue.Queue()
+        keyboard.add_hotkey('a', lambda: time.sleep(0.05) or keyboard.hook(queue.put) and False, trigger_on_release=True, suppress=True)
+        self.do(du_a, [])
+        with self.assertRaises(keyboard._queue.Empty):
+            print(queue.get(timeout=0.01))
+    def test_regression_182_no_suppress(self):
+        queue = keyboard._queue.Queue()
+        keyboard.add_hotkey('a', lambda: time.sleep(0.05) or keyboard.hook(queue.put) and False, trigger_on_release=True, suppress=False)
+        self.do(du_a, du_a)
+        with self.assertRaises(keyboard._queue.Empty):
+            print(queue.get(timeout=0.01))
+
     #def test_add_abbreviation(self):
     #    keyboard.add_abbreviation('abc', 'aaa')
     #    self.do(du_a+du_b+du_c+du_space, [])
