@@ -211,17 +211,31 @@ class _KeyboardListener(_GenericListener):
 
         #print(event.event_type, event.name, event.scan_code, _active_keys)
 
-        # TODO: decide what to do when "shift+a" is blocked and the user presses
-        # "shift+b+a" (i.e. didn't release "b" quickly enough).
+        # The release_* values are used to ensure that "a+b" is matched when
+        # releasing "b".
+        releasing_modifiers = _active_modifiers | {scan_code} if is_modifier(scan_code) else _active_modifiers
+        releasing_keys = _active_keys | {scan_code}
+
+        composite_hotkeys = self.blocking_hotkeys[releasing_modifiers][releasing_keys]
+        if len(_active_keys) > 1:
+            # If there's a hotkey for "ctrl+c", make sure it matches after "ctrl+a"
+            # even if the user hasn't released "a" yet.
+            single_hotkeys = self.blocking_hotkeys[releasing_modifiers][releasing_modifiers | {scan_code}]
+            all_hotkeys = composite_hotkeys + [hotkey for hotkey in single_hotkeys if hotkey not in composite_hotkeys]
+        else:
+            all_hotkeys = composite_hotkeys
+
+        if all_hotkeys:
+            if self.test_all_callbacks(event, all_hotkeys):
+                #print('JUDGEMENT: Accepted release by callback return')
+                return allow()
+            else:
+                #print('JUDGEMENT: Suppressed release by hotkey')
+                #assert scan_code not in _pending_presses
+                return suppress()
+
         if event.event_type == KEY_DOWN:
-            if self.blocking_hotkeys[_active_modifiers][_active_keys]:
-                if self.test_all_callbacks(event, self.blocking_hotkeys[_active_modifiers][_active_keys]):
-                    #print('JUDGEMENT: Accepted press by callback return')
-                    return allow()
-                else:
-                    #print('JUDGEMENT: Suppressed press by hotkey')
-                    return suppress()
-            elif is_modifier(scan_code):
+            if is_modifier(scan_code):
                 if any(_active_modifiers.issubset(modifiers) and sum(subdict.values(), []) for modifiers, subdict in self.blocking_hotkeys.items()):
                     #print('JUDGEMENT: Pending modifier press')
                     return delay()
@@ -236,20 +250,7 @@ class _KeyboardListener(_GenericListener):
                 return allow()
 
         elif event.event_type == KEY_UP:
-            # Keep track of what key combination was just released.
-            releasing_modifiers = _active_modifiers | {scan_code} if is_modifier(scan_code) else _active_modifiers
-            releasing_keys = _active_keys | {scan_code}
-
-            if self.blocking_hotkeys[releasing_modifiers][releasing_keys]:
-                if self.test_all_callbacks(event, self.blocking_hotkeys[releasing_modifiers][releasing_keys]):
-                    #print('JUDGEMENT: Accepted release by callback return')
-                    return allow()
-                else:
-                    #print('JUDGEMENT: Suppressed release by hotkey')
-                    #assert scan_code not in _pending_presses
-                    _suppressed_presses.discard(scan_code)
-                    return suppress()
-            elif scan_code in _suppressed_presses:
+            if scan_code in _suppressed_presses:
                 #print('JUDGEMENT: Suppressed release associated with suppressed press')
                 #assert scan_code not in _pending_presses
                 _suppressed_presses.discard(scan_code)
