@@ -615,7 +615,7 @@ def _add_hotkey_step(handler, combinations, suppress):
     return remove
 
 _hotkeys = {}
-def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
+def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False, async=False):
     """
     Invokes a callback every time a hotkey is pressed. The hotkey must
     be in the format `ctrl+shift+a, s`. This would trigger when the user holds
@@ -630,6 +630,8 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     - `timeout` is the amount of seconds allowed to pass between key presses.
     - `trigger_on_release` if true, the callback is invoked on key release instead
     of key press.
+    - `async` if true, each callback will be executed in a separate thread,
+    instead of the global thread for all callbacks.
 
     The event handler function is returned. To remove a hotkey call
     `remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
@@ -654,6 +656,8 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     """
     if args:
         callback = lambda callback=callback: callback(*args)
+    if async:
+        callback = lambda callback=callback: call_later(callback)
 
     _listener.start_if_necessary()
 
