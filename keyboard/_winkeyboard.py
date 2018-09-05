@@ -114,6 +114,9 @@ TranslateMessage.restype = BOOL
 DispatchMessage = user32.DispatchMessageA
 DispatchMessage.argtypes = [LPMSG]
 
+keybd_event = user32.keybd_event
+keybd_event.argstypes = [c_uint8, c_uint8, DWORD, ULONG_PTR]
+
 
 keyboard_state_type = c_uint8 * 256
 
@@ -577,15 +580,15 @@ def map_name(name):
 def _send_event(code, event_type):
     if code == 541:
         # Alt-gr is made of ctrl+alt. Just sending even 541 doesn't do anything.
-        user32.keybd_event(0x11, code, event_type, 0)
-        user32.keybd_event(0x12, code, event_type, 0)
+        keybd_event(0x11, code, event_type, 0)
+        keybd_event(0x12, code, event_type, 0)
     elif code > 0:
         vk = scan_code_to_vk.get(code, 0)
-        user32.keybd_event(vk, code, event_type, 0)
+        keybd_event(vk, code, event_type, 0)
     else:
         # Negative scan code is a way to indicate we don't have a scan code,
         # and the value actually contains the Virtual key code.
-        user32.keybd_event(-code, 0, event_type, 0)
+        keybd_event(-code, 0, event_type, 0)
 
 def press(code):
     _send_event(code, 0)
