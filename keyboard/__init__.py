@@ -209,12 +209,12 @@ class _KeyboardListener(_GenericListener):
             del _pending_presses[:]
             return True
 
-        #print(event.event_type, event.name, event.scan_code, _active_keys)
-
         # The release_* values are used to ensure that "a+b" is matched when
         # releasing "b".
         releasing_modifiers = _active_modifiers | {scan_code} if is_modifier(scan_code) else _active_modifiers
         releasing_keys = _active_keys | {scan_code}
+
+        #print(event.event_type, event.name, event.scan_code, releasing_modifiers, releasing_keys)
 
         composite_hotkeys = self.blocking_hotkeys[releasing_modifiers][releasing_keys]
         if len(_active_keys) > 1:
@@ -696,6 +696,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
                 state.remove_last_step()
                 setup_step(1)
             state.suppressed_events.append(event)
+            event.suppressed = True
             return False
         state.last_update = _time.monotonic()
         state.remove_last_step = _add_hotkey_step(handler, steps[0], suppress)
@@ -721,6 +722,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
                 state.remove_last_step()
                 setup_step(new_index+1)
             state.suppressed_events.append(event)
+            event.suppressed = True
             return False
         state.last_update = _time.monotonic()
         state.remove_last_step = _add_hotkey_step(handler, steps[state.index], suppress)
@@ -728,10 +730,12 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     def release_suppressed_keys():
         #print('replaying', state.suppressed_events)
         for event in state.suppressed_events:
+            if not event.suppressed: continue
             if event.event_type == KEY_DOWN:
                 press(event.scan_code)
             else:
                 release(event.scan_code)
+            event.suppressed = False
         del state.suppressed_events[:]
     
     def catch_misses(event, force_fail=False):

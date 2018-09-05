@@ -15,14 +15,16 @@ class KeyboardEvent(object):
     device = None
     modifiers = None
     is_keypad = None
+    suppressed = None
 
-    def __init__(self, event_type, scan_code, name=None, time=None, device=None, modifiers=None, is_keypad=None):
+    def __init__(self, event_type, scan_code, name=None, time=None, device=None, modifiers=None, is_keypad=None, suppressed=False):
         self.event_type = event_type
         self.scan_code = scan_code
         self.time = now() if time is None else time
         self.device = device
         self.is_keypad = is_keypad
         self.modifiers = modifiers
+        self.suppressed = suppressed
         if name:
             self.name = normalize_name(name)
 
