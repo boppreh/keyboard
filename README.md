@@ -348,7 +348,7 @@ with the following attributes:
 description (e.g.  "space"). The name is always lower-case.
 - `scan_code`: number representing the physical key, e.g. 55.
 - `time`: timestamp of the time the event occurred, with as much precision
-as given by the OS.
+as given by the OS, and is returned of the function [time.monotonic()](https://docs.python.org/3/library/time.html#time.monotonic).
 
 Returns the given callback for easier development.
 
@@ -363,8 +363,16 @@ Returns the given callback for easier development.
 
 Invokes `callback` for every KEY_DOWN event. For details see [`hook`](#keyboard.hook).
 
+Example:
+```py
+def print_key_event(key_event):
+    print("Pressed:", key_event.name,"Scan Code:",key_event.scan_code,"Time:",key_event.time)
+ 
+ out = keyboard.on_press(print_key_event)
+while True:
+    out
 
-
+```
 <a name="keyboard.on_release"/>
 
 ## keyboard.**on\_release**(callback, suppress=False)
