@@ -265,7 +265,7 @@ class _KeyboardListener(_GenericListener):
         event.
         """
         # Make sure we always process all callbacks.
-        results = [callback(event) for callback in callbacks]
+        results = [callback(event) for callback in list(callbacks)]
         return all(results)
 
     def process_event(self, event):
