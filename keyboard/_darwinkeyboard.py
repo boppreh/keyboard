@@ -270,7 +270,7 @@ class KeyController(object):
             # Update modifiers if necessary
             if key_code == 0x37: # cmd
                 self.current_modifiers["cmd"] = True
-            elif key_code == 0x38: # shift
+            elif key_code == 0x38 or key_code == 0x3C: # shift or right shift
                 self.current_modifiers["shift"] = True
             elif key_code == 0x39: # caps lock
                 self.current_modifiers["caps"] = True
@@ -304,7 +304,7 @@ class KeyController(object):
             # Update modifiers if necessary
             if key_code == 0x37: # cmd
                 self.current_modifiers["cmd"] = False
-            elif key_code == 0x38: # shift
+            elif key_code == 0x38 or key_code == 0x3C: # shift or right shift
                 self.current_modifiers["shift"] = False
             elif key_code == 0x39: # caps lock
                 self.current_modifiers["caps"] = False
