@@ -4,7 +4,6 @@ Usage instructions:
 - If you are installing: `python setup.py install`
 - If you are developing: `python setup.py sdist bdist --format=zip bdist_wheel --universal`
 """
-import sys
 import keyboard
 try:
     import pypandoc

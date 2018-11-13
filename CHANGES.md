@@ -1,11 +1,34 @@
+# 0.13.2
+
+- [Mac] Fixed "map_name" error (i.e. implement new backend API).
+- [Win] Improve detection of "right alt" key.
+- [All] Misc fixes for edge cases.
+
+
+# 0.13.1
+
+- [Windows/Linux] Fixed installation.
+
+
+# 0.13.0
+
+- [All] New `remap_` and `block_` functions.
+- [All] New high-level functions for parsing and converting hotkey names.
+- [All] Added `.modifiers` and `.is_keymap` attribute to events.
+- [All] Event name now matches character typed (e.g. now event from key `1` reports as `!` if shift is pressed). This gives `get_typed_strings` more precision.
+- [Windows] New key suppression system should fix most bugs with `suppress=True`.
+- [Linux] Added `.device` attribute to events.
+- [All] Many, many bugfixes.
+
+
 # 0.11.0
 
 - [Windows] Used explicit WinDLL to fix "expected CFunctionType instance instead of CFunctionType".
 - [Windows] Added more Windows virtual key codes for key name mapping (should fix .e.g "?").
 - [All] Fixed canonicalization removing too much space (thanks @iliazeus).
 - [All] Added `start_recording` and `stop_recording` for more flexible macros (thanks @softuser25 for the suggestion).
-- [All] Added `read_shortcut` function.
-- [All] Added `get_shortcut_name` function.
+- [All] Added `read_hotkey` function.
+- [All] Added `get_hotkey_name` function.
 - [All] Cleaned up `examples` folder and added more examples.
 
 
