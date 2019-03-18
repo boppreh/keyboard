@@ -1,3 +1,12 @@
+# 0.13.3
+
+- [Windows] Fix overflow error on Python 3.7.
+- [Mac] Added alt gr -> alt mapping.
+- [Mac] Added support for right shift.
+- [All] Fixed numlock alias.
+- [All] Fixed example code.
+
+
 # 0.13.2
 
 - [Mac] Fixed "map_name" error (i.e. implement new backend API).
