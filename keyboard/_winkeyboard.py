@@ -612,6 +612,18 @@ def type_unicode(character):
     cbSize = c_int(ctypes.sizeof(INPUT))
     SendInput(nInputs, pInputs, cbSize)
 
+def lock_state(name):
+    """ Given a locking key (`caps`, `num`, `scroll`) this returns True if the lock is
+    engaged and False otherwise. """
+    if name.lower() == "caps":
+        return bool(user32.GetKeyState(0x14)) # vkcode for Caps Lock
+    elif name.lower() == "num":
+        return bool(user32.GetKeyState(0x90)) # vkcode for Num Lock
+    elif name.lower() == "scroll":
+        return bool(user32.GetKeyState(0x91)) # vkcode for Scroll Lock
+    else:
+        raise ValueError("Unrecognized lock type: " + name)
+
 if __name__ == '__main__':
     _setup_name_tables()
     import pprint

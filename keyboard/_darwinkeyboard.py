@@ -430,6 +430,18 @@ def listen(callback):
         raise OSError("Error 13 - Must be run as administrator")
     KeyEventListener(callback).run()
 
+def lock_state(name):
+    """ Given a locking key (`caps`, `num`, `scroll`) this returns True if the lock is
+    engaged and False otherwise. Note that OSX does not support num or scroll lock. """
+    if name.lower() == "caps":
+        return bool(Carbon.GetCurrentKeyModifiers() & 0x0400) # bit for Caps Lock
+    elif name.lower() == "num":
+        return False # OSX does not support num lock
+    elif name.lower() == "scroll":
+        return False # OSX does not support scroll lock
+    else:
+        raise ValueError("Unrecognized lock type: " + name)
+
 def type_unicode(character):
     OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
     # Key down
