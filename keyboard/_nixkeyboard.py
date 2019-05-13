@@ -177,6 +177,18 @@ def type_unicode(character):
         scan_code, _ = next(map_name(key))
         release(scan_code)
 
+def lock_state(name):
+    """ Given a locking key (`caps`, `num`, `scroll`) this returns True if the lock is
+    engaged and False otherwise. """
+    if name.lower() == "caps":
+        return bool(user32.GetKeyState(0x14)) # vkcode for Caps Lock
+    elif name.lower() == "num":
+        return bool(user32.GetKeyState(0x90)) # vkcode for Num Lock
+    elif name.lower() == "scroll":
+        return bool(user32.GetKeyState(0x91)) # vkcode for Scroll Lock
+    else:
+        raise ValueError("Unrecognized lock type (valid options are 'caps', 'num', 'scroll'): " + name)
+
 if __name__ == '__main__':
     def p(e):
         print(e)
