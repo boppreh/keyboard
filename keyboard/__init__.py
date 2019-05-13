@@ -1149,6 +1149,19 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
     callback = lambda: write(replacement)
     return add_word_listener(source_text, callback, match_suffix=match_suffix, timeout=timeout)
 
+def lock_state(name):
+    """
+    Valid options for `name`:
+
+        - caps
+        - num
+        - scroll
+
+    Checks the state of the system's caps/num/scroll lock and returns True if the
+    lock is enabled or False otherwise.
+    """
+    return _os_keyboard.lock_state(name)
+
 # Aliases.
 register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation

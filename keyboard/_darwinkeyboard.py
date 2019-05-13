@@ -440,7 +440,7 @@ def lock_state(name):
     elif name.lower() == "scroll":
         return False # OSX does not support scroll lock
     else:
-        raise ValueError("Unrecognized lock type: " + name)
+        raise ValueError("Unrecognized lock type (valid options are 'caps', 'num', 'scroll'): " + name)
 
 def type_unicode(character):
     OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)

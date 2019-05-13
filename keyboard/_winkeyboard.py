@@ -622,7 +622,7 @@ def lock_state(name):
     elif name.lower() == "scroll":
         return bool(user32.GetKeyState(0x91)) # vkcode for Scroll Lock
     else:
-        raise ValueError("Unrecognized lock type: " + name)
+        raise ValueError("Unrecognized lock type (valid options are 'caps', 'num', 'scroll'): " + name)
 
 if __name__ == '__main__':
     _setup_name_tables()
