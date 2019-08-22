@@ -4,7 +4,7 @@ This is the Windows backend for keyboard events, and is implemented by
 invoking the Win32 API through the ctypes module. This is error prone
 and can introduce very unpythonic failure modes, such as segfaults and
 low level memory leaks. But it is also dependency-free, very performant
-well documented on Microsoft's webstie and scattered examples.
+well documented on Microsoft's website and scattered examples.
 
 # TODO:
 - Keypad numbers still print as numbers even when numlock is off.
