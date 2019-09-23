@@ -209,7 +209,7 @@ class _KeyboardListener(_GenericListener):
             del _pending_presses[:]
             return True
 
-        # The release_* values are used to ensure that "a+b" is matched when
+        # The releasing_* values are used to ensure that "a+b" is matched when
         # releasing "b".
         releasing_modifiers = _active_modifiers | {scan_code} if is_modifier(scan_code) else _active_modifiers
         releasing_keys = _active_keys | {scan_code}
