@@ -1,3 +1,12 @@
+# 0.13.3
+
+- [Windows] Fix overflow error on Python 3.7.
+- [Mac] Added alt gr -> alt mapping.
+- [Mac] Added support for right shift.
+- [All] Fixed numlock alias.
+- [All] Fixed example code.
+
+
 # 0.13.2
 
 - [Mac] Fixed "map_name" error (i.e. implement new backend API).
@@ -27,8 +36,8 @@
 - [Windows] Added more Windows virtual key codes for key name mapping (should fix .e.g "?").
 - [All] Fixed canonicalization removing too much space (thanks @iliazeus).
 - [All] Added `start_recording` and `stop_recording` for more flexible macros (thanks @softuser25 for the suggestion).
-- [All] Added `read_shortcut` function.
-- [All] Added `get_shortcut_name` function.
+- [All] Added `read_hotkey` function.
+- [All] Added `get_hotkey_name` function.
 - [All] Cleaned up `examples` folder and added more examples.
 
 

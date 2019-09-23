@@ -72,7 +72,7 @@ keyboard.wait()
 - Media keys on Linux may appear nameless (scan-code only) or not at all. [#20](https://github.com/boppreh/keyboard/issues/20)
 - Key suppression/blocking only available on Windows. [#22](https://github.com/boppreh/keyboard/issues/22)
 - To avoid depending on X, the Linux parts reads raw device files (`/dev/input/input*`)
-but this requries root.
+but this requires root.
 - Other applications, such as some games, may register hooks that swallow all 
 key events. In this case `keyboard` will be unable to report events.
 - This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming bots. Be responsible.
@@ -615,7 +615,7 @@ def _add_hotkey_step(handler, combinations, suppress):
     return remove
 
 _hotkeys = {}
-def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False, async=False):
+def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False, threaded=False):
     """
     Invokes a callback every time a hotkey is pressed. The hotkey must
     be in the format `ctrl+shift+a, s`. This would trigger when the user holds
@@ -630,7 +630,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     - `timeout` is the amount of seconds allowed to pass between key presses.
     - `trigger_on_release` if true, the callback is invoked on key release instead
     of key press.
-    - `async` if true, each callback will be executed in a separate thread,
+    - `threaded` if true, each callback will be executed in a separate thread,
     instead of the global thread for all callbacks.
 
     The event handler function is returned. To remove a hotkey call
@@ -656,7 +656,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     """
     if args:
         callback = lambda callback=callback: callback(*args)
-    if async:
+    if threaded:
         callback = lambda callback=callback: call_later(callback)
 
     _listener.start_if_necessary()
