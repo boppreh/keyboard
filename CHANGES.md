@@ -1,3 +1,8 @@
+# 0.13.4
+
+- [All] Improve release process, fixing #233 and #269.
+
+
 # 0.13.3
 
 - [Windows] Fix overflow error on Python 3.7.
