@@ -215,7 +215,7 @@ key events. In this case `keyboard` will be unable to report events.
 
 ## keyboard.**version**
 ```py
-= '0.13.3'
+= '0.13.4'
 ```
 
 <a name="keyboard.is_modifier"/>

@@ -30,7 +30,7 @@ import atexit
 import requests
 import keyboard
 
-#run(['make', 'clean', 'build'], check=True)
+run(['make', 'clean', 'build'], check=True)
 
 assert re.fullmatch(r'\d+\.\d+\.\d+', keyboard.version)
 last_version = check_output(['git', 'describe', '--abbrev=0'], universal_newlines=True).strip('v\n')
