@@ -28,28 +28,13 @@ import os
 from subprocess import run, check_output
 import atexit
 import requests
+import keyboard
 
-run(['bash', '-c', 'find . \( -name "*.py" -o -name "*.sh" -o -name "* .md" \) -exec dos2unix {} \;'], check=True)
-run(['bash', '-c', 'make clean readme tests'], check=True)
-run(['python', 'setup.py', 'check', '-rms'], check=True)
+run(['make', 'clean', 'build'], check=True)
 
-version_pattern = '(\d+(?:\.\d+)+)'
-last_version = re.search(version_pattern, open('CHANGES.md').read()).group(1)
-print('The last version was: {}'.format(last_version))
-new_version = input('Enter new version or leave empty to only update metadata: ') if len(sys.argv) == 1 else sys.argv[1]
-if new_version.startswith('v'):
-    new_version = new_version[1:]
-
-if not new_version:
-    if input('Commit README.md files? [y/N] ').lower().startswith('y'):
-        run(['git', 'add', 'README.md'])
-        run(['git', 'commit', '-m', 'Update README'])
-        run(['git', 'push'])
-    else:
-        print('Nothing to do. Exiting...')
-    exit()
-
-assert re.fullmatch(version_pattern, new_version)
+assert re.fullmatch(r'\d+\.\d+\.\d+', keyboard.version)
+last_version = check_output(['git', 'describe', '--abbrev=0'], universal_newlines=True).strip('v\n')
+assert keyboard.version != last_version, 'Must update keyboard.version first.'
 
 commits = check_output(['git', 'log', 'v{}..HEAD'.format(last_version), '--oneline'], universal_newlines=True)
 with open('message.txt', 'w') as message_file:
@@ -75,10 +60,10 @@ with open('message.txt', 'w') as message_file:
 with open('CHANGES.md') as changes_file:
     old_changes = changes_file.read()
 with open('CHANGES.md', 'w') as changes_file:
-    changes_file.write('# {}\n\n{}\n\n\n{}'.format(new_version, message, old_changes))
+    changes_file.write('# {}\n\n{}\n\n\n{}'.format(keyboard.version, message, old_changes))
 
 
-tag_name = 'v' + new_version
+tag_name = 'v' + keyboard.version
 if input('Commit README.md and CHANGES.md files? ').lower().startswith('y'):
     run(['git', 'add', 'CHANGES.md', 'README.md'])
     run(['git', 'commit', '-m', 'Update changes for {}'.format(tag_name)])
@@ -103,6 +88,4 @@ if token:
     response = requests.post(releases_url, json=release, headers={'Authorization': 'token ' + token})
     print(response.status_code, response.text)
 
-run(['python', 'setup.py', 'clean'], check=True)
-run(['python', 'setup.py', 'sdist', '--format=zip', 'bdist_wheel', '--universal', 'bdist_wininst'], check=True)
 run(['twine', 'upload', 'dist/*'], check=True, shell=True)
