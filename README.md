@@ -71,7 +71,7 @@ keyboard.wait()
 - Media keys on Linux may appear nameless (scan-code only) or not at all. [#20](https://github.com/boppreh/keyboard/issues/20)
 - Key suppression/blocking only available on Windows. [#22](https://github.com/boppreh/keyboard/issues/22)
 - To avoid depending on X, the Linux parts reads raw device files (`/dev/input/input*`)
-but this requries root.
+but this requires root.
 - Other applications, such as some games, may register hooks that swallow all 
 key events. In this case `keyboard` will be unable to report events.
 - This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming bots. Be responsible.
@@ -397,7 +397,7 @@ created. To remove a hooked key use [`unhook_key(key)`](#keyboard.unhook_key) or
 [`unhook_key(handler)`](#keyboard.unhook_key).
 
 Note: this function shares state with hotkeys, so [`clear_all_hotkeys`](#keyboard.clear_all_hotkeys)
-affects it aswell.
+affects it as well.
 
 
 
@@ -537,7 +537,7 @@ add_hotkey('ctrl+alt+enter, space', some_callback)
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L745)
 
 
-Removes a previously hooked hotkey. Must be called wtih the value returned
+Removes a previously hooked hotkey. Must be called with the value returned
 by [`add_hotkey`](#keyboard.add_hotkey).
 
 
@@ -830,7 +830,7 @@ Returns the event handler created. To remove a word listener use
 [`remove_word_listener(word)`](#keyboard.remove_word_listener) or [`remove_word_listener(handler)`](#keyboard.remove_word_listener).
 
 Note: all actions are performed on key down. Key up events are ignored.
-Note: word mathes are **case sensitive**.
+Note: word matches are **case sensitive**.
 
 
 
@@ -883,6 +883,5 @@ For more details see [`add_word_listener`](#keyboard.add_word_listener).
 
 Given a key name (e.g. "LEFT CONTROL"), clean up the string and convert to
 the canonical representation (e.g. "left ctrl") if one is known.
-
 
 
