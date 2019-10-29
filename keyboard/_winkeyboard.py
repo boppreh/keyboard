@@ -11,14 +11,15 @@ well documented on Microsoft's website and scattered examples.
 - No way to specify if user wants a keypad key or not in `map_char`.
 """
 from __future__ import unicode_literals
-import re
+
 import atexit
 import traceback
-from threading import Lock
 from collections import defaultdict
+from threading import Lock
 
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 from ._canonical_names import normalize_name
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+
 try:
     # Force Python2 to convert to unicode and not to str.
     chr = unichr
@@ -29,7 +30,7 @@ except NameError:
 # this would be simply #include "windows.h".
 
 import ctypes
-from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
+from ctypes import c_short, c_uint8, c_int, c_uint, c_long, Structure, CFUNCTYPE, POINTER
 from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG, HMODULE, LPCWSTR, HINSTANCE, HWND
 LPMSG = POINTER(MSG)
 ULONG_PTR = POINTER(DWORD)

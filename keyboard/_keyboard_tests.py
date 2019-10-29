@@ -14,8 +14,8 @@ and added to `output_events` immediately, mimicking real functionality.
 """
 from __future__ import print_function
 
-import unittest
 import time
+import unittest
 
 import keyboard
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
@@ -58,7 +58,7 @@ input_events = []
 output_events = []
 
 def send_instant_event(event):
-    if keyboard._listener.process_event(event):
+    if keyboard._global_event_processor.process_synchronous(event):
         output_events.append(event)
 
 # Mock out side effects.
@@ -116,20 +116,20 @@ class TestKeyboard(unittest.TestCase):
         keyboard._suppressed_presses.clear()
         keyboard._hotkeys.clear()
         keyboard._word_listeners = {} 
-        keyboard._listener.start_if_necessary()
+        keyboard._global_event_processor.start_if_necessary()
 
     def do(self, manual_events, expected=None):
         input_events.extend(manual_events)
         while input_events:
             event = input_events.pop(0)
-            if keyboard._listener.process_event(event):
+            if keyboard._global_event_processor.process_synchronous(event):
                 output_events.append(event)
         if expected is not None:
             to_names = lambda es: '+'.join(('d' if e.event_type == KEY_DOWN else 'u') + '_' + str(e.scan_code) for e in es)
             self.assertEqual(to_names(output_events), to_names(expected))
         del output_events[:]
 
-        keyboard._listener.queue.join()
+        keyboard._global_event_processor.queue.join()
 
     def test_event_json(self):
         event = make_event(KEY_DOWN, u'á \'"', 999)
@@ -581,7 +581,7 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_a, triggered_event+d_a)
     def test_add_hotkey_single_step_suppress_regression(self):
         keyboard.add_hotkey('ambiguous', lambda: trigger(), suppress=True)
-        self.assertEqual(len(keyboard._listener.blocking_hotkeys[frozenset()][frozenset({30})]), 1)
+        self.assertEqual(len(keyboard._global_event_processor.blocking_hotkeys[frozenset()][frozenset({30})]), 1)
     def test_add_hotkey_single_step_suppress_args_allow(self):
         arg = object()
         keyboard.add_hotkey('a', lambda a: self.assertIs(a, arg) or trigger() or True, args=(arg,), suppress=True)
@@ -597,27 +597,27 @@ class TestKeyboard(unittest.TestCase):
         self.do(d_ctrl+d_a, d_ctrl+d_a)
     def test_remove_hotkey_internal(self):
         remove = keyboard.add_hotkey('shift+a', trigger, suppress=True)
-        self.assertTrue(all(keyboard._listener.blocking_hotkeys.values()))
+        self.assertTrue(all(keyboard._global_event_processor.blocking_hotkeys.values()))
         self.assertNotEqual(keyboard._hotkeys, {})
         remove()
-        for hotkeys in keyboard._listener.blocking_hotkeys.values():
+        for hotkeys in keyboard._global_event_processor.blocking_hotkeys.values():
             self.assertFalse(any(hotkeys.values()))
         self.assertEqual(keyboard._hotkeys, {})
     def test_remove_hotkey_internal_multistep_start(self):
         remove = keyboard.add_hotkey('shift+a, b', trigger, suppress=True)
-        self.assertTrue(all(keyboard._listener.blocking_hotkeys.values()))
+        self.assertTrue(all(keyboard._global_event_processor.blocking_hotkeys.values()))
         self.assertNotEqual(keyboard._hotkeys, {})
         remove()
-        for hotkeys in keyboard._listener.blocking_hotkeys.values():
+        for hotkeys in keyboard._global_event_processor.blocking_hotkeys.values():
             self.assertFalse(any(hotkeys.values()))
         self.assertEqual(keyboard._hotkeys, {})
     def test_remove_hotkey_internal_multistep_end(self):
         remove = keyboard.add_hotkey('shift+a, b', trigger, suppress=True)
         self.do(d_shift+du_a+u_shift)
-        self.assertTrue(any(keyboard._listener.blocking_hotkeys.values()))
+        self.assertTrue(any(keyboard._global_event_processor.blocking_hotkeys.values()))
         self.assertNotEqual(keyboard._hotkeys, {})
         remove()
-        for hotkeys in keyboard._listener.blocking_hotkeys.values():
+        for hotkeys in keyboard._global_event_processor.blocking_hotkeys.values():
             self.assertFalse(any(hotkeys.values()))
         self.assertEqual(keyboard._hotkeys, {})
     def test_add_hotkey_single_step_suppress_with_modifiers(self):
@@ -742,8 +742,8 @@ class TestKeyboard(unittest.TestCase):
     def test_add_hotkey_multistep_suppress_incomplete(self):
         keyboard.add_hotkey('a, b', trigger, suppress=True)
         self.do(du_a, [])
-        self.assertEqual(keyboard._listener.blocking_hotkeys[(1,)], [])
-        self.assertEqual(len(keyboard._listener.blocking_hotkeys[(2,)]), 1)
+        self.assertEqual(keyboard._global_event_processor.blocking_hotkeys[(1,)], [])
+        self.assertEqual(len(keyboard._global_event_processor.blocking_hotkeys[(2,)]), 1)
     def test_add_hotkey_multistep_suppress_incomplete(self):
         keyboard.add_hotkey('a, b', trigger, suppress=True)
         self.do(du_a+du_b, triggered_event)

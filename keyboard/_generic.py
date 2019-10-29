@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
-from threading import Thread, Lock
-import traceback
-import functools
 
-try:
-    from queue import Queue
-except ImportError:
-    from Queue import Queue
 
 class GenericListener(object):
     lock = Lock()
@@ -15,6 +8,7 @@ class GenericListener(object):
         self.handlers = []
         self.listening = False
         self.queue = Queue()
+        self.lock = Lock()
 
     def invoke_handlers(self, event):
         for handler in self.handlers:

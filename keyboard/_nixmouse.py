@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
-import struct
-from subprocess import check_output
-import re
-from ._nixcommon import EV_KEY, EV_REL, EV_MSC, EV_SYN, EV_ABS, aggregate_devices, ensure_root
-from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN
-
 import ctypes
 import ctypes.util
+import struct
 from ctypes import c_uint32, c_uint, c_int, byref
+
+from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN
+from ._nixcommon import EV_KEY, EV_REL, EV_MSC, EV_SYN, aggregate_devices, ensure_root
 
 display = None
 window = None

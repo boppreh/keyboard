@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-import struct
-import traceback
-from time import time as now
-from collections import namedtuple
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 from ._canonical_names import all_modifiers, normalize_name
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 from ._nixcommon import EV_KEY, aggregate_devices, ensure_root
+
 
 # TODO: start by reading current keyboard state, as to not missing any already pressed keys.
 # See: http://stackoverflow.com/questions/3649874/how-to-get-keyboard-state-in-linux
