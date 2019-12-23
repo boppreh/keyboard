@@ -27,7 +27,7 @@ class GenericListener(object):
 
     def start_if_necessary(self):
         """
-        Starts the listening thread if it wans't already.
+        Starts the listening thread if it wasn't already.
         """
         self.lock.acquire()
         try:
