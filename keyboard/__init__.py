@@ -909,7 +909,7 @@ def get_hotkey_name(names=None):
     else:
         names = [normalize_name(name) for name in names]
     clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
-    # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
+    # https://developer.apple.com/design/human-interface-guidelines/macos/user-interaction/keyboard/
     # > List modifier keys in the correct order. If you use more than one modifier key in a
     # > hotkey, always list them in this order: Control, Option, Shift, Command.
     modifiers = [normalize_name(key) for key in ['ctrl', 'alt', 'shift', 'windows']]
