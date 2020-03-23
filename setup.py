@@ -13,7 +13,6 @@ setup(
     author='BoppreH',
     author_email='boppreh@gmail.com',
     packages=['keyboard'],
-    package_data={'keyboard': ['*.md']},
     url='https://github.com/boppreh/keyboard',
     license='MIT',
     description='Hook and simulate keyboard events on Windows and Linux',
