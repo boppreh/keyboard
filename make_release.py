@@ -1,5 +1,5 @@
 """
-This little guy streamliens the release process of Python packages.
+This little guy streamlines the release process of Python packages.
 
 By running `python3 make_release.py` it'll do the following tasks automatically:
 
