@@ -486,7 +486,7 @@ def hook_key(key, callback, suppress=False):
     `unhook_key(handler)`.
 
     Note: this function shares state with hotkeys, so `clear_all_hotkeys`
-    affects it aswell.
+    affects it as well.
     """
     _listener.start_if_necessary()
     store = _listener.blocking_keys if suppress else _listener.nonblocking_keys
@@ -744,7 +744,7 @@ register_hotkey = add_hotkey
 
 def remove_hotkey(hotkey_or_callback):
     """
-    Removes a previously hooked hotkey. Must be called wtih the value returned
+    Removes a previously hooked hotkey. Must be called with the value returned
     by `add_hotkey`.
     """
     _hotkeys[hotkey_or_callback]()
@@ -1089,7 +1089,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     `remove_word_listener(word)` or `remove_word_listener(handler)`.
 
     Note: all actions are performed on key down. Key up events are ignored.
-    Note: word mathes are **case sensitive**.
+    Note: word matches are **case sensitive**.
     """
     state = _State()
     state.current = ''
