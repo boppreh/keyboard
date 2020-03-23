@@ -215,7 +215,7 @@ key events. In this case `keyboard` will be unable to report events.
 
 ## keyboard.**version**
 ```py
-= '0.13.4'
+= '0.13.5'
 ```
 
 <a name="keyboard.is_modifier"/>
@@ -883,5 +883,6 @@ For more details see [`add_word_listener`](#keyboard.add_word_listener).
 
 Given a key name (e.g. "LEFT CONTROL"), clean up the string and convert to
 the canonical representation (e.g. "left ctrl") if one is known.
+
 
 

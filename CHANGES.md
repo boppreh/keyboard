@@ -1,3 +1,10 @@
+# 0.13.5
+
+- Added LICENSE.txt file to PyPI packages.
+- Fixed typos in docstrings.
+- Merged #281 and #259 (thanks @luizeldorado and @schldwcht !).
+
+
 # 0.13.4
 
 - [All] Improve release process, fixing #233 and #269.
