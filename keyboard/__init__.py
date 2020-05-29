@@ -616,6 +616,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     `remove_hotkey(hotkey)` or `remove_hotkey(handler)`.
     before the hotkey state is reset.
 
+    To loop on waiting for hotkeys, call `wait()` after all hotkeys are
+    registered.
+
     Note: hotkeys are activated when the last key is *pressed*, not released.
     Note: the callback is executed in a separate thread, asynchronously. For an
     example of how to use a callback synchronously, see `wait`.
@@ -632,6 +635,8 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
 
         add_hotkey('ctrl+q', quit)
         add_hotkey('ctrl+alt+enter, space', some_callback)
+
+        wait()
     """
     if args:
         callback = lambda callback=callback: callback(*args)
