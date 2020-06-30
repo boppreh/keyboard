@@ -852,7 +852,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
             try:
                 entries = _os_keyboard.map_name(normalize_name(letter))
                 scan_code, modifiers = next(iter(entries))
-            except (KeyError, ValueError):
+            except (KeyError, ValueError, StopIteration):
                 _os_keyboard.type_unicode(letter)
                 continue
             
