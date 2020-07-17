@@ -568,7 +568,7 @@ Example:
 
 ```py
 
-remap('alt+w', 'ctrl+up')
+remap_hotkey('alt+w', 'ctrl+up')
 ```
 
 
