@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import unittest
 import time
+import unittest
 
-from ._mouse_event import MoveEvent, ButtonEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
 from keyboard import mouse
+from ._mouse_event import MoveEvent, ButtonEvent, WheelEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE
+
 
 class FakeOsMouse(object):
     def __init__(self):

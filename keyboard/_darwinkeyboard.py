@@ -1,12 +1,13 @@
 import ctypes
 import ctypes.util
-import Quartz
-import time
 import os
-import threading
+import time
+
+import Quartz
 from AppKit import NSEvent
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+
 from ._canonical_names import normalize_name
+from ._keyboard_event import KeyboardEvent
 
 try: # Python 2/3 compatibility
     unichr

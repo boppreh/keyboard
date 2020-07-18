@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-import struct
-import os
 import atexit
-from time import time as now
-from threading import Thread
+import os
+import struct
 from glob import glob
+from threading import Thread
+from time import time as now
+
 try:
     from queue import Queue
 except ImportError:
