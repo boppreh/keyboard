@@ -29,7 +29,7 @@ except NameError:
 # this would be simply #include "windows.h".
 
 import ctypes
-from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER
+from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, WINFUNCTYPE, POINTER
 from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG, HMODULE, LPCWSTR, HINSTANCE, HWND
 LPMSG = POINTER(MSG)
 ULONG_PTR = POINTER(DWORD)
@@ -89,7 +89,7 @@ class INPUT(ctypes.Structure):
     _fields_ = (('type', DWORD),
                 ('union', _INPUTunion))
 
-LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
+LowLevelKeyboardProc = WINFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
 
 SetWindowsHookEx = user32.SetWindowsHookExW
 SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, HINSTANCE , DWORD]
