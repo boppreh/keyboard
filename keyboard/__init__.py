@@ -1148,7 +1148,8 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
     For more details see `add_word_listener`.
     """
     replacement = '\b'*(len(source_text)+1) + replacement_text
-    callback = lambda: write(replacement)
+    if _platform.system() == 'Linux': callback = lambda: write(replacement,delay=.001)
+    else: callback = lambda: write(replacement)
     return add_word_listener(source_text, callback, match_suffix=match_suffix, timeout=timeout)
 
 # Aliases.
