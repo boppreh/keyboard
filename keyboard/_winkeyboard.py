@@ -116,7 +116,7 @@ DispatchMessage = user32.DispatchMessageA
 DispatchMessage.argtypes = [LPMSG]
 
 keybd_event = user32.keybd_event
-keybd_event.argstypes = [c_uint8, c_uint8, DWORD, ULONG_PTR]
+keybd_event.argtypes = [c_uint8, c_uint8, DWORD, ULONG_PTR]
 
 
 keyboard_state_type = c_uint8 * 256
