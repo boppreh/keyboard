@@ -7,6 +7,7 @@ import threading
 from AppKit import NSEvent
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 from ._canonical_names import normalize_name
+from collections import defaultdict
 
 try: # Python 2/3 compatibility
     unichr
@@ -350,6 +351,7 @@ class KeyEventListener(object):
         self.callback = callback
         self.listening = True
         self.tap = None
+        self.modifier_scancodes = defaultdict(list)
 
     def run(self):
         """ Creates a listener and loops while waiting for an event. Intended to run as
@@ -381,18 +383,38 @@ class KeyEventListener(object):
             event_type = "down"
         elif e_type == Quartz.kCGEventKeyUp:
             event_type = "up"
+
         elif e_type == Quartz.kCGEventFlagsChanged:
-            if key_name.endswith("shift") and (flags & Quartz.kCGEventFlagMaskShift):
-                event_type = "down"
-            elif key_name == "caps lock" and (flags & Quartz.kCGEventFlagMaskAlphaShift):
-                event_type = "down"
-            elif (key_name.endswith("option") or key_name.endswith("alt")) and (flags & Quartz.kCGEventFlagMaskAlternate):
-                event_type = "down"
-            elif key_name == "ctrl" and (flags & Quartz.kCGEventFlagMaskControl):
-                event_type = "down"
-            elif key_name == "command" and (flags & Quartz.kCGEventFlagMaskCommand):
-                event_type = "down"
-            else:
+            event_found = False
+
+            # in order to distinguish things like right shift pressed, left shift pressed
+            # then left shift released, right shift released, we keep track of the
+            # scan codes for each modifier key
+
+            for bitmask, key_name_suffixes in (
+                    (Quartz.kCGEventFlagMaskShift, ("shift", )),
+                    (Quartz.kCGEventFlagMaskAlphaShift, ("caps lock", )),
+                    (Quartz.kCGEventFlagMaskControl, ("ctrl",)),
+                    (Quartz.kCGEventFlagMaskCommand, ("command",)),
+                    (Quartz.kCGEventFlagMaskAlternate, ("option", "alt")),
+            ):
+                ends_with_suffix = any(key_name.endswith(suffix) for suffix in key_name_suffixes)
+                if ends_with_suffix:
+                    event_found = True
+                    key_name_suffix = key_name_suffixes[0] # it doesn't matter here if we clobber suffixes from the same modifier like option/alt
+                    if not (flags & bitmask):
+                        event_type = "up"
+                        self.modifier_scancodes[key_name_suffix] = [] # just to be sure...
+                    else:
+                        if scan_code in self.modifier_scancodes[key_name_suffix]:
+                            self.modifier_scancodes[key_name_suffix].remove(scan_code)
+                            event_type = "up"
+                        else:
+                            self.modifier_scancodes[key_name_suffix].append(scan_code)
+                            event_type = "down"
+                    if event_found:
+                        break
+            if not event_found:
                 event_type = "up"
 
         if self.blocking:
