@@ -33,8 +33,8 @@ class KeyboardEvent(object):
 
     def to_json(self, ensure_ascii=False):
         attrs = dict(
-            (attr, getattr(self, attr)) for attr in ['event_type', 'scan_code', 'name', 'time', 'device', 'is_keypad']
-            if not attr.startswith('_') and getattr(self, attr) is not None
+            (attr, getattr(self, attr)) for attr in ['event_type', 'scan_code', 'name', 'time', 'device', 'is_keypad', 'modifiers']
+            if not attr.startswith('_')
         )
         return json.dumps(attrs, ensure_ascii=ensure_ascii)
 
