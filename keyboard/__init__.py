@@ -73,7 +73,7 @@ keyboard.wait()
 - Key suppression/blocking only available on Windows. [#22](https://github.com/boppreh/keyboard/issues/22)
 - To avoid depending on X, the Linux parts reads raw device files (`/dev/input/input*`)
 but this requires root.
-- Other applications, such as some games, may register hooks that swallow all 
+- Other applications, such as some games, may register hooks that swallow all
 key events. In this case `keyboard` will be unable to report events.
 - This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming bots. Be responsible.
 """
@@ -140,7 +140,7 @@ def is_modifier(key):
         return key in all_modifiers
     else:
         if not _modifier_scan_codes:
-            scan_codes = (key_to_scan_codes(name, False) for name in all_modifiers) 
+            scan_codes = (key_to_scan_codes(name, False) for name in all_modifiers)
             _modifier_scan_codes.update(*scan_codes)
         return key in _modifier_scan_codes
 
@@ -418,7 +418,7 @@ def is_pressed(hotkey):
     if len(steps) > 1:
         raise ValueError("Impossible to check if multi-step hotkeys are pressed (`a+b` is ok, `a, b` isn't).")
 
-    # Convert _pressed_events into a set 
+    # Convert _pressed_events into a set
     with _pressed_events_lock:
         pressed_scan_codes = set(_pressed_events)
     for scan_codes in steps[0]:
@@ -440,7 +440,7 @@ def hook(callback, suppress=False, on_remove=lambda: None):
     """
     Installs a global listener on all available keyboards, invoking `callback`
     each time a key is pressed or released.
-    
+
     The event passed to the callback is of type `keyboard.KeyboardEvent`,
     with the following attributes:
 
@@ -579,7 +579,7 @@ def _add_hotkey_step(handler, combinations, suppress):
     container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
 
     # Register the scan codes of every possible combination of
-    # modfiier + main key. Modifiers have to be registered in 
+    # modfiier + main key. Modifiers have to be registered in
     # filtered_modifiers too, so suppression and replaying can work.
     for scan_codes in combinations:
         for scan_code in scan_codes:
@@ -663,7 +663,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     state.remove_last_step = None
     state.suppressed_events = []
     state.last_update = float('-inf')
-    
+
     def catch_misses(event, force_fail=False):
         if (
                 event.event_type == event_type
@@ -704,7 +704,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
                 if event.event_type == KEY_UP:
                     remove()
                     set_index(0)
-                accept = event.event_type == event_type and callback() 
+                accept = event.event_type == event_type and callback()
                 if accept:
                     return catch_misses(event, force_fail=True)
                 else:
@@ -838,7 +838,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
         exact = _platform.system() == 'Windows'
 
     state = stash_state()
-    
+
     # Window's typing of unicode characters is quite efficient and should be preferred.
     if exact:
         for letter in text:
@@ -855,7 +855,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
             except (KeyError, ValueError, StopIteration):
                 _os_keyboard.type_unicode(letter)
                 continue
-            
+
             for modifier in modifiers:
                 press(modifier)
 
@@ -909,11 +909,11 @@ def get_hotkey_name(names=None):
     else:
         names = [normalize_name(name) for name in names]
     clean_names = set(e.replace('left ', '').replace('right ', '').replace('+', 'plus') for e in names)
-    # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
+    # https://developer.apple.com/design/human-interface-guidelines/macos/user-interaction/keyboard/
     # > List modifier keys in the correct order. If you use more than one modifier key in a
     # > hotkey, always list them in this order: Control, Option, Shift, Command.
-    modifiers = ['ctrl', 'alt', 'shift', 'windows']
-    sorting_key = lambda k: (modifiers.index(k) if k in modifiers else 5, str(k))
+    modifiers = [normalize_name(key) for key in ['ctrl', 'alt', 'shift', 'windows']]
+    sorting_key = lambda k: (modifiers.index(k) if k in modifiers else len(modifiers), str(k))
     return '+'.join(sorted(clean_names, key=sorting_key))
 
 def read_event(suppress=False):
@@ -1144,7 +1144,7 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
     listener for 'pet'. Defaults to false, only whole words are checked.
     - `timeout` is the maximum number of seconds between typed characters before
     the current word is discarded. Defaults to 2 seconds.
-    
+
     For more details see `add_word_listener`.
     """
     replacement = '\b'*(len(source_text)+1) + replacement_text
