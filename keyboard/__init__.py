@@ -79,13 +79,20 @@ key events. In this case `keyboard` will be unable to report events.
 """
 from __future__ import print_function as _print_function
 
+import collections as _collections
+import itertools as _itertools
+import platform as _platform
+import re as _re
+import time as _time
+from threading import Lock as _Lock
+from threading import Thread as _Thread
+
+from ._canonical_names import all_modifiers, normalize_name, sided_modifiers
+from ._generic import GenericListener as _GenericListener
+from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
+
 version = '0.13.4'
 
-import re as _re
-import itertools as _itertools
-import collections as _collections
-from threading import Thread as _Thread, Lock as _Lock
-import time as _time
 # Python2... Buggy on time changes and leap seconds, but no other good option (https://stackoverflow.com/questions/1205722/how-do-i-get-monotonic-time-durations-in-python).
 _time.monotonic = getattr(_time, 'monotonic', None) or _time.time
 
@@ -117,7 +124,6 @@ class _Event(_UninterruptibleEvent):
             if _UninterruptibleEvent.wait(self, 0.5):
                 break
 
-import platform as _platform
 if _platform.system() == 'Windows':
     from. import _winkeyboard as _os_keyboard
 elif _platform.system() == 'Linux':
@@ -127,9 +133,6 @@ elif _platform.system() == 'Darwin':
 else:
     raise OSError("Unsupported platform '{}'".format(_platform.system()))
 
-from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
-from ._generic import GenericListener as _GenericListener
-from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
 
 _modifier_scan_codes = set()
 def is_modifier(key):
@@ -1130,7 +1133,7 @@ def remove_word_listener(word_or_handler):
     """
     _word_listeners[word_or_handler]()
 
-def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=2):
+def add_abbreviation(source_text, replacement_text, triggers= ['space'], match_suffix=False, timeout=2):
     """
     Registers a hotkey that replaces one typed text with another. For example
 
@@ -1149,7 +1152,7 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
     """
     replacement = '\b'*(len(source_text)+1) + replacement_text
     callback = lambda: write(replacement)
-    return add_word_listener(source_text, callback, match_suffix=match_suffix, timeout=timeout)
+    return add_word_listener(source_text, callback, triggers=triggers, match_suffix=match_suffix, timeout=timeout)
 
 # Aliases.
 register_word_listener = add_word_listener
