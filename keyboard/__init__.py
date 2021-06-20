@@ -90,6 +90,7 @@ python -m keyboard < events.txt
 - To avoid depending on X, the Linux parts reads raw device files (`/dev/input/input*`) but this requires root.
 - Other applications, such as some games, may register hooks that swallow all key events. In this case `keyboard` will be unable to report events.
 - This program makes no attempt to hide itself, so don't use it for keyloggers or online gaming bots. Be responsible.
+- SSH connections forward only the text typed, not keyboard events. Therefore if you connect to a server or Raspberry PI that is running `keyboard` via SSH, the server will not detect your key events.
 
 ## Common patterns and mistakes
 
