@@ -106,7 +106,7 @@ class AggregatedEventDevice(object):
                 self.event_queue.put(device.read_event())
         for device in self.devices:
             thread = Thread(target=start_reading, args=[device])
-            thread.setDaemon(True)
+            thread.daemon = True
             thread.start()
 
     def read_event(self):
