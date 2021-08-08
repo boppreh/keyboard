@@ -255,6 +255,18 @@ class KeyController(object):
             Quartz.CGEventPost(0, ev.CGEvent())
         else:
             # Regular key
+            # Update modifiers if necessary
+            if key_code == 0x37: # cmd
+                self.current_modifiers["cmd"] = True
+            elif key_code == 0x38 or key_code == 0x3C: # shift or right shift
+                self.current_modifiers["shift"] = True
+            elif key_code == 0x39: # caps lock
+                self.current_modifiers["caps"] = True
+            elif key_code == 0x3A: # alt
+                self.current_modifiers["alt"] = True
+            elif key_code == 0x3B: # ctrl
+                self.current_modifiers["ctrl"] = True
+
             # Apply modifiers if necessary
             event_flags = 0
             if self.current_modifiers["shift"]:
@@ -267,18 +279,6 @@ class KeyController(object):
                 event_flags += Quartz.kCGEventFlagMaskControl
             if self.current_modifiers["cmd"]:
                 event_flags += Quartz.kCGEventFlagMaskCommand
-            
-            # Update modifiers if necessary
-            if key_code == 0x37: # cmd
-                self.current_modifiers["cmd"] = True
-            elif key_code == 0x38 or key_code == 0x3C: # shift or right shift
-                self.current_modifiers["shift"] = True
-            elif key_code == 0x39: # caps lock
-                self.current_modifiers["caps"] = True
-            elif key_code == 0x3A: # alt
-                self.current_modifiers["alt"] = True
-            elif key_code == 0x3B: # ctrl
-                self.current_modifiers["ctrl"] = True
             event = Quartz.CGEventCreateKeyboardEvent(None, key_code, True)
             Quartz.CGEventSetFlags(event, event_flags)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
