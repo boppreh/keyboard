@@ -27,7 +27,6 @@ class KeyboardEvent(object):
         self.time = now() if time is None else time
         self.device = device
         self.is_keypad = is_keypad
-        self.modifiers = modifiers
         if name:
             self.name = normalize_name(name)
 
@@ -37,6 +36,9 @@ class KeyboardEvent(object):
             if not attr.startswith('_')
         )
         return json.dumps(attrs, ensure_ascii=ensure_ascii)
+
+    def __hash__(self):
+        return hash((self.event_type, self.scan_code, self.time, self.device))
 
     def __repr__(self):
         return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
