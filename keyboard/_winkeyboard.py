@@ -49,6 +49,7 @@ INPUT_MOUSE = 0
 INPUT_KEYBOARD = 1
 INPUT_HARDWARE = 2
 
+KEYEVENTF_KEYDOWN = 0x00
 KEYEVENTF_KEYUP = 0x02
 KEYEVENTF_UNICODE = 0x04
 
@@ -588,10 +589,10 @@ def _send_event(code, event_type):
         user32.keybd_event(-code, 0, event_type, 0)
 
 def press(code):
-    _send_event(code, 0)
+    _send_event(code, KEYEVENTF_KEYDOWN)
 
 def release(code):
-    _send_event(code, 2)
+    _send_event(code, KEYEVENTF_KEYUP)
 
 def type_unicode(character):
     # This code and related structures are based on
