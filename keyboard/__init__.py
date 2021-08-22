@@ -232,7 +232,6 @@ else:
     raise OSError("Unsupported platform '{}'".format(_platform.system()))
 
 from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
-from ._generic import GenericListener as _GenericListener
 from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
 
 _modifier_scan_codes = set()
@@ -263,26 +262,34 @@ class _KeyboardListener(object):
     keys are pressed (physically and logically), which keys are suspended, etc.
     """
     def __init__(self):
-        self.async_events_queue = _queue.Queue()
-        self.logically_pressed_scan_codes = set()
-        self.physically_pressed_scan_codes = set()
+        self.pressed_scan_codes = set()
         self.active_modifiers = set()
-        self.suppressing_hooks = []
-        self.nonsuppressing_hooks = []
+        # Pairs of (event, modifiers).
         self.suspended_event_pairs = []
-
+        # Set when replaying a suspended event, that should not be processed
+        # again.
         self.is_replaying = False
 
         # OS thread will invoke `process_sync_one` for each event.
+        self.suppressing_hooks = []
+        self.async_events_queue = _queue.Queue()
         listening_thread = _Thread(target=lambda: _os_keyboard.listen(self.process_sync_one))
         listening_thread.daemon = True
         listening_thread.start()
 
+        # While this thread reads events from the queue and runs hooks
+        # asynchronously.
+        self.nonsuppressing_hooks = []
         processing_thread = _Thread(target=self.process_async_queue)
         processing_thread.daemon = True
         processing_thread.start()
 
     def register(self, hook_obj, suppress=True):
+        """
+        Adds a new hook. If `suppress` is True, the hook is processed in a
+        blocking/synchronous manner, and is able to decide if the event should
+        be suspended/suppressed, at the cost of slowing down the event latency.
+        """
         hooks_list = self.suppressing_hooks if suppress else self.nonsuppressing_hooks
         hooks_list.append(hook_obj)
         hook_obj.on_remove = lambda: hooks_list.remove(hook_obj)
@@ -292,10 +299,12 @@ class _KeyboardListener(object):
         if self.is_replaying:
             return True
 
+        self.async_events_queue.put(event)
+
         if event.event_type == KEY_DOWN:
-            self.physically_pressed_scan_codes.add(event.scan_code)
+            self.pressed_scan_codes.add(event.scan_code)
         elif event.event_type == KEY_UP:
-            self.physically_pressed_scan_codes.discard(event.scan_code)
+            self.pressed_scan_codes.discard(event.scan_code)
 
         if event.scan_code in _modifier_scan_codes:
             if event.event_type == KEY_DOWN:
@@ -303,7 +312,7 @@ class _KeyboardListener(object):
             elif event.event_type == KEY_UP:
                 self.active_modifiers.discard(event.name)
 
-        hooks_decisions = [hook_obj(event, self.physically_pressed_scan_codes) for hook_obj in self.suppressing_hooks]
+        hooks_decisions = [hook_obj(event, self.pressed_scan_codes) for hook_obj in self.suppressing_hooks]
         for suspended_event, suspended_modifiers in list(self.suspended_event_pairs):
             decision = max(decisions.get(suspended_event, ALLOW) for decisions in hooks_decisions)
             if decision is SUSPEND:
@@ -316,6 +325,7 @@ class _KeyboardListener(object):
                 # presses and releases the match the suspended modifiers,
                 # replay the suspended event, then restore the state of the
                 # modifiers.
+                _listener.is_replaying = True
                 for modifier in self.active_modifiers - suspended_modifiers:
                     release(modifier)
                 for modifier in suspended_modifiers - self.active_modifiers:
@@ -328,6 +338,7 @@ class _KeyboardListener(object):
                     press(modifier)
                 for modifier in suspended_modifiers - self.active_modifiers:
                     release(modifier)
+                _listener.is_replaying = False
 
         decision = max(decisions.get(event, ALLOW) for decisions in hooks_decisions)
         if decision is SUSPEND:
@@ -597,8 +608,6 @@ def send(hotkey, do_press=True, do_release=True):
 
     Note: keys are released in the opposite order they were pressed.
     """
-    _listener.is_replaying = True
-
     parsed = parse_hotkey(hotkey)
     for step in parsed:
         if do_press:
@@ -608,8 +617,6 @@ def send(hotkey, do_press=True, do_release=True):
         if do_release:
             for scan_codes in reversed(step):
                 _os_keyboard.release(scan_codes[0])
-
-    _listener.is_replaying = False
 
 # Alias.
 press_and_release = send
@@ -1385,7 +1392,7 @@ register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
 remove_abbreviation = remove_word_listener
 
+# Start listening threads.
 _os_keyboard.init()
-scan_codes = (key_to_scan_codes(name, False) for name in all_modifiers) 
-_modifier_scan_codes.update(*scan_codes)
+_modifier_scan_codes.update(*(key_to_scan_codes(name, False) for name in all_modifiers) )
 _listener = _KeyboardListener()
