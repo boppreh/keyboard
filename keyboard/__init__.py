@@ -270,19 +270,35 @@ class _KeyboardListener(object):
         # again.
         self.is_replaying = False
 
-        # OS thread will invoke `process_sync_one` for each event.
         self.suppressing_hooks = []
+        self.nonsuppressing_hooks = []
         self.async_events_queue = _queue.Queue()
-        listening_thread = _Thread(target=lambda: _os_keyboard.listen(self.process_sync_one))
+
+        self.start()
+
+    def start(self):
+        if not self.cancelled:
+            return
+
+        self.cancelled = False
+
+        self.os_listener = _os_keyboard.Listener()
+        listening_thread = _Thread(target=lambda: self.os_listener.listen(self.process_sync_one))
         listening_thread.daemon = True
         listening_thread.start()
 
         # While this thread reads events from the queue and runs hooks
         # asynchronously.
-        self.nonsuppressing_hooks = []
         processing_thread = _Thread(target=self.process_async_queue)
         processing_thread.daemon = True
         processing_thread.start()
+
+    def stop(self):
+        if self.cancelled:
+            return
+            
+        self.cancelled = True
+        self.os_listener.stop()
 
     def register(self, hook_obj, suppress=True):
         """
@@ -352,6 +368,8 @@ class _KeyboardListener(object):
     def process_async_queue(self):
         while True:
             event = self.async_events_queue.get()
+            if self.cancelled:
+                break
             for hook_obj in self.nonsuppressing_hooks:
                 hook_obj(event)
             self.async_events_queue.task_done()
@@ -382,6 +400,12 @@ class _SimpleHook(object):
             return result
         else:
             return {}
+
+def start():
+    _listener.start()
+
+def stop():
+    _listener.stop()
 
 def new_hook(callback):
     return _listener.register(_SimpleHook(lambda event, pressed_scan_codes: callback(event)))
@@ -462,10 +486,10 @@ class _StandardHotkeyHook(_SimpleHook):
             self.suspended_events.append(event)
             self.suspended_key_down_scan_codes.append(event.scan_code)
             if self.current_step_index >= len(self.steps):
+                self.reset()
                 result = self.user_callback()
                 decision = result if result in (ALLOW, SUPPRESS) else SUPPRESS
                 decisions = {event: decision for event in self.suspended_events}
-                self.reset()
                 return decisions
             else:
                 return {event: SUSPEND for event in self.suspended_events + [event]}
