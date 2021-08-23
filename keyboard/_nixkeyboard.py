@@ -110,6 +110,8 @@ def build_device():
     device = aggregate_devices('kbd')
 
 def init():
+    to_name.clear()
+    from_name.clear()
     build_device()
     build_tables()
 
