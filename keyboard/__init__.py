@@ -274,9 +274,13 @@ class _KeyboardListener(object):
         self.nonsuppressing_hooks = []
         self.async_events_queue = _queue.Queue()
 
-        self.start()
+        self.cancelled = True
 
     def start(self):
+        """
+        If not yet started, starts the background threads that intercept OS
+        events and handles hooks.
+        """
         if not self.cancelled:
             return
 
@@ -294,9 +298,14 @@ class _KeyboardListener(object):
         processing_thread.start()
 
     def stop(self):
+        """
+        If currently running, signals the background threads and OS event
+        interception to stop. Further events will not be processed, but the
+        threads may live a little longer while they wind down.
+        """
         if self.cancelled:
             return
-            
+
         self.cancelled = True
         self.os_listener.stop()
 
@@ -312,6 +321,12 @@ class _KeyboardListener(object):
         return hook_obj
 
     def process_sync_one(self, event):
+        """
+        Processes one event, synchronously (blocking the OS from passing the event
+        forward). Passes the event through all hooks that could suppress the event,
+        and merge their decisions, returning True (the event is allowed) or False
+        (the event should be suppressed).
+        """
         if self.is_replaying:
             return True
 
@@ -366,6 +381,11 @@ class _KeyboardListener(object):
             return True
 
     def process_async_queue(self):
+        """
+        Reads events from the queue set up by `process_sync_one`, running the hooks
+        that are not capable of suppressing events, asynchronously without blocking
+        the OS from passing the event forward.
+        """
         while True:
             event = self.async_events_queue.get()
             if self.cancelled:
@@ -373,6 +393,17 @@ class _KeyboardListener(object):
             for hook_obj in self.nonsuppressing_hooks:
                 hook_obj(event)
             self.async_events_queue.task_done()
+
+def start():
+    _listener.start()
+
+def stop():
+    _listener.stop()
+
+def reload():
+    stop()
+    _os_keyboard.init()
+    start()
 
 class _SimpleHook(object):
     """
@@ -401,11 +432,6 @@ class _SimpleHook(object):
         else:
             return {}
 
-def start():
-    _listener.start()
-
-def stop():
-    _listener.stop()
 
 def new_hook(callback):
     return _listener.register(_SimpleHook(lambda event, pressed_scan_codes: callback(event)))
@@ -1417,6 +1443,6 @@ register_abbreviation = add_abbreviation
 remove_abbreviation = remove_word_listener
 
 # Start listening threads.
-_os_keyboard.init()
 _modifier_scan_codes.update(*(key_to_scan_codes(name, False) for name in all_modifiers) )
 _listener = _KeyboardListener()
+_listener.start()

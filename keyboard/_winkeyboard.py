@@ -439,7 +439,12 @@ def _setup_name_tables():
         from_name[name] = sorted(set(entries), key=order_key)
 
 # Called by keyboard/__init__.py
-init = _setup_name_tables
+def init():
+    with tables_lock:
+        to_name.clear()
+        from_name.clear()
+        scan_code_to_vk.clear()
+    _setup_name_tables()
 
 # List created manually.
 keypad_keys = [
