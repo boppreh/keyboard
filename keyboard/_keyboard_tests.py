@@ -1,101 +1,76 @@
 # -*- coding: utf-8 -*-
-"""
-Side effects are avoided using two techniques:
-
-- Low level OS requests (keyboard._os_keyboard) are mocked out by rewriting
-the functions at that namespace. This includes a list of dummy keys.
-- Events are pumped manually by the main test class, and accepted events
-are tested against expected values.
-
-Fake user events are appended to `input_events`, passed through
-keyboard,_listener.direct_callback, then, if accepted, appended to
-`output_events`. Fake OS events (keyboard.press) are processed
-and added to `output_events` immediately, mimicking real functionality.
-"""
 from __future__ import print_function
 
 import unittest
-import time
 
 import keyboard
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from keyboard import KEY_UP, KEY_DOWN, KeyboardEvent, SUPPRESS, ALLOW
 
-dummy_keys = {
-    'space': [(0, [])],
+PRESS = lambda scan_code: [KeyboardEvent(event_type=KEY_DOWN, scan_code=scan_code, time=0)]
+RELEASE = lambda scan_code: [KeyboardEvent(event_type=KEY_UP, scan_code=scan_code, time=0)]
+TRIGGER = lambda n=999: keyboard.release(n)
+TRIGGERED = lambda n=999: [KeyboardEvent(event_type=KEY_UP, scan_code=999, time=0)]
 
-    'a': [(1, [])],
-    'b': [(2, [])],
-    'c': [(3, [])],
-    'A': [(1, ['shift']), (-1, [])],
-    'B': [(2, ['shift']), (-2, [])],
-    'C': [(3, ['shift']), (-3, [])],
+def format_event(event):
+    if event.scan_code == 999:
+        return 'TRIGGERED()'
+    elif event.scan_code >= 100:
+        return 'TRIGGERED({})'.format(event.scan_code)
+    elif event.event_type == KEY_DOWN:
+        return 'PRESS({})'.format(event.scan_code)
+    elif event.event_type == KEY_UP:
+        return 'RELEASE({})'.format(event.scan_code)
 
-    'alt': [(4, [])],
-    'left alt': [(4, [])],
+class TestNewCore(unittest.TestCase):
+    def setUp(self):
+        self.output_events = []
+        keyboard._listener = keyboard._KeyboardListener()
+        keyboard._modifier_scan_codes = {-1, -2, -3}
+        keyboard._os_keyboard.press = lambda key: self.output_events.append(PRESS(key)[0])
+        keyboard._os_keyboard.release = lambda key: self.output_events.append(RELEASE(key)[0])
 
-    'left shift': [(5, [])],
-    'right shift': [(6, [])],
+    def do(self, input_events, expected=None):
+        if expected is None:
+            expected = input_events
 
-    'left ctrl': [(7, [])],
+        for event in input_events:
+            if keyboard._listener.process_sync_one(event):
+                self.output_events.append(event)
+        to_names = lambda es: '+'.join(map(format_event, es))
+        self.assertEqual(to_names(self.output_events), to_names(expected))
+        self.output_events.clear()
 
-    'backspace': [(8, [])],
-    'caps lock': [(9, [])],
+    def test_allowing_hook(self):
+        keyboard.hook(lambda event: ALLOW)
+        self.do(PRESS(0)+RELEASE(0), PRESS(0)+RELEASE(0))
+    def test_suppressing_hook(self):
+        keyboard.hook(lambda event: keyboard.SUPPRESS)
+        self.do(PRESS(0)+RELEASE(0), [])
 
-    '+': [(10, [])],
-    ',': [(11, [])],
-    '_': [(12, [])],
+    def test_suppressing_key_hook(self):
+        keyboard.hook_key(0, TRIGGER)
+        self.do(PRESS(1)+PRESS(0), PRESS(1)+TRIGGERED())
+    def test_allowing_key_hook(self):
+        keyboard.hook_key(0, lambda: TRIGGER() or ALLOW)
+        self.do(PRESS(1)+PRESS(0), PRESS(1)+TRIGGERED()+PRESS(0))
 
-    'none': [],
-    'duplicated': [(20, []), (20, [])],
-}
+    def test_single_key_blocking_hotkey(self):
+        keyboard.add_hotkey(0, TRIGGER)
+        self.do(PRESS(1)+RELEASE(1))
+        self.do(PRESS(0)+RELEASE(0), TRIGGERED())
+        self.do(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(1)+RELEASE(1)+TRIGGERED())
+        self.do(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+TRIGGERED()+RELEASE(1))
+        self.do(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
+        self.do(PRESS(0)+PRESS(0)+RELEASE(0), TRIGGERED()+TRIGGERED())
 
-def make_event(event_type, name, scan_code=None, time=0):
-    return KeyboardEvent(event_type=event_type, scan_code=scan_code or dummy_keys[name][0][0], name=name, time=time)
-
-# Used when manually pumping events.
-input_events = []
-output_events = []
-
-def send_instant_event(event):
-    if keyboard._listener.direct_callback(event):
-        output_events.append(event)
-
-# Mock out side effects.
-keyboard._os_keyboard.init = lambda: None
-keyboard._os_keyboard.listen = lambda callback: None
-keyboard._os_keyboard.map_name = dummy_keys.__getitem__
-keyboard._os_keyboard.press = lambda scan_code: send_instant_event(make_event(KEY_DOWN, None, scan_code))
-keyboard._os_keyboard.release = lambda scan_code: send_instant_event(make_event(KEY_UP, None, scan_code))
-keyboard._os_keyboard.type_unicode = lambda char: output_events.append(KeyboardEvent(event_type=KEY_DOWN, scan_code=999, name=char))
-
-# Shortcuts for defining test inputs and expected outputs.
-# Usage: d_shift + d_a + u_a + u_shift
-d_a = [make_event(KEY_DOWN, 'a')]
-u_a = [make_event(KEY_UP, 'a')]
-du_a = d_a+u_a
-d_b = [make_event(KEY_DOWN, 'b')]
-u_b = [make_event(KEY_UP, 'b')]
-du_b = d_b+u_b
-d_c = [make_event(KEY_DOWN, 'c')]
-u_c = [make_event(KEY_UP, 'c')]
-du_c = d_c+u_c
-d_ctrl = [make_event(KEY_DOWN, 'left ctrl')]
-u_ctrl = [make_event(KEY_UP, 'left ctrl')]
-du_ctrl = d_ctrl+u_ctrl
-d_shift = [make_event(KEY_DOWN, 'left shift')]
-u_shift = [make_event(KEY_UP, 'left shift')]
-du_shift = d_shift+u_shift
-d_alt = [make_event(KEY_DOWN, 'alt')]
-u_alt = [make_event(KEY_UP, 'alt')]
-du_alt = d_alt+u_alt
-du_backspace = [make_event(KEY_DOWN, 'backspace'), make_event(KEY_UP, 'backspace')]
-du_capslock = [make_event(KEY_DOWN, 'caps lock'), make_event(KEY_UP, 'caps lock')]
-d_space = [make_event(KEY_DOWN, 'space')]
-u_space = [make_event(KEY_UP, 'space')]
-du_space = [make_event(KEY_DOWN, 'space'), make_event(KEY_UP, 'space')]
-
-trigger = lambda e=None: keyboard.press(999)
-triggered_event = [KeyboardEvent(KEY_DOWN, scan_code=999)]
+    def test_single_key_allowing_hotkey(self):
+        keyboard.add_hotkey(0, lambda: TRIGGER() or ALLOW)
+        self.do(PRESS(1)+RELEASE(1))
+        self.do(PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+RELEASE(0))
+        self.do(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+TRIGGERED()+PRESS(0)+RELEASE(0))
+        self.do(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+TRIGGERED()+PRESS(0) +RELEASE(1)+RELEASE(0))
+        self.do(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
+        self.do(PRESS(0)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+TRIGGERED()+PRESS(0)+RELEASE(0))
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
