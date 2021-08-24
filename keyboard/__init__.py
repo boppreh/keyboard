@@ -380,27 +380,29 @@ class _KeyboardListener(object):
             elif decision is SUPPRESS:
                 self.suspended_event_pairs.remove((suspended_event, suspended_modifiers))
             elif decision is ALLOW:
+                _listener.is_replaying = True
                 # The suspended event may have had a different set of modifiers
                 # than what is currently active. We temporarily send fake key
                 # presses and releases the match the suspended modifiers,
                 # replay the suspended event, then restore the state of the
                 # modifiers.
-                _listener.is_replaying = True
                 for modifier in self.active_modifiers - suspended_modifiers:
                     _os_keyboard.release(modifier)
                 for modifier in suspended_modifiers - self.active_modifiers:
-                    _os_keyboard.release(modifier)
+                    _os_keyboard.press(modifier)
 
                 if suspended_event.event_type == KEY_DOWN:
-                    _os_keyboard.release(suspended_event.scan_code)
+                    _os_keyboard.press(suspended_event.scan_code)
                 else:
                     _os_keyboard.release(suspended_event.scan_code)
                 self.suspended_event_pairs.remove((suspended_event, suspended_modifiers))
 
+                # TODO: avoid messing with a modifier just to undo it for the next suspended event.
                 for modifier in self.active_modifiers - suspended_modifiers:
-                    _os_keyboard.release(modifier)
+                    _os_keyboard.press(modifier)
                 for modifier in suspended_modifiers - self.active_modifiers:
                     _os_keyboard.release(modifier)
+                    
                 _listener.is_replaying = False
 
         decision = max((decisions.get(event, ALLOW) for decisions in hooks_decisions))

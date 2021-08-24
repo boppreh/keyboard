@@ -106,6 +106,7 @@ class TestNewCore(unittest.TestCase):
     def test_single_keys_multistep_blocking_hotkey(self):
         keyboard.add_hotkey((((0,),), ((1,),)), TRIGGER)
         self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+PRESS(-1)+RELEASE(-1)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
