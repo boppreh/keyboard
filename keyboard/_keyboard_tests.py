@@ -37,8 +37,14 @@ class TestNewCore(unittest.TestCase):
         for event in input_events:
             if keyboard._listener.process_sync_one(event):
                 self.output_events.append(event)
+
         to_names = lambda es: '+'.join(map(format_event, es))
-        self.assertEqual(to_names(self.output_events), to_names(expected))
+        if hasattr(self, 'subTest'):
+            with self.subTest():
+                self.assertEqual(to_names(self.output_events), to_names(expected))
+        else:
+            self.assertEqual(to_names(self.output_events), to_names(expected))
+
         self.output_events.clear()
 
     def test_allowing_hook(self):
