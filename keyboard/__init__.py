@@ -550,6 +550,17 @@ class _StandardHotkeyHook(_SimpleHook):
         self.suppressed_key_down_scan_codes = set()
         self.suspended_key_down_scan_codes = set()
 
+        self.transitions = _collections.defaultdict(lambda: (0, ALLOW))
+        for i, step in enumerate(self.hotkey.steps):
+            if i == len(self.hotkey.steps) - 1:
+                next_step_i = 0
+                decision = SUPPRESS
+            else:
+                next_step_i = i + 1
+                decision = SUSPEND
+            for input_scan_codes in _itertools.product(*[key.scan_codes for key in step.keys]):
+                self.transitions[i, tuple(sorted(input_scan_codes))] = (next_step_i, decision)
+
     def process_event(self, event, pressed_keys, active_modifiers):
         current_step = self.hotkey.steps[self.current_step_index]
 
@@ -576,32 +587,24 @@ class _StandardHotkeyHook(_SimpleHook):
                 decisions[event] = ALLOW
                 return decisions
 
-        # Other cases where a non-modifier key has been pressed.
+        input_events = tuple(sorted([event.scan_code] + list(active_modifiers)))
+        self.current_step_index, decision = self.transitions[self.current_step_index, input_events]
 
-        step_fulfilled = all(any(scan_code in pressed_keys for scan_code in key.scan_codes) for key in current_step.keys)
-        unrelated_modifiers = [scan_code for scan_code in pressed_keys if scan_code in _modifier_scan_codes and not any(scan_code in key.scan_codes for key in current_step.keys)]
-        
-        if step_fulfilled and not unrelated_modifiers:
-            self.current_step_index += 1
-            self.suspended_events.append(event)
-            if self.current_step_index >= len(self.hotkey.steps):
-                self.current_step_index = 0
-                result = self.callback()
-                decision = result if result in (ALLOW, SUPPRESS) else SUPPRESS
-                decisions = {event: decision for event in self.suspended_events}
-                del self.suspended_events[:]
-                if decision is SUPPRESS:
-                    self.suppressed_key_down_scan_codes.add(event.scan_code)
-                return decisions
-            else:
-                self.suspended_key_down_scan_codes.add(event.scan_code)
-                return {event: SUSPEND for event in self.suspended_events + [event]}
-        else:
-            # An unrelated key was pressed, or the main key was pressed with
-            # wrong modifiers. Cancel everything.
-            decisions = {event: ALLOW for event in self.suspended_events + [event]}
-            self.current_step_index = 0
+        if decision is ALLOW:
             del self.suspended_events[:]
+            # Default decision is ALLOW.
+            return {}
+        elif decision is SUSPEND:
+            self.suspended_events.append(event)
+            self.suspended_key_down_scan_codes.add(event.scan_code)
+            return {event: SUSPEND for event in self.suspended_events + [event]}
+        elif decision is SUPPRESS:
+            result = self.callback()
+            callback_decision = result if result in (ALLOW, SUPPRESS) else SUPPRESS
+            decisions = {event: callback_decision for event in self.suspended_events + [event]}
+            del self.suspended_events[:]
+            if callback_decision is SUPPRESS:
+                self.suppressed_key_down_scan_codes.add(event.scan_code)
             return decisions
 
 class _ComboHotkeyHook(_SimpleHook):
