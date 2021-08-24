@@ -191,7 +191,7 @@ version = '0.13.5'
 import re as _re
 import itertools as _itertools
 import collections as _collections
-from threading import Thread as _Thread, Lock as _Lock
+import threading as _threading
 import time as _time
 # Python2... Buggy on time changes and leap seconds, but no other good option (https://stackoverflow.com/questions/1205722/how-do-i-get-monotonic-time-durations-in-python).
 _time.monotonic = getattr(_time, 'monotonic', None) or _time.time
@@ -276,7 +276,7 @@ class _KeyboardListener(object):
         self.nonsuppressing_hooks = []
         self.async_events_queue = _queue.Queue()
 
-        self.cancelled = True
+        self.flag_running = _Event()
 
     def register(self, hook, ids, suppress):
         """
@@ -287,10 +287,13 @@ class _KeyboardListener(object):
         The list of ids allows the hook to be removed by id later, such as callback
         or hotkey string.
         """
-        if hook not in ids:
-            ids = list(ids) + [hook]
-
         hooks_list = self.suppressing_hooks if suppress else self.nonsuppressing_hooks
+
+        # The hook object will be exposed to the user, and it's useful to have
+        # `hook_obj.enable()` and `hook_obj.disable()` methods.
+        # This could also be done by adding `listener`, `suppress`, and `ids`
+        # attributes to the hook, but that's more complicated than just using
+        # closures.
 
         def enable():
             for id in ids:
@@ -309,31 +312,35 @@ class _KeyboardListener(object):
 
         return hook
 
-    def disable_hook_by_id(self, id):
+    def disable_hook_by_id(self, hook_id):
         """
         Removes all the hooks that were added with this id.
         """
-        for hook_disable in list(self.hook_disable_by_id[id]):
-            hook_disable()
+        if hasattr(hook_id, 'disable'):
+            hook_obj = hook_id
+            hook_obj.disable()
+        else:
+            for hook_disable in list(self.hook_disable_by_id[hook_id]):
+                hook_disable()
 
     def start(self):
         """
         If not yet started, starts the background threads that intercept OS
         events and handles hooks.
         """
-        if not self.cancelled:
+        if self.flag_running.is_set():
             return
 
-        self.cancelled = False
+        self.flag_running.set()
 
         self.os_listener = _os_keyboard.Listener()
-        listening_thread = _Thread(target=lambda: self.os_listener.listen(self.process_sync_one))
+        listening_thread = _threading.Thread(target=lambda: self.os_listener.listen(self.process_sync_one))
         listening_thread.daemon = True
         listening_thread.start()
 
         # While this thread reads events from the queue and runs hooks
         # asynchronously.
-        processing_thread = _Thread(target=self.process_async_queue)
+        processing_thread = _threading.Thread(target=self.process_async_queue, args=(self.flag_running,))
         processing_thread.daemon = True
         processing_thread.start()
 
@@ -343,11 +350,17 @@ class _KeyboardListener(object):
         interception to stop. Further events will not be processed, but the
         threads may live a little longer while they wind down.
         """
-        if self.cancelled:
+        if not self.flag_running.is_set():
             return
 
-        self.cancelled = True
+        self.flag_running.clear()
         self.os_listener.stop()
+
+        # A new flag_running object must be created, otherwise a fast stop/start
+        # pair may cause the async thread to never see the flag being cleared.
+        # Note that the async thread receives a reference to the flag, so it
+        # won't see the new flag_running object.
+        self.flag_running = _Event()
 
     def process_sync_one(self, event):
         """
@@ -355,12 +368,17 @@ class _KeyboardListener(object):
         forward). Passes the event through all hooks that could suppress the event,
         and merge their decisions, returning True (the event is allowed) or False
         (the event should be suppressed).
+
+        May replay previously suppressed events that hooks have suspended before
+        but marked as allowed now.
         """
         if self.is_replaying:
             return True
 
+        # Send event to be processed by non-blocking hooks.
         self.async_events_queue.put(event)
 
+        # Update list of active modifiers and pressed keys.
         if event.event_type == KEY_DOWN:
             self.pressed_keys.add(event.scan_code)
         elif event.event_type == KEY_UP:
@@ -373,14 +391,22 @@ class _KeyboardListener(object):
                 self.active_modifiers.discard(event.scan_code)
 
         hooks_decisions = [hook.process_event(event, self.pressed_keys) for hook in self.suppressing_hooks] or [{}]
+
+        # Check for previously suspended events. Note that decisions for unrelated
+        # keys are ignored.
         for suspended_event, suspended_modifiers in list(self.suspended_event_pairs):
+            # Use `max` to merge decisions because ALLOW < SUSPEND < SUPPRESS.
             decision = max(decisions.get(suspended_event, ALLOW) for decisions in hooks_decisions)
             if decision is SUSPEND:
+                # Suspended event continues suspended. Do nothing.
                 pass
             elif decision is SUPPRESS:
+                # Suspended event is now suppressed, forget about it.
                 self.suspended_event_pairs.remove((suspended_event, suspended_modifiers))
             elif decision is ALLOW:
+                # Suspended event is now allowed, replay it.
                 _listener.is_replaying = True
+
                 # The suspended event may have had a different set of modifiers
                 # than what is currently active. We temporarily send fake key
                 # presses and releases the match the suspended modifiers,
@@ -402,7 +428,7 @@ class _KeyboardListener(object):
                     _os_keyboard.press(modifier)
                 for modifier in suspended_modifiers - self.active_modifiers:
                     _os_keyboard.release(modifier)
-                    
+
                 _listener.is_replaying = False
 
         decision = max((decisions.get(event, ALLOW) for decisions in hooks_decisions))
@@ -414,19 +440,24 @@ class _KeyboardListener(object):
         elif decision is ALLOW:
             return True
 
-    def process_async_queue(self):
+    def process_async_queue(self, flag_running):
         """
         Reads events from the queue set up by `process_sync_one`, running the hooks
         that are not capable of suppressing events, asynchronously without blocking
         the OS from passing the event forward.
         """
-        while True:
-            event = self.async_events_queue.get()
-            if self.cancelled:
-                break
+        while flag_running.is_set():
+            try:
+                event = self.async_events_queue.get(timeout=3)
+            except _queue.Empty:
+                continue
+
             for hook in self.nonsuppressing_hooks:
-                # Ignore decisions of non-suppressing hotkeys.
+                # Ignore decisions of non-suppressing hooks.
                 _ = hook.process_event(event)
+
+            # Enable tests and others to call `self.async_events_queue.join()`
+            # to check when all async events are processed.
             self.async_events_queue.task_done()
 
 def start():
@@ -759,7 +790,7 @@ def call_later(fn, args=(), delay=0.001):
     Useful for giving the system some time to process an event, without suppressing
     the current execution flow.
     """
-    thread = _Thread(target=lambda: (_time.sleep(delay), fn(*args)))
+    thread = _threading.Thread(target=lambda: (_time.sleep(delay), fn(*args)))
     thread.start()
 
 _hooks = {}
