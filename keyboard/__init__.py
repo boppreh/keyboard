@@ -373,7 +373,6 @@ class _KeyboardListener(object):
                 self.active_modifiers.discard(event.scan_code)
 
         hooks_decisions = [hook.process_event(event, self.pressed_keys) for hook in self.suppressing_hooks]
-        print(event, hooks_decisions)
         for suspended_event, suspended_modifiers in list(self.suspended_event_pairs):
             decision = max(decisions.get(suspended_event, ALLOW) for decisions in hooks_decisions)
             if decision is SUSPEND:
