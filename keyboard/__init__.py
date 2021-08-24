@@ -372,7 +372,7 @@ class _KeyboardListener(object):
             elif event.event_type == KEY_UP:
                 self.active_modifiers.discard(event.scan_code)
 
-        hooks_decisions = [hook.process_event(event, self.pressed_keys) for hook in self.suppressing_hooks]
+        hooks_decisions = [hook.process_event(event, self.pressed_keys) for hook in self.suppressing_hooks] or [{}]
         for suspended_event, suspended_modifiers in list(self.suspended_event_pairs):
             decision = max(decisions.get(suspended_event, ALLOW) for decisions in hooks_decisions)
             if decision is SUSPEND:
@@ -403,7 +403,7 @@ class _KeyboardListener(object):
                     _os_keyboard.release(modifier)
                 _listener.is_replaying = False
 
-        decision = max((decisions.get(event, ALLOW) for decisions in hooks_decisions), default=ALLOW)
+        decision = max((decisions.get(event, ALLOW) for decisions in hooks_decisions))
         if decision is SUSPEND:
             self.suspended_event_pairs.append((event, set(self.active_modifiers)))
             return False
@@ -554,7 +554,7 @@ class _StandardHotkeyHook(_SimpleHook):
                 result = self.callback()
                 decision = result if result in (ALLOW, SUPPRESS) else SUPPRESS
                 decisions = {event: decision for event in self.suspended_events}
-                self.suspended_events.clear()
+                del self.suspended_events[:]
                 if decision is SUPPRESS:
                     self.suppressed_key_down_scan_codes.add(event.scan_code)
                 return decisions
@@ -566,7 +566,7 @@ class _StandardHotkeyHook(_SimpleHook):
             # wrong modifiers. Cancel everything.
             decisions = {event: ALLOW for event in self.suspended_events + [event]}
             self.current_step_index = 0
-            self.suspended_events.clear()
+            del self.suspended_events[:]
             return decisions
 
 class _ComboHotkeyHook(_SimpleHook):
@@ -585,14 +585,14 @@ class _ComboHotkeyHook(_SimpleHook):
             if self.current_step_index >= len(self.steps):
                 self.user_callback()
                 self.current_step_index = 0
-                self.suspended_events.clear()
+                del self.suspended_events[:]
                 return {event: SUPPRESS for event in previously_suspended_events + [event]}  
             else:
                 self.suspended_events.append(event)
                 return {event: SUSPEND for event in previously_suspended_events + [event]}
         elif event.event_type == KEY_DOWN and any(all(scan_code not in step_key for step_key in current_step) for scan_code in event.pressed_keys):
             self.current_step_index = 0
-            self.suspended_events.clear()
+            del self.suspended_events[:]
             return {event: ALLOW for event in previously_suspended_events + [event]}
 
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_release=False):

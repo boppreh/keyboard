@@ -45,7 +45,7 @@ class TestNewCore(unittest.TestCase):
         else:
             self.assertEqual(to_names(self.output_events), to_names(expected))
 
-        self.output_events.clear()
+        del self.output_events[:]
 
     def test_allowing_hook(self):
         keyboard.hook(lambda event: ALLOW)
