@@ -390,7 +390,7 @@ class _KeyboardListener(object):
             elif event.event_type == KEY_UP:
                 self.active_modifiers.discard(event.scan_code)
 
-        hooks_decisions = [hook.process_event(event, self.pressed_keys) for hook in self.suppressing_hooks] or [{}]
+        hooks_decisions = [hook.process_event(event, self.pressed_keys, self.active_modifiers) for hook in self.suppressing_hooks] or [{}]
         temporary_modifiers_state = set(self.active_modifiers)
         _listener.is_replaying = True
 
@@ -456,7 +456,7 @@ class _KeyboardListener(object):
 
             for hook in self.nonsuppressing_hooks:
                 # Ignore decisions of non-suppressing hooks.
-                _ = hook.process_event(event)
+                _ = hook.process_event(event, self.pressed_keys, self.active_modifiers)
 
             # Enable tests and others to call `self.async_events_queue.join()`
             # to check when all async events are processed.
@@ -501,7 +501,7 @@ class _SimpleHook(object):
         # To be overwritten when added to a listener.
         pass
 
-    def process_event(self, event, pressed_keys):
+    def process_event(self, event, pressed_keys, active_modifiers):
         result = self.callback(event)
         return {event: result if result in (ALLOW, SUSPEND, SUPPRESS) else ALLOW}
 
@@ -514,7 +514,7 @@ class _KeyHook(_SimpleHook):
         self.scan_codes = scan_codes
         self.callback = callback
 
-    def process_event(self, event, pressed_keys):
+    def process_event(self, event, pressed_keys, active_modifiers):
         if event.scan_code in self.scan_codes:
             result = self.callback()
             return {event: result if result in (ALLOW, SUPPRESS) else SUPPRESS}
@@ -541,17 +541,17 @@ class _StandardHotkeyHook(_SimpleHook):
     detected. A standard hotkey is a hotkey where every step (`a, b, c`) is made
     of one main key, optionally with modifiers (e.g. `a`, `ctrl+a`, `ctrl+shift+a`).
     """
-    def __init__(self, steps, trigger_on_release, callback):
+    def __init__(self, hotkey, trigger_on_release, callback):
         self.callback = callback
-        self.steps = steps
+        self.hotkey = hotkey
         self.trigger_on_release = trigger_on_release
         self.current_step_index = 0 
         self.suspended_events = []
         self.suppressed_key_down_scan_codes = set()
         self.suspended_key_down_scan_codes = set()
 
-    def process_event(self, event, pressed_keys):
-        current_step = self.steps[self.current_step_index]
+    def process_event(self, event, pressed_keys, active_modifiers):
+        current_step = self.hotkey.steps[self.current_step_index]
 
         if event.scan_code in _modifier_scan_codes:
             # Always allow modifiers.
@@ -578,13 +578,13 @@ class _StandardHotkeyHook(_SimpleHook):
 
         # Other cases where a non-modifier key has been pressed.
 
-        step_fulfilled = all(any(scan_code in pressed_keys for scan_code in key) for key in current_step)
-        unrelated_modifiers = [scan_code for scan_code in pressed_keys if scan_code in _modifier_scan_codes and not any(scan_code in key for key in current_step)]
+        step_fulfilled = all(any(scan_code in pressed_keys for scan_code in key.scan_codes) for key in current_step.keys)
+        unrelated_modifiers = [scan_code for scan_code in pressed_keys if scan_code in _modifier_scan_codes and not any(scan_code in key.scan_codes for key in current_step.keys)]
         
         if step_fulfilled and not unrelated_modifiers:
             self.current_step_index += 1
             self.suspended_events.append(event)
-            if self.current_step_index >= len(self.steps):
+            if self.current_step_index >= len(self.hotkey.steps):
                 self.current_step_index = 0
                 result = self.callback()
                 decision = result if result in (ALLOW, SUPPRESS) else SUPPRESS
@@ -605,19 +605,19 @@ class _StandardHotkeyHook(_SimpleHook):
             return decisions
 
 class _ComboHotkeyHook(_SimpleHook):
-    def __init__(self, steps, user_callback):
+    def __init__(self, hotkey, user_callback):
         super(_ComboHotkeyHook, self).__init__(callback=self.test)
         self.user_callback = user_callback
-        self.steps = steps
+        self.hotkey = hotkey
         self.current_step_index = 0 
         self.suspended_events = []
 
     def test(self, event):
-        current_step = self.steps[self.current_step_index]
+        current_step = self.hotkey[self.current_step_index]
         previously_suspended_events = list(self.suspended_events)
         if all(any(scan_code in event.pressed_keys for scan_code in key) for key in current_step):
             self.current_step_index += 1
-            if self.current_step_index >= len(self.steps):
+            if self.current_step_index >= len(self.hotkey):
                 self.user_callback()
                 self.current_step_index = 0
                 del self.suspended_events[:]
@@ -635,26 +635,14 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_r
         old_callback = callback
         callback = lambda: old_callback(*args)
 
-    steps = parse_hotkey(hotkey)
+    parsed_hotkey = parse_hotkey(hotkey)
 
-    # A standard hotkey is made of steps of one main key (e.g. "space") plus
-    # zero or more modifiers (e.g. "ctrl+alt+space"). A "combo" hotkey has
-    # either two or more main keys (e.g. "a+b"), or is made entirely of
-    # modifiers (e.g. "shift+alt").
-    is_combo = False
-    for step in steps:
-        n_normal = 0
-        for key in step:
-            if not any(scan_code in _modifier_scan_codes for scan_code in key):
-                n_normal += 1
-        if n_normal != 1:
-            is_combo = True
-            break
-
-    if is_combo:
-        hook_obj = _ComboHotkeyHook(steps=steps, callback=callback, trigger_on_release=trigger_on_release)
+    if parsed_hotkey.is_standard:
+        hook_obj = _StandardHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
     else:
-        hook_obj = _StandardHotkeyHook(steps=steps, callback=callback, trigger_on_release=trigger_on_release)
+        print(parsed_hotkey)
+        raise NotImplementedError()
+        hook_obj = _ComboHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
 
     return _listener.register(hook_obj, suppress=suppress, ids=[callback, hotkey])
 
@@ -688,7 +676,37 @@ def key_to_scan_codes(key, error_if_missing=True):
     else:
 
         return t
-  
+
+class Hotkey(object):
+    def __init__(self, steps):
+        self.steps = tuple(steps)
+        self.is_standard = all(step.is_standard for step in self.steps)
+    def __repr__(self):
+        return ', '.join(map(str, self.steps))
+class Step(object):
+    def __init__(self, keys):
+        self.keys = tuple(keys)
+        self.modifiers = [key for key in self.keys if is_modifier(key.scan_codes[0])]
+        if len(self.keys) == len(self.modifiers) + 1:
+            self.is_standard = True
+            self.main_key = next(key for key in self.keys if key not in self.modifiers)
+        else:
+            self.is_standard = False
+            self.main_key = None
+    def __repr__(self):
+        return '+'.join(map(str, self.keys))
+class Key(object):
+    def __init__(self, label, scan_codes):
+        self.label = label
+        self.scan_codes = tuple(scan_codes)
+        assert self.scan_codes and all(_is_number(scan_code) for scan_code in self.scan_codes)
+    def __repr__(self):
+        if self.label:
+            return str(self.label)
+        elif len(self.scan_codes) == 1:
+            return str(self.scan_codes[0])
+        else:
+            return '({})'.format(','.join(map(str, self.scan_codes)))
 def parse_hotkey(hotkey):
     """
     Parses a user-provided hotkey into nested tuples representing the
@@ -704,23 +722,26 @@ def parse_hotkey(hotkey):
 
         # ((alt_codes, shift_codes, a_codes), (alt_codes, b_codes), (c_codes,))
     """
-    if _is_number(hotkey) or len(hotkey) == 1:
-        scan_codes = key_to_scan_codes(hotkey)
-        step = (scan_codes,)
-        steps = (step,)
-        return steps
+    if isinstance(hotkey, Hotkey):
+        return hotkey
+    elif _is_number(hotkey) or len(hotkey) == 1:
+        key = Key(hotkey, key_to_scan_codes(hotkey))
+        step = Step([key])
+        return Hotkey([step])
     elif _is_list(hotkey):
         if not any(map(_is_list, hotkey)):
-            step = tuple(key_to_scan_codes(k) for k in hotkey)
-            steps = (step,)
-            return steps
-        return hotkey
+            keys = [Key(k, key_to_scan_codes(k)) for k in hotkey]
+            step = Step(keys)
+            return Hotkey([step])
+        else:
+            steps = [Step(Key(None, k) for k in step) for step in hotkey]
+            return Hotkey(steps)
 
     steps = []
     for step in _re.split(r',\s?', hotkey):
-        keys = _re.split(r'\s?\+\s?', step)
-        steps.append(tuple(key_to_scan_codes(key) for key in keys))
-    return tuple(steps)
+        key_names = _re.split(r'\s?\+\s?', step)
+        step = Step([Key(name, key_to_scan_codes(name)) for name in key_names])
+    return Hotkey(steps)
 
 def send(hotkey, do_press=True, do_release=True):
     """
@@ -739,14 +760,14 @@ def send(hotkey, do_press=True, do_release=True):
     Note: keys are released in the opposite order they were pressed.
     """
     parsed = parse_hotkey(hotkey)
-    for step in parsed:
+    for step in parsed.steps:
         if do_press:
-            for scan_codes in step:
-                _os_keyboard.press(scan_codes[0])
+            for key in step.keys:
+                _os_keyboard.press(key.scan_codes[0])
 
         if do_release:
-            for scan_codes in reversed(step):
-                _os_keyboard.release(scan_codes[0])
+            for key in reversed(step.keys):
+                _os_keyboard.release(key.scan_codes[0])
 
 # Alias.
 press_and_release = send
