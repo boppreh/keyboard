@@ -244,17 +244,21 @@ def is_modifier(key):
     else:
         return key in _modifier_scan_codes
 
-# Possible returns by user-defined functions. The numbers are priorities, the
-# strings for troubleshooting when the value is printed, and _Unique to ensure
-# that the values would never occur by accident.
-class _Unique(object): pass
+class _Enum(object):
+    def __init__(self, n, name):
+        self.n = n
+        self.name = name
+    def __lt__(self, other):
+        return self.n < other
+    def __repr__(self):
+        return self.name
 # Allow the event, if no other hooks SUSPEND'ed or SUPPRESS'ed the event.
-ALLOW = (0, 'Allow', _Unique())
+ALLOW = _Enum(0, 'ALLOW')
 # Temporarily suspend the event if no other hooks SUPPRESS'ed it, to be either
 # allowed or suppressed in the future.
-SUSPEND = (1, 'Suspend', _Unique())
+SUSPEND = _Enum(1, 'SUSPEND')
 # Suppress the event completely, regardless of other hooks decisions.
-SUPPRESS = (2, 'Suppress', _Unique())
+SUPPRESS = _Enum(2, 'SUPPRESS')
 
 class _KeyboardListener(object): 
     """
@@ -262,7 +266,11 @@ class _KeyboardListener(object):
     keys are pressed (physically and logically), which keys are suspended, etc.
     """
     def __init__(self):
-        self.pressed_keys = set()
+        # Set of scan codes that we've receive KEY_DOWN events but no KEY_UP yet.
+        self.physically_pressed_keys = set()
+        # Set of scans codes that we've sent or allowed KEY_DOWN events but no KEY_UP yet.
+        self.logically_pressed_keys = set()
+        # Set of modifiers of currently pressed modifier keys.
         self.active_modifiers = set()
         # Pairs of (event, modifiers).
         self.suspended_event_pairs = []
@@ -270,10 +278,9 @@ class _KeyboardListener(object):
         # again.
         self.is_replaying = False
 
-        self.hook_disable_by_id = _collections.defaultdict(set)
-
         self.suppressing_hooks = []
         self.nonsuppressing_hooks = []
+        self.hook_disable_by_id = _collections.defaultdict(set)
         self.async_events_queue = _queue.Queue()
 
         self.flag_running = _Event()
@@ -334,7 +341,7 @@ class _KeyboardListener(object):
         self.flag_running.set()
 
         self.os_listener = _os_keyboard.Listener()
-        listening_thread = _threading.Thread(target=lambda: self.os_listener.listen(self.process_sync_one))
+        listening_thread = _threading.Thread(target=lambda: self.os_listener.listen(self.process_sync_event))
         listening_thread.daemon = True
         listening_thread.start()
 
@@ -362,35 +369,13 @@ class _KeyboardListener(object):
         # won't see the new flag_running object.
         self.flag_running = _Event()
 
-    def process_sync_one(self, event):
+    def process_sync_hooks(self, event):
         """
-        Processes one event, synchronously (blocking the OS from passing the event
-        forward). Passes the event through all hooks that could suppress the event,
-        and merge their decisions, returning True (the event is allowed) or False
-        (the event should be suppressed).
-
-        May replay previously suppressed events that hooks have suspended before
-        but marked as allowed now.
+        Passes the given event through all sync hooks registered, deciding to
+        allow or suppress the event.
         """
-        if self.is_replaying:
-            return True
-
-        # Send event to be processed by non-blocking hooks.
-        self.async_events_queue.put(event)
-
-        # Update list of active modifiers and pressed keys.
-        if event.event_type == KEY_DOWN:
-            self.pressed_keys.add(event.scan_code)
-        elif event.event_type == KEY_UP:
-            self.pressed_keys.discard(event.scan_code)
-
-        if event.scan_code in _modifier_scan_codes:
-            if event.event_type == KEY_DOWN:
-                self.active_modifiers.add(event.scan_code)
-            elif event.event_type == KEY_UP:
-                self.active_modifiers.discard(event.scan_code)
-
-        hooks_decisions = [hook.process_event(event, self.pressed_keys, self.active_modifiers) for hook in self.suppressing_hooks] or [{}]
+        run_hook = lambda hook: hook.process_event(event, self.physically_pressed_keys, self.logically_pressed_keys, self.active_modifiers)
+        hooks_decisions = [run_hook(hook) for hook in self.suppressing_hooks] or [{}]
         temporary_modifiers_state = set(self.active_modifiers)
         _listener.is_replaying = True
 
@@ -436,15 +421,53 @@ class _KeyboardListener(object):
         decision = max((decisions.get(event, ALLOW) for decisions in hooks_decisions))
         if decision is SUSPEND:
             self.suspended_event_pairs.append((event, set(self.active_modifiers)))
-            return False
+            return SUPPRESS
         elif decision is SUPPRESS:
-            return False
+            return SUPPRESS
         elif decision is ALLOW:
+            return ALLOW
+
+    def process_sync_event(self, event):
+        """
+        Processes one event, synchronously (blocking the OS from passing the event
+        forward). Passes the event through all hooks that could suppress the event,
+        and merge their decisions, returning True (the event is allowed) or False
+        (the event should be suppressed).
+
+        May replay previously suppressed events that hooks have suspended before
+        but marked as allowed now.
+        """
+        if self.is_replaying:
+            decision = ALLOW
+        else:
+            # Update list of active modifiers and pressed keys.
+            if event.event_type == KEY_DOWN:
+                self.physically_pressed_keys.add(event.scan_code)
+            elif event.event_type == KEY_UP:
+                self.physically_pressed_keys.discard(event.scan_code)
+
+            if event.scan_code in _modifier_scan_codes:
+                if event.event_type == KEY_DOWN:
+                    self.active_modifiers.add(event.scan_code)
+                elif event.event_type == KEY_UP:
+                    self.active_modifiers.discard(event.scan_code)
+
+            # Send event to be processed by non-blocking hooks.
+            self.async_events_queue.put(event)
+            decision = self.process_sync_hooks(event)
+
+        if decision is ALLOW:
+            if event.event_type == KEY_DOWN:
+                self.logically_pressed_keys.add(event.scan_code)
+            elif event.event_type == KEY_UP:
+                self.logically_pressed_keys.discard(event.scan_code)
             return True
+        else:
+            return False
 
     def process_async_queue(self, flag_running):
         """
-        Reads events from the queue set up by `process_sync_one`, running the hooks
+        Reads events from the queue set up by `process_sync_event`, running the hooks
         that are not capable of suppressing events, asynchronously without blocking
         the OS from passing the event forward.
         """
@@ -456,7 +479,7 @@ class _KeyboardListener(object):
 
             for hook in self.nonsuppressing_hooks:
                 # Ignore decisions of non-suppressing hooks.
-                _ = hook.process_event(event, self.pressed_keys, self.active_modifiers)
+                _ = hook.process_event(event, self.physically_pressed_keys, self.active_modifiers)
 
             # Enable tests and others to call `self.async_events_queue.join()`
             # to check when all async events are processed.
@@ -501,7 +524,7 @@ class _SimpleHook(object):
         # To be overwritten when added to a listener.
         pass
 
-    def process_event(self, event, pressed_keys, active_modifiers):
+    def process_event(self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers):
         result = self.callback(event)
         return {event: result if result in (ALLOW, SUSPEND, SUPPRESS) else ALLOW}
 
@@ -514,7 +537,7 @@ class _KeyHook(_SimpleHook):
         self.scan_codes = scan_codes
         self.callback = callback
 
-    def process_event(self, event, pressed_keys, active_modifiers):
+    def process_event(self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers):
         if event.scan_code in self.scan_codes:
             result = self.callback()
             return {event: result if result in (ALLOW, SUPPRESS) else SUPPRESS}
@@ -535,6 +558,30 @@ def hook_key(key, callback, suppress=True):
 # - Modifier events are always allowed through. Blocking and replaying modifiers is
 # too disruptive.
 
+def _build_standard_hotkey_transition_table(hotkey):
+    """
+    Builds a transition table mapping current hotkey step and received scan code
+    to the new step. Technically a Moore-type Finite State Machine with
+    overlapping states.
+    """
+    transitions = _collections.defaultdict(lambda: 0)
+    get_final_state = lambda sequence, state=0: state if not sequence else get_final_state(sequence[1:], state=transitions[state, sequence[0]])
+
+    history = []
+    for i, step in enumerate(hotkey.steps):
+        for previous_inputs in set(history):
+            # If a wrong input is given, but which could be the start (or middle)
+            # or a correct sequence, what's the most advanced state it would reach?
+            overlapping_state = max(get_final_state(history[j:] + [previous_inputs]) for j in range(1, len(history)+1))
+            transitions[i, previous_inputs] = overlapping_state
+
+        for input_scan_codes in _itertools.product(*[key.scan_codes for key in step.keys]):
+            transitions[i, tuple(sorted(input_scan_codes))] = i+1
+
+        history.append(input_scan_codes)
+
+    return transitions
+
 class _StandardHotkeyHook(_SimpleHook):
     """
     Hook class to detect and trigger callbacks when a standard hotkey is
@@ -545,25 +592,20 @@ class _StandardHotkeyHook(_SimpleHook):
         self.callback = callback
         self.hotkey = hotkey
         self.trigger_on_release = trigger_on_release
-        self.current_step_index = 0 
         self.suspended_events = []
         self.suppressed_key_down_scan_codes = set()
         self.suspended_key_down_scan_codes = set()
+        self.state = 0 
+        self.transitions = _build_standard_hotkey_transition_table(hotkey)
 
-        self.transitions = _collections.defaultdict(lambda: (0, ALLOW))
-        for i, step in enumerate(self.hotkey.steps):
-            if i == len(self.hotkey.steps) - 1:
-                next_step_i = 0
-                decision = SUPPRESS
-            else:
-                next_step_i = i + 1
-                decision = SUSPEND
-            for input_scan_codes in _itertools.product(*[key.scan_codes for key in step.keys]):
-                self.transitions[i, tuple(sorted(input_scan_codes))] = (next_step_i, decision)
+    def process_event(self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers):
+        """
+        Processes receiving events, updating its current state and calling
+        `callback` whenever the hotkey is completed.
 
-    def process_event(self, event, pressed_keys, active_modifiers):
-        current_step = self.hotkey.steps[self.current_step_index]
-
+        Most of this code is to keep track of what events have been suspended
+        or suppressed, to return the correct decision to the listener.
+        """
         if event.scan_code in _modifier_scan_codes:
             # Always allow modifiers.
             decisions = {event: SUSPEND for event in self.suspended_events}
@@ -571,10 +613,9 @@ class _StandardHotkeyHook(_SimpleHook):
             return decisions
 
         elif event.event_type == KEY_UP:
-            if event.scan_code in self.suspended_key_down_scan_codes:
-                # The KEY_UP for a suspended KEY_DOWN. Suspend
+            if event.scan_code in [event.scan_code for event in self.suspended_events]:
+                # The KEY_UP for a suspended KEY_DOWN. Suspend it too.
                 self.suspended_events.append(event)
-                self.suspended_key_down_scan_codes.remove(event.scan_code)
                 return {event: SUSPEND for event in self.suspended_events}
             elif event.scan_code in self.suppressed_key_down_scan_codes:
                 self.suppressed_key_down_scan_codes.remove(event.scan_code)
@@ -588,24 +629,39 @@ class _StandardHotkeyHook(_SimpleHook):
                 return decisions
 
         input_events = tuple(sorted([event.scan_code] + list(active_modifiers)))
-        self.current_step_index, decision = self.transitions[self.current_step_index, input_events]
+        new_state = self.transitions[self.state, input_events]
 
-        if decision is ALLOW:
+        if new_state == 0:
+            self.state = 0
             del self.suspended_events[:]
             # Default decision is ALLOW.
             return {}
-        elif decision is SUSPEND:
-            self.suspended_events.append(event)
-            self.suspended_key_down_scan_codes.add(event.scan_code)
-            return {event: SUSPEND for event in self.suspended_events + [event]}
-        elif decision is SUPPRESS:
-            result = self.callback()
-            callback_decision = result if result in (ALLOW, SUPPRESS) else SUPPRESS
-            decisions = {event: callback_decision for event in self.suspended_events + [event]}
-            del self.suspended_events[:]
-            if callback_decision is SUPPRESS:
+        elif new_state == len(self.hotkey.steps):
+            self.state = 0
+            if self.callback() is ALLOW:
+                del self.suspended_events[:]
+                return {}
+            else:
+                decisions = {event: SUPPRESS for event in self.suspended_events}
+                decisions[event] = SUPPRESS
+                for event in decisions.keys():
+                    if event.event_type == KEY_UP and event.scan_code in logically_pressed_keys:
+                        decisions[event] = ALLOW
+
+                del self.suspended_events[:]
                 self.suppressed_key_down_scan_codes.add(event.scan_code)
-            return decisions
+                return decisions
+        else:
+            self.suspended_events.append(event)
+
+            if new_state <= self.state:
+                # A wrong key was pressed, but some of the suspended keys match
+                # the beginning of the hotkey.
+                new_suspended_presses = [event for event in self.suspended_events if event.event_type == KEY_DOWN]
+                self.suspended_events = self.suspended_events[self.suspended_events.index(new_suspended_presses[new_state]):]
+
+            self.state = new_state
+            return {event: SUSPEND for event in self.suspended_events + [event]}
 
 class _ComboHotkeyHook(_SimpleHook):
     def __init__(self, hotkey, user_callback):
@@ -643,7 +699,6 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_r
     if parsed_hotkey.is_standard:
         hook_obj = _StandardHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
     else:
-        print(parsed_hotkey)
         raise NotImplementedError()
         hook_obj = _ComboHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
 

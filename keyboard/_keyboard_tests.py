@@ -5,11 +5,14 @@ import unittest
 
 import keyboard
 from keyboard import KEY_UP, KEY_DOWN, KeyboardEvent, SUPPRESS, ALLOW
+import itertools
 
-PRESS = lambda scan_code: [KeyboardEvent(event_type=KEY_DOWN, scan_code=scan_code, time=0)]
-RELEASE = lambda scan_code: [KeyboardEvent(event_type=KEY_UP, scan_code=scan_code, time=0)]
+itercounter = itertools.count(1)
+make_event = lambda event_type, scan_code: KeyboardEvent(event_type=event_type, scan_code=scan_code, time=next(itercounter))
+PRESS = lambda scan_code: [make_event(KEY_DOWN, scan_code)]
+RELEASE = lambda scan_code: [make_event(KEY_UP, scan_code)]
 TRIGGER = lambda n=999: keyboard.release(n)
-TRIGGERED = lambda n=999: [KeyboardEvent(event_type=KEY_UP, scan_code=999, time=0)]
+TRIGGERED = lambda n=999: [make_event(KEY_UP, n)]
 
 def format_event(event):
     if event.scan_code == 999:
@@ -26,8 +29,12 @@ class TestNewCore(unittest.TestCase):
         self.output_events = []
         keyboard._listener = keyboard._KeyboardListener()
         keyboard._modifier_scan_codes = {-1, -2, -3}
-        keyboard._os_keyboard.press = lambda key: self.output_events.append(PRESS(key)[0])
-        keyboard._os_keyboard.release = lambda key: self.output_events.append(RELEASE(key)[0])
+        def send_fake_event(event_type, scan_code):
+            event = make_event(event_type, scan_code)
+            keyboard._listener.process_sync_event(event)
+            self.output_events.append(event)
+        keyboard._os_keyboard.press = lambda key: send_fake_event(KEY_DOWN, key)
+        keyboard._os_keyboard.release = lambda key: send_fake_event(KEY_UP, key)
         keyboard._os_keyboard.map_name = lambda name: 1/0
 
     def send(self, input_events, expected=None):
@@ -35,7 +42,7 @@ class TestNewCore(unittest.TestCase):
             expected = input_events
 
         for event in input_events:
-            if keyboard._listener.process_sync_one(event):
+            if keyboard._listener.process_sync_event(event):
                 self.output_events.append(event)
 
         to_names = lambda es: '+'.join(map(format_event, es))
@@ -108,7 +115,9 @@ class TestNewCore(unittest.TestCase):
         self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
         self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
         self.send(PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2)+TRIGGERED())
-        #self.send(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
+        self.send(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
+        self.send(PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+TRIGGERED()+RELEASE(0))
+        self.send(PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2), PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2))
 
     def test_keys_with_modifiers_multistep_blocking_hotkey(self):
         keyboard.add_hotkey((((0,),), ((-1,), (1,),)), TRIGGER)

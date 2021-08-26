@@ -41,15 +41,14 @@ class KeyboardEvent(object):
         return hash((self.event_type, self.scan_code, self.time, self.device))
 
     def __repr__(self):
-        return 'KeyboardEvent({} {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type)
+        return 'KeyboardEvent({} {} at {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type, self.time)
 
     def __eq__(self, other):
         return (
             isinstance(other, KeyboardEvent)
             and self.event_type == other.event_type
-            and (
-                not self.scan_code or not other.scan_code or self.scan_code == other.scan_code
-            ) and (
-                not self.name or not other.name or self.name == other.name
-            )
+            and self.time == other.time
+            and self.device == other.device
+            and self.scan_code == other.scan_code
+            and self.name == other.name
         )
