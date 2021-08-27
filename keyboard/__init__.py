@@ -582,24 +582,6 @@ def _build_standard_hotkey_transition_table(hotkey):
 
     return transitions
 
-class _SingleStepStandardHotkeyHook(_SimpleHook):
-    def __init__(self, hotkey, trigger_on_release, callback):
-        assert len(hotkey.steps) == 1
-        self.hotkey = hotkey
-        self.trigger_on_release = trigger_on_release
-        self.callback = callback
-        self.transitions = _build_standard_hotkey_transition_table(self.hotkey)
-
-    def process_event(self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers):
-        if event.scan_code in _modifier_scan_codes:
-            return {}
-
-        input_events = tuple(sorted([event.scan_code] + list(active_modifiers)))
-        if self.transitions[0, input_events] == 1 and self.callback() is not ALLOW:
-            return {event: SUPPRESS}
-        else:
-            return {}
-
 class _StandardHotkeyHook(_SimpleHook):
     """
     Hook class to detect and trigger callbacks when a standard hotkey is
@@ -715,10 +697,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_r
     parsed_hotkey = parse_hotkey(hotkey)
 
     if parsed_hotkey.is_standard:
-        if len(parsed_hotkey.steps) == 1:
-            hook_obj = _SingleStepStandardHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
-        else:
-            hook_obj = _StandardHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
+        hook_obj = _StandardHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
     else:
         raise NotImplementedError()
         hook_obj = _ComboHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
@@ -819,7 +798,7 @@ def parse_hotkey(hotkey):
     steps = []
     for step in _re.split(r',\s?', hotkey):
         key_names = _re.split(r'\s?\+\s?', step)
-        steps.append(Step([Key(name, key_to_scan_codes(name)) for name in key_names]))
+        step = Step([Key(name, key_to_scan_codes(name)) for name in key_names])
     return Hotkey(steps)
 
 def send(hotkey, do_press=True, do_release=True):
