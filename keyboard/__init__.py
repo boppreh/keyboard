@@ -548,30 +548,6 @@ def hook_key(key, callback, suppress=True):
     hook_obj = _KeyHook(key_to_scan_codes(key), callback)
     return _listener.register(hook_obj, [key, callback], suppress)
 
-def _build_standard_hotkey_transition_table(hotkey):
-    """
-    Builds a transition table mapping current hotkey step and received scan code
-    to the new step. Technically a Moore-type Finite State Machine with
-    overlapping states.
-    """
-    transitions = _collections.defaultdict(lambda: 0)
-    get_final_state = lambda sequence, state=0: state if not sequence else get_final_state(sequence[1:], state=transitions[state, sequence[0]])
-
-    history = []
-    for i, step in enumerate(hotkey.steps):
-        for previous_inputs in set(history):
-            # If a wrong input is given, but which could be the start (or middle)
-            # or a correct sequence, what's the most advanced state it would reach?
-            overlapping_state = max(get_final_state(history[j:] + [previous_inputs]) for j in range(1, len(history)+1))
-            transitions[i, previous_inputs] = overlapping_state
-
-        for input_scan_codes in _itertools.product(*[key.scan_codes for key in step.keys]):
-            transitions[i, tuple(sorted(input_scan_codes))] = i+1
-
-        history.append(input_scan_codes)
-
-    return transitions
-
 class _HotkeyHook(_SimpleHook):
     """
     Hook subclass to detect and trigger callbacks when a hotkey is detected.
@@ -587,11 +563,35 @@ class _HotkeyHook(_SimpleHook):
         self.suppressed_key_down_scan_codes = set()
         # A set of Finite State Machine transitions based on the current state
         # and input events.
-        self.transitions = _build_standard_hotkey_transition_table(hotkey)
+        self.transitions = self.build_hotkey_transition_table(hotkey)
         self.state = 0 
 
         self.is_waiting_release = False
         self.last_event_time = 0
+
+    def build_hotkey_transition_table(self, hotkey):
+            """
+            Builds a transition table mapping current hotkey step and received scan code
+            to the new step. Technically a Moore-type Finite State Machine with
+            overlapping states.
+            """
+            transitions = _collections.defaultdict(lambda: 0)
+            get_final_state = lambda sequence, state=0: state if not sequence else get_final_state(sequence[1:], state=transitions[state, sequence[0]])
+
+            history = []
+            for i, step in enumerate(hotkey.steps):
+                for previous_inputs in set(history):
+                    # If a wrong input is given, but which could be the start (or middle)
+                    # or a correct sequence, what's the most advanced state it would reach?
+                    overlapping_state = max(get_final_state(history[j:] + [previous_inputs]) for j in range(1, len(history)+1))
+                    transitions[i, previous_inputs] = overlapping_state
+
+                for input_scan_codes in _itertools.product(*[key.scan_codes for key in step.keys]):
+                    transitions[i, tuple(sorted(input_scan_codes))] = i+1
+
+                history.append(input_scan_codes)
+
+            return transitions
 
     def on_trigger(self, event, logically_pressed_keys):
         self.state = 0
@@ -601,14 +601,15 @@ class _HotkeyHook(_SimpleHook):
         if callback_decision is ALLOW:
             self.decisions = {}
         else:
-            for decided_event in self.decisions.keys():
-                if decided_event.event_type == KEY_UP and decided_event.scan_code in logically_pressed_keys:
-                    self.decisions[decided_event] = ALLOW
-                else:
-                    self.decisions[decided_event] = SUPPRESS
+            for decided_event in sorted(self.decisions.keys(), key=lambda e: e.time):
+                self.decisions[decided_event] = SUPPRESS
 
-                if decided_event.event_type == KEY_DOWN:
+                is_logically_pressed = decided_event.scan_code in logically_pressed_keys
+                if decided_event.event_type == KEY_DOWN and not is_logically_pressed:
                     self.suppressed_key_down_scan_codes.add(decided_event.scan_code)
+                elif decided_event.event_type == KEY_UP and is_logically_pressed:
+                    self.decisions[decided_event] = ALLOW
+                    self.suppressed_key_down_scan_codes.discard(decided_event.scan_code)
 
         final_decisions = self.decisions
         self.decisions = {}
@@ -673,9 +674,10 @@ class _HotkeyHook(_SimpleHook):
                 presses_still_suspended = [suspended_event for suspended_event in sorted_suspended_events if suspended_event.event_type == KEY_DOWN]
                 # We now know which keys may match the beginning of the hotkey,
                 # so we allow all events that happened before it.
-                for suspended_event in list(self.decisions):
-                    if suspended_event.time < presses_still_suspended[new_state].time:
-                        del self.decisions[suspended_event]
+                first_usable_event = presses_still_suspended[-new_state]
+                for suspended_event in self.decisions:
+                    if suspended_event.time < first_usable_event.time:
+                        self.decisions[suspended_event] = ALLOW
 
             self.state = new_state
 
