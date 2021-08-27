@@ -7,15 +7,18 @@ import keyboard
 from keyboard import KEY_UP, KEY_DOWN, KeyboardEvent, SUPPRESS, ALLOW
 import itertools
 
-itercounter = itertools.count(1)
-make_event = lambda event_type, scan_code: KeyboardEvent(event_type=event_type, scan_code=scan_code, time=next(itercounter))
-PRESS = lambda scan_code: [make_event(KEY_DOWN, scan_code)]
-RELEASE = lambda scan_code: [make_event(KEY_UP, scan_code)]
-TRIGGER = lambda n=999: keyboard.release(n)
-TRIGGERED = lambda n=999: [make_event(KEY_UP, n)]
+itercounter = itertools.count(1, step=0.0002)
+make_event = lambda event_type, scan_code, time=None: KeyboardEvent(event_type=event_type, scan_code=scan_code, time=next(itercounter) if time is None else time)
+PRESS = lambda scan_code, time=None: [make_event(KEY_DOWN, scan_code, time)]
+RELEASE = lambda scan_code, time=None: [make_event(KEY_UP, scan_code, time)]
+def TRIGGER(n=1000):
+    keyboard._listener.is_replaying = True
+    keyboard.release(n)
+    keyboard._listener.is_replaying = False
+TRIGGERED = lambda n=1000: [make_event(KEY_UP, n)]
 
 def format_event(event):
-    if event.scan_code == 999:
+    if event.scan_code == 1000:
         return 'TRIGGERED()'
     elif event.scan_code >= 100:
         return 'TRIGGERED({})'.format(event.scan_code)
@@ -113,6 +116,7 @@ class TestNewCore(unittest.TestCase):
     def test_single_keys_multistep_blocking_hotkey(self):
         keyboard.add_hotkey((((0,),), ((1,),)), TRIGGER)
         self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
         self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
         self.send(PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2)+TRIGGERED())
         self.send(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
@@ -148,6 +152,25 @@ class TestNewCore(unittest.TestCase):
         keyboard.add_hotkey(0, lambda: TRIGGER(3000), trigger_on_release=False)
         self.send(PRESS(0), TRIGGERED(1000)+TRIGGERED(3000))
         self.send(RELEASE(0), TRIGGERED(2000))
+
+    def test_many_steps_hotkey(self):
+        keyboard.add_hotkey((((0,),), ((0,),), ((0,),), ((1,),)), TRIGGER)
+        self.send(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(0)+PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(0)+PRESS(0)+PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
+
+    def test_hotkey_timeout(self):
+        keyboard.add_hotkey((((0,),), ((-1,), (1,),)), TRIGGER, timeout=1)
+        self.send(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=0.5)+PRESS(1, time=0.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.send(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=1.5)+PRESS(1, time=1.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
+
+    def test_combo_hotkey(self):
+        keyboard.add_hotkey((0, 1), TRIGGER)
+        self.send(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(2))
+        self.send(PRESS(-2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(-2))
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):

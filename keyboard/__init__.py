@@ -369,7 +369,7 @@ class _KeyboardListener(object):
         # won't see the new flag_running object.
         self.flag_running = _Event()
 
-    def process_sync_hooks(self, event):
+    def run_sync_hooks(self, event):
         """
         Passes the given event through all sync hooks registered, deciding to
         allow or suppress the event.
@@ -454,7 +454,7 @@ class _KeyboardListener(object):
 
             # Send event to be processed by non-blocking hooks.
             self.async_events_queue.put(event)
-            decision = self.process_sync_hooks(event)
+            decision = self.run_sync_hooks(event)
 
         if decision is ALLOW:
             if event.event_type == KEY_DOWN:
@@ -548,16 +548,6 @@ def hook_key(key, callback, suppress=True):
     hook_obj = _KeyHook(key_to_scan_codes(key), callback)
     return _listener.register(hook_obj, [key, callback], suppress)
 
-
-# Differences between "combo hotkeys" and "main hotkeys":
-# - Standard hotkeys have exactly one non-modifier key for each step (e.g. "a"
-# in "shift+A"), while combos are made of only modifiers, or multiple main keys.
-# - Standard hotkeys still trigger if unrelated main keys are pressed. For example,
-# PRESS(SHIFT), PRESS(A), PRESS(S), RELEASE(A), RELEASE(S), RELEASE(SHIFT) would trigger
-# both "shift+a" and "shift+s", but not "a", "s", or "alt+shift+a".
-# - Modifier events are always allowed through. Blocking and replaying modifiers is
-# too disruptive.
-
 def _build_standard_hotkey_transition_table(hotkey):
     """
     Builds a transition table mapping current hotkey step and received scan code
@@ -582,15 +572,14 @@ def _build_standard_hotkey_transition_table(hotkey):
 
     return transitions
 
-class _StandardHotkeyHook(_SimpleHook):
+class _HotkeyHook(_SimpleHook):
     """
-    Hook class to detect and trigger callbacks when a standard hotkey is
-    detected. A standard hotkey is a hotkey where every step (`a, b, c`) is made
-    of one main key, optionally with modifiers (e.g. `a`, `ctrl+a`, `ctrl+shift+a`).
+    Hook subclass to detect and trigger callbacks when a hotkey is detected.
     """
-    def __init__(self, hotkey, trigger_on_release, callback):
+    def __init__(self, hotkey, timeout, trigger_on_release, callback):
         self.callback = callback
         self.hotkey = hotkey
+        self.timeout = timeout
         self.trigger_on_release = trigger_on_release
         # A stateful attribute remembering what decisions have been made so far.
         # Allowed events are omitted because the default decision is ALLOW.
@@ -602,6 +591,7 @@ class _StandardHotkeyHook(_SimpleHook):
         self.state = 0 
 
         self.is_waiting_release = False
+        self.last_event_time = 0
 
     def on_trigger(self, event, logically_pressed_keys):
         self.state = 0
@@ -617,8 +607,8 @@ class _StandardHotkeyHook(_SimpleHook):
                 else:
                     self.decisions[decided_event] = SUPPRESS
 
-            if event.event_type == KEY_DOWN:
-                self.suppressed_key_down_scan_codes.add(event.scan_code)
+                if decided_event.event_type == KEY_DOWN:
+                    self.suppressed_key_down_scan_codes.add(decided_event.scan_code)
 
         final_decisions = self.decisions
         self.decisions = {}
@@ -652,13 +642,24 @@ class _StandardHotkeyHook(_SimpleHook):
                 self.suppressed_key_down_scan_codes.remove(event.scan_code)
                 self.decisions[event] = SUPPRESS
         else:
+            if event.time - self.last_event_time >= self.timeout:
+                self.state = 0
+                self.decisions = {}
+            self.last_event_time = event.time
+
             self.decisions[event] = SUSPEND
 
-            input_events = tuple(sorted([event.scan_code] + list(active_modifiers)))
+            if self.hotkey.steps[self.state].is_standard:
+                input_events = tuple(sorted([event.scan_code] + list(active_modifiers)))
+            else:
+                input_events = tuple(sorted(physically_pressed_keys))
             new_state = self.transitions[self.state, input_events]
 
             if new_state == 0:
-                self.decisions = {}
+                if not self.hotkey.steps[self.state].is_standard and any(event.scan_code in key.scan_codes for key in self.hotkey.steps[self.state].keys):
+                    pass
+                else:
+                    self.decisions = {}
             elif new_state == len(self.hotkey.steps):
                 if self.trigger_on_release:
                     self.is_waiting_release = True
@@ -680,45 +681,12 @@ class _StandardHotkeyHook(_SimpleHook):
 
         return self.decisions
 
-class _ComboHotkeyHook(_SimpleHook):
-    def __init__(self, hotkey, user_callback):
-        super(_ComboHotkeyHook, self).__init__(callback=self.test)
-        self.user_callback = user_callback
-        self.hotkey = hotkey
-        self.current_step_index = 0 
-        self.suspended_events = []
-
-    def test(self, event):
-        current_step = self.hotkey[self.current_step_index]
-        previously_suspended_events = list(self.suspended_events)
-        if all(any(scan_code in event.pressed_keys for scan_code in key) for key in current_step):
-            self.current_step_index += 1
-            if self.current_step_index >= len(self.hotkey):
-                self.user_callback()
-                self.current_step_index = 0
-                self.decisions.clear()
-                return {event: SUPPRESS for event in previously_suspended_events + [event]}  
-            else:
-                self.suspended_events.append(event)
-                return {event: SUSPEND for event in previously_suspended_events + [event]}
-        elif event.event_type == KEY_DOWN and any(all(scan_code not in step_key for step_key in current_step) for scan_code in event.pressed_keys):
-            self.current_step_index = 0
-            self.decisions.clear()
-            return {event: ALLOW for event in previously_suspended_events + [event]}
-
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_release=False):
     if args:
-        old_callback = callback
-        callback = lambda: old_callback(*args)
+        callback = lambda f=callback: f(*args)
 
     parsed_hotkey = parse_hotkey(hotkey)
-
-    if parsed_hotkey.is_standard:
-        hook_obj = _StandardHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
-    else:
-        raise NotImplementedError()
-        hook_obj = _ComboHotkeyHook(hotkey=parsed_hotkey, callback=callback, trigger_on_release=trigger_on_release)
-
+    hook_obj = _HotkeyHook(hotkey=parsed_hotkey, callback=callback, timeout=timeout, trigger_on_release=trigger_on_release)
     return _listener.register(hook_obj, suppress=suppress, ids=[callback, hotkey])
 
 def key_to_scan_codes(key, error_if_missing=True):
@@ -755,7 +723,6 @@ def key_to_scan_codes(key, error_if_missing=True):
 class Hotkey(object):
     def __init__(self, steps):
         self.steps = tuple(steps)
-        self.is_standard = all(step.is_standard for step in self.steps)
     def __repr__(self):
         return ', '.join(map(str, self.steps))
 class Step(object):
