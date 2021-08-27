@@ -126,6 +126,23 @@ class TestNewCore(unittest.TestCase):
         self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
         self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1))
 
+    def test_single_key_on_release_blocking_hotkey(self):
+        keyboard.add_hotkey(0, TRIGGER, trigger_on_release=True)
+        self.send(PRESS(1)+RELEASE(1))
+        self.send(PRESS(0)+RELEASE(0), TRIGGERED())
+        self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(1)+RELEASE(1)+TRIGGERED())
+        self.send(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+RELEASE(1)+TRIGGERED())
+        self.send(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
+        self.send(PRESS(0)+PRESS(0)+RELEASE(0), PRESS(0)+TRIGGERED()+RELEASE(0))
+
+    def test_keys_with_modifiers_multistep_on_release_blocking_hotkey(self):
+        keyboard.add_hotkey((((0,),), ((-1,), (1,),)), TRIGGER, trigger_on_release=True)
+        self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1))
+        self.send(PRESS(-1)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+RELEASE(-1))
+        self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1))
+
+
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
         keyboard.unhook_all()

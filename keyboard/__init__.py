@@ -601,7 +601,11 @@ class _StandardHotkeyHook(_SimpleHook):
         self.transitions = _build_standard_hotkey_transition_table(hotkey)
         self.state = 0 
 
+        self.is_waiting_release = False
+
     def on_trigger(self, event, logically_pressed_keys):
+        self.state = 0
+
         callback_decision = self.callback()
 
         if callback_decision is ALLOW:
@@ -616,6 +620,10 @@ class _StandardHotkeyHook(_SimpleHook):
             if event.event_type == KEY_DOWN:
                 self.suppressed_key_down_scan_codes.add(event.scan_code)
 
+        final_decisions = self.decisions
+        self.decisions = {}
+        return final_decisions
+
     def process_event(self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers):
         """
         Processes receiving events, updating its current state and calling
@@ -627,6 +635,15 @@ class _StandardHotkeyHook(_SimpleHook):
         if event.scan_code in _modifier_scan_codes:
             # Always allow modifiers.
             pass
+        elif self.is_waiting_release:
+            if event.event_type == KEY_UP and event.scan_code in self.hotkey.steps[-1].main_key.scan_codes:
+                self.is_waiting_release = False
+                self.decisions[event] = SUPPRESS
+                return self.on_trigger(event, logically_pressed_keys)
+            else:
+                # The hotkey steps have been fulfilled, but it's trigger_on_release
+                # so we are waiting for the KEY_UP event. Allow everything else.
+                pass
         elif event.event_type == KEY_UP:
             if event.scan_code in [suspended_event.scan_code for suspended_event in self.decisions]:
                 # The KEY_UP for a suspended KEY_DOWN. Suspend it too.
@@ -634,9 +651,6 @@ class _StandardHotkeyHook(_SimpleHook):
             elif event.scan_code in self.suppressed_key_down_scan_codes:
                 self.suppressed_key_down_scan_codes.remove(event.scan_code)
                 self.decisions[event] = SUPPRESS
-
-            if self.state == len(self.hotkey.steps) and event.scan_code == self.hotkey.steps[-1].main_key:
-                return self.on_trigger(event, logically_pressed_keys)
         else:
             self.decisions[event] = SUSPEND
 
@@ -647,11 +661,11 @@ class _StandardHotkeyHook(_SimpleHook):
                 self.decisions = {}
             elif new_state == len(self.hotkey.steps):
                 if self.trigger_on_release:
-                    # Nothing to do right now, wait for KEY_UP event.
-                    pass
+                    self.is_waiting_release = True
                 else:
-                    self.on_trigger(event, logically_pressed_keys)
+                    return self.on_trigger(event, logically_pressed_keys)
             elif new_state <= self.state:
+
                 # A wrong key was pressed, but some of the suspended keys match
                 # the beginning of the hotkey.
                 sorted_suspended_events = sorted(self.decisions, key=lambda event: event.time)
@@ -664,13 +678,7 @@ class _StandardHotkeyHook(_SimpleHook):
 
             self.state = new_state
 
-        final_decisions = self.decisions
-
-        if self.state >= len(self.hotkey.steps):
-            self.state = 0
-            self.decisions = {}
-
-        return final_decisions
+        return self.decisions
 
 class _ComboHotkeyHook(_SimpleHook):
     def __init__(self, hotkey, user_callback):
