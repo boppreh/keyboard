@@ -599,51 +599,50 @@ class _HotkeyHook(_SimpleHook):
         Most of this code is to keep track of what events have been suspended
         or suppressed, to return the correct decision to the listener.
         """
-        decisions = {suspended_event: SUSPEND for suspended_event in self.suspended_events}
+        events_to_suppress = []
 
         if event.event_type == KEY_UP:
             if event.scan_code in [suspended_event.scan_code for suspended_event in self.suspended_events]:
                 # The KEY_UP for a suspended KEY_DOWN. Suspend it too.
-                decisions[event] = SUSPEND
+                self.suspended_events.append(event)
             elif event.scan_code in self.suppressed_key_down_scan_codes:
+                events_to_suppress.append(event)
                 self.suppressed_key_down_scan_codes.remove(event.scan_code)
-                decisions[event] = SUPPRESS
         elif event.scan_code not in _modifier_scan_codes and self.state < len(self.hotkey.steps):
-            if decisions and event.time - max(e.time for e in self.suspended_events) >= self.timeout:
+            if self.suspended_events and event.time - max(e.time for e in self.suspended_events) >= self.timeout:
                 self.state = 0
-                decisions = {}
+                self.suspended_events.clear()
 
             input_events = tuple(sorted([event.scan_code] + list(active_modifiers)))
             self.state = self.transitions[self.state, input_events]
 
-            decisions[event] = SUSPEND
+            self.suspended_events.append(event)
             # How many key presses it took to get to this state.
             n_useful_presses_left = self.state
-            for suspended_event in sorted(decisions, key=lambda e: e.time, reverse=True):
+            for suspended_event in sorted(self.suspended_events, key=lambda e: e.time, reverse=True):
                 # Every key press beyond that is not useful for this hotkey, and should be allowed.
                 if n_useful_presses_left <= 0:
-                    del decisions[suspended_event]
+                    self.suspended_events.remove(suspended_event)
                 if suspended_event.event_type == KEY_DOWN:
                     n_useful_presses_left -= 1
 
         if self.state == len(self.hotkey.steps) and event.scan_code in self.hotkey.steps[-1].main_key.scan_codes and (event.event_type == KEY_UP if self.trigger_on_release else KEY_DOWN):
             self.state = 0
-            if self.callback() is ALLOW:
-                decisions.clear()
-            else:
-                for decided_event in sorted(decisions.keys(), key=lambda e: e.time):
-                    decisions[decided_event] = SUPPRESS
+            if self.callback() is not ALLOW:
+                events_to_suppress.extend(self.suspended_events)
+                for decided_event in sorted(events_to_suppress, key=lambda e: e.time):
                     is_logically_pressed = decided_event.scan_code in logically_pressed_keys
+
+                    if decided_event.event_type == KEY_UP and is_logically_pressed:
+                        events_to_suppress.remove(decided_event)
+
                     if decided_event.event_type == KEY_DOWN and not is_logically_pressed:
                         self.suppressed_key_down_scan_codes.add(decided_event.scan_code)
                     elif decided_event.event_type == KEY_UP:
-                        if is_logically_pressed:
-                            decisions[decided_event] = ALLOW
                         self.suppressed_key_down_scan_codes.discard(decided_event.scan_code)
+            self.suspended_events.clear()
 
-        self.suspended_events = [event for event, decision in decisions.items() if decision is SUSPEND]
-        
-        return decisions
+        return {**{suspended_event: SUSPEND for suspended_event in self.suspended_events}, **{e: SUPPRESS for e in events_to_suppress}}
 
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_release=False):
     if args:
