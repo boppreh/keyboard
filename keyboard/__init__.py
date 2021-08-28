@@ -559,7 +559,7 @@ class _HotkeyHook(_SimpleHook):
         self.hotkey = hotkey
         self.timeout = timeout
         self.trigger_on_release = trigger_on_release
-        self.suspended_events = {}
+        self.suspended_events = []
         self.suppressed_key_down_scan_codes = set()
         # A set of Finite State Machine transitions based on the current state
         # and input events.
@@ -599,7 +599,6 @@ class _HotkeyHook(_SimpleHook):
         Most of this code is to keep track of what events have been suspended
         or suppressed, to return the correct decision to the listener.
         """
-        #breakpoint()
         decisions = {suspended_event: SUSPEND for suspended_event in self.suspended_events}
 
         if event.event_type == KEY_UP:
@@ -617,16 +616,15 @@ class _HotkeyHook(_SimpleHook):
             input_events = tuple(sorted([event.scan_code] + list(active_modifiers)))
             self.state = self.transitions[self.state, input_events]
 
-            if self.state == 0:
-                decisions = {}
-            else:
-                decisions[event] = SUSPEND
-                sorted_pending_events = sorted(decisions, key=lambda event: event.time)
-                presses_still_suspended = [suspended_event for suspended_event in sorted_pending_events if suspended_event.event_type == KEY_DOWN]
-                first_usable_event = presses_still_suspended[-self.state]
-                for suspended_event in decisions:
-                    if suspended_event.time < first_usable_event.time:
-                        decisions[suspended_event] = ALLOW
+            decisions[event] = SUSPEND
+            # How many key presses it took to get to this state.
+            n_useful_presses_left = self.state
+            for suspended_event in sorted(decisions, key=lambda e: e.time, reverse=True):
+                # Every key press beyond that is not useful for this hotkey, and should be allowed.
+                if n_useful_presses_left <= 0:
+                    del decisions[suspended_event]
+                if suspended_event.event_type == KEY_DOWN:
+                    n_useful_presses_left -= 1
 
         if self.state == len(self.hotkey.steps) and event.scan_code in self.hotkey.steps[-1].main_key.scan_codes and (event.event_type == KEY_UP if self.trigger_on_release else KEY_DOWN):
             self.state = 0

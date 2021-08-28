@@ -163,7 +163,7 @@ class TestNewCore(unittest.TestCase):
 
     def test_hotkey_timeout(self):
         keyboard.add_hotkey((((0,),), ((-1,), (1,),)), TRIGGER, timeout=1)
-        self.send(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=0.5)+PRESS(1, time=0.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.send(PRESS(0, time=0.1)+RELEASE(0, time=0.2)+PRESS(-1, time=0.5)+PRESS(1, time=0.7)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
         self.send(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=1.5)+PRESS(1, time=1.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
 
     @unittest.skip
