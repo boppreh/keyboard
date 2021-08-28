@@ -607,8 +607,9 @@ class _HotkeyHook(_SimpleHook):
                 is_logically_pressed = decided_event.scan_code in logically_pressed_keys
                 if decided_event.event_type == KEY_DOWN and not is_logically_pressed:
                     self.suppressed_key_down_scan_codes.add(decided_event.scan_code)
-                elif decided_event.event_type == KEY_UP and is_logically_pressed:
-                    self.decisions[decided_event] = ALLOW
+                elif decided_event.event_type == KEY_UP:
+                    if is_logically_pressed:
+                        self.decisions[decided_event] = ALLOW
                     self.suppressed_key_down_scan_codes.discard(decided_event.scan_code)
 
         final_decisions = self.decisions
@@ -623,6 +624,10 @@ class _HotkeyHook(_SimpleHook):
         Most of this code is to keep track of what events have been suspended
         or suppressed, to return the correct decision to the listener.
         """
+        for e, d in list(self.decisions.items()):
+            if d is SUPPRESS or d is ALLOW:
+                del self.decisions[e]
+
         if event.scan_code in _modifier_scan_codes:
             # Always allow modifiers.
             pass
@@ -643,10 +648,9 @@ class _HotkeyHook(_SimpleHook):
                 self.suppressed_key_down_scan_codes.remove(event.scan_code)
                 self.decisions[event] = SUPPRESS
         else:
-            if event.time - self.last_event_time >= self.timeout:
+            if self.decisions and event.time - max(e.time for e in self.decisions) >= self.timeout:
                 self.state = 0
                 self.decisions = {}
-            self.last_event_time = event.time
 
             self.decisions[event] = SUSPEND
 
@@ -680,7 +684,7 @@ class _HotkeyHook(_SimpleHook):
                         self.decisions[suspended_event] = ALLOW
 
             self.state = new_state
-
+        
         return self.decisions
 
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_release=False):

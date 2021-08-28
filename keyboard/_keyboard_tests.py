@@ -17,6 +17,8 @@ def TRIGGER(n=1000):
     keyboard._listener.is_replaying = False
 TRIGGERED = lambda n=1000: [make_event(KEY_UP, n)]
 
+keyboard.stop()
+
 def format_event(event):
     if event.scan_code == 1000:
         return 'TRIGGERED()'
@@ -49,11 +51,7 @@ class TestNewCore(unittest.TestCase):
                 self.output_events.append(event)
 
         to_names = lambda es: '+'.join(map(format_event, es))
-        if hasattr(self, 'subTest'):
-            with self.subTest(input_events=input_events):
-                self.assertEqual(to_names(self.output_events), to_names(expected))
-        else:
-            self.assertEqual(to_names(self.output_events), to_names(expected))
+        self.assertEqual(to_names(self.output_events), to_names(expected))
 
         del self.output_events[:]
 
@@ -97,13 +95,13 @@ class TestNewCore(unittest.TestCase):
         self.send(PRESS(0)+PRESS(-1)+RELEASE(-1)+RELEASE(0))
         self.send(PRESS(-1)+PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(-1)+RELEASE(0), PRESS(-1)+PRESS(1)+TRIGGERED()+RELEASE(1)+RELEASE(-1))
 
-    def test_single_key_with_modifier_blocking_hotkey(self):
-        keyboard.add_hotkey((-1, 0), TRIGGER)
+    def test_single_key_with_modifier_on_release_blocking_hotkey(self):
+        keyboard.add_hotkey((-1, 0), TRIGGER, trigger_on_release=True)
         self.send(PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+RELEASE(-1))
         self.send(PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.send(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0), PRESS(-1)+RELEASE(-1)+TRIGGERED())
         self.send(PRESS(0)+PRESS(-1)+RELEASE(-1)+RELEASE(0))
-        self.send(PRESS(-1)+PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(-1)+RELEASE(0), PRESS(-1)+PRESS(1)+TRIGGERED()+RELEASE(1)+RELEASE(-1))
+        self.send(PRESS(-1)+PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(-1)+RELEASE(0), PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1)+TRIGGERED())
 
     def test_single_key_with_many_modifiers_blocking_hotkey(self):
         keyboard.add_hotkey((-2, -1, 0), TRIGGER)
@@ -168,12 +166,20 @@ class TestNewCore(unittest.TestCase):
         self.send(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=0.5)+PRESS(1, time=0.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
         self.send(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=1.5)+PRESS(1, time=1.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
 
+    @unittest.skip
     def test_combo_hotkey(self):
         keyboard.add_hotkey((0, 1), TRIGGER)
-        #self.send(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
-        #self.send(PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1), TRIGGERED())
-        #self.send(PRESS(2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(2))
-        #self.send(PRESS(-2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(-2))
+        self.send(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.send(PRESS(2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(2))
+        self.send(PRESS(-2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(-2))
+
+    @unittest.skip
+    def test_all_modifiers_combo_hotkey(self):
+        keyboard.add_hotkey((-1, -2), TRIGGER)
+        self.send(PRESS(-1)+PRESS(-2)+RELEASE(-1)+RELEASE(-2), TRIGGERED())
+        self.send(PRESS(-1)+RELEASE(-1)+PRESS(-2)+RELEASE(-2))
+        self.send(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), TRIGGERED()+PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2))
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
