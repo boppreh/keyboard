@@ -551,20 +551,19 @@ def hook_key(key, callback, suppress=True):
 class _HotkeyHook(_SimpleHook):
     """
     Hook subclass to detect and trigger callbacks when a hotkey is detected.
-
-    TODO: refactor this rat's nest of if/else.
     """
     def __init__(self, hotkey, timeout, trigger_on_release, callback):
         self.callback = callback
         self.hotkey = hotkey
         self.timeout = timeout
         self.trigger_on_release = trigger_on_release
-        self.suspended_events = []
-        self.suppressed_key_down_scan_codes = set()
         # A set of Finite State Machine transitions based on the current state
         # and input events.
         self.transitions = self.build_hotkey_transition_table(hotkey)
+
         self.state = 0 
+        self.suspended_events = []
+        self.scan_code_releases_to_suppress = set()
 
     def build_hotkey_transition_table(self, hotkey):
             """
@@ -605,9 +604,9 @@ class _HotkeyHook(_SimpleHook):
             if event.scan_code in [suspended_event.scan_code for suspended_event in self.suspended_events]:
                 # The KEY_UP for a suspended KEY_DOWN. Suspend it too.
                 self.suspended_events.append(event)
-            elif event.scan_code in self.suppressed_key_down_scan_codes:
+            elif event.scan_code in self.scan_code_releases_to_suppress:
                 events_to_suppress.append(event)
-                self.suppressed_key_down_scan_codes.remove(event.scan_code)
+                self.scan_code_releases_to_suppress.remove(event.scan_code)
         elif event.scan_code not in _modifier_scan_codes and self.state < len(self.hotkey.steps):
             if self.suspended_events and event.time - max(e.time for e in self.suspended_events) >= self.timeout:
                 self.state = 0
@@ -627,19 +626,18 @@ class _HotkeyHook(_SimpleHook):
                     n_useful_presses_left -= 1
 
         if self.state == len(self.hotkey.steps) and event.scan_code in self.hotkey.steps[-1].main_key.scan_codes and (event.event_type == KEY_UP if self.trigger_on_release else KEY_DOWN):
-            self.state = 0
             if self.callback() is not ALLOW:
-                events_to_suppress.extend(self.suspended_events)
-                for decided_event in sorted(events_to_suppress, key=lambda e: e.time):
-                    is_logically_pressed = decided_event.scan_code in logically_pressed_keys
+                for suspended_event in self.suspended_events:
+                    is_logically_pressed = suspended_event.scan_code in logically_pressed_keys
 
-                    if decided_event.event_type == KEY_UP and is_logically_pressed:
-                        events_to_suppress.remove(decided_event)
+                    if not (suspended_event.event_type == KEY_UP and is_logically_pressed):
+                        events_to_suppress.append(suspended_event)
 
-                    if decided_event.event_type == KEY_DOWN and not is_logically_pressed:
-                        self.suppressed_key_down_scan_codes.add(decided_event.scan_code)
-                    elif decided_event.event_type == KEY_UP:
-                        self.suppressed_key_down_scan_codes.discard(decided_event.scan_code)
+                    if suspended_event.event_type == KEY_DOWN and not is_logically_pressed:
+                        self.scan_code_releases_to_suppress.add(suspended_event.scan_code)
+                    elif suspended_event.event_type == KEY_UP:
+                        self.scan_code_releases_to_suppress.discard(suspended_event.scan_code)
+            self.state = 0
             self.suspended_events.clear()
 
         return {**{suspended_event: SUSPEND for suspended_event in self.suspended_events}, **{e: SUPPRESS for e in events_to_suppress}}
