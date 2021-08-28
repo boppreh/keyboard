@@ -565,7 +565,6 @@ class _HotkeyHook(_SimpleHook):
         # and input events.
         self.transitions = self.build_hotkey_transition_table(hotkey)
         self.state = 0 
-        self.is_waiting_release = False
 
     def build_hotkey_transition_table(self, hotkey):
             """
@@ -592,21 +591,6 @@ class _HotkeyHook(_SimpleHook):
 
             return transitions
 
-    def on_trigger(self, decisions, event, logically_pressed_keys):
-        if self.callback() is ALLOW:
-            decisions.clear()
-        else:
-            for decided_event in sorted(decisions.keys(), key=lambda e: e.time):
-                decisions[decided_event] = SUPPRESS
-
-                is_logically_pressed = decided_event.scan_code in logically_pressed_keys
-                if decided_event.event_type == KEY_DOWN and not is_logically_pressed:
-                    self.suppressed_key_down_scan_codes.add(decided_event.scan_code)
-                elif decided_event.event_type == KEY_UP:
-                    if is_logically_pressed:
-                        decisions[decided_event] = ALLOW
-                    self.suppressed_key_down_scan_codes.discard(decided_event.scan_code)
-
     def process_event(self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers):
         """
         Processes receiving events, updating its current state and calling
@@ -615,28 +599,17 @@ class _HotkeyHook(_SimpleHook):
         Most of this code is to keep track of what events have been suspended
         or suppressed, to return the correct decision to the listener.
         """
+        #breakpoint()
         decisions = {suspended_event: SUSPEND for suspended_event in self.suspended_events}
 
-        if event.scan_code in _modifier_scan_codes:
-            # Always allow modifiers.
-            pass
-        elif self.is_waiting_release:
-            if event.event_type == KEY_UP and event.scan_code in self.hotkey.steps[-1].main_key.scan_codes:
-                self.is_waiting_release = False
-                decisions[event] = SUPPRESS
-                self.on_trigger(decisions, event, logically_pressed_keys)
-            else:
-                # The hotkey steps have been fulfilled, but it's trigger_on_release
-                # so we are waiting for the KEY_UP event. Allow everything else.
-                pass
-        elif event.event_type == KEY_UP:
+        if event.event_type == KEY_UP:
             if event.scan_code in [suspended_event.scan_code for suspended_event in decisions]:
                 # The KEY_UP for a suspended KEY_DOWN. Suspend it too.
                 decisions[event] = SUSPEND
             elif event.scan_code in self.suppressed_key_down_scan_codes:
                 self.suppressed_key_down_scan_codes.remove(event.scan_code)
                 decisions[event] = SUPPRESS
-        else:
+        elif event.scan_code not in _modifier_scan_codes and self.state < len(self.hotkey.steps):
             if decisions and event.time - max(e.time for e in decisions) >= self.timeout:
                 self.state = 0
                 decisions = {}
@@ -648,24 +621,32 @@ class _HotkeyHook(_SimpleHook):
 
             if self.state == 0:
                 decisions = {}
-            elif self.state == len(self.hotkey.steps):
-                self.state = 0
-                if self.trigger_on_release:
-                    self.is_waiting_release = True
-                else:
-                    self.on_trigger(decisions, event, logically_pressed_keys)
             else:
-
-                # A wrong key was pressed, but some of the suspended keys match
-                # the beginning of the hotkey.
                 sorted_pending_events = sorted(decisions, key=lambda event: event.time)
                 presses_still_suspended = [suspended_event for suspended_event in sorted_pending_events if suspended_event.event_type == KEY_DOWN]
-                # We now know which keys may match the beginning of the hotkey,
-                # so we allow all events that happened before it.
                 first_usable_event = presses_still_suspended[-self.state]
                 for suspended_event in decisions:
                     if suspended_event.time < first_usable_event.time:
                         decisions[suspended_event] = ALLOW
+
+        if self.state == len(self.hotkey.steps):
+            if event.event_type == KEY_DOWN and self.trigger_on_release:
+                pass
+            elif event.scan_code in self.hotkey.steps[-1].main_key.scan_codes:
+                self.state = 0
+                if self.callback() is ALLOW:
+                    decisions.clear()
+                else:
+                    for decided_event in sorted(decisions.keys(), key=lambda e: e.time):
+                        decisions[decided_event] = SUPPRESS
+
+                        is_logically_pressed = decided_event.scan_code in logically_pressed_keys
+                        if decided_event.event_type == KEY_DOWN and not is_logically_pressed:
+                            self.suppressed_key_down_scan_codes.add(decided_event.scan_code)
+                        elif decided_event.event_type == KEY_UP:
+                            if is_logically_pressed:
+                                decisions[decided_event] = ALLOW
+                            self.suppressed_key_down_scan_codes.discard(decided_event.scan_code)
 
         self.suspended_events = [event for event, decision in decisions.items() if decision is SUSPEND]
         
