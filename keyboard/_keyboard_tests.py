@@ -42,7 +42,7 @@ class TestNewCore(unittest.TestCase):
         keyboard._os_keyboard.release = lambda key: send_fake_event(KEY_UP, key)
         keyboard._os_keyboard.map_name = lambda name: 1/0
 
-    def send(self, input_events, expected=None):
+    def sim(self, input_events, expected=None):
         if expected is None:
             expected = input_events
 
@@ -57,129 +57,128 @@ class TestNewCore(unittest.TestCase):
 
     def test_allowing_hook(self):
         keyboard.hook(lambda event: ALLOW)
-        self.send(PRESS(0)+RELEASE(0), PRESS(0)+RELEASE(0))
+        self.sim(PRESS(0)+RELEASE(0), PRESS(0)+RELEASE(0))
     def test_suppressing_hook(self):
         keyboard.hook(lambda event: keyboard.SUPPRESS)
-        self.send(PRESS(0)+RELEASE(0), [])
+        self.sim(PRESS(0)+RELEASE(0), [])
 
     def test_suppressing_key_hook(self):
         keyboard.hook_key(0, TRIGGER)
-        self.send(PRESS(1)+PRESS(0), PRESS(1)+TRIGGERED())
+        self.sim(PRESS(1)+PRESS(0), PRESS(1)+TRIGGERED())
     def test_allowing_key_hook(self):
         keyboard.hook_key(0, lambda: TRIGGER() or ALLOW)
-        self.send(PRESS(1)+PRESS(0), PRESS(1)+TRIGGERED()+PRESS(0))
+        self.sim(PRESS(1)+PRESS(0), PRESS(1)+TRIGGERED()+PRESS(0))
 
     def test_single_key_blocking_hotkey(self):
         keyboard.add_hotkey(0, TRIGGER)
-        self.send(PRESS(1)+RELEASE(1))
-        self.send(PRESS(0)+RELEASE(0), TRIGGERED())
-        self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(1)+RELEASE(1)+TRIGGERED())
-        self.send(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+TRIGGERED()+RELEASE(1))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
-        self.send(PRESS(0)+PRESS(0)+RELEASE(0), TRIGGERED()+TRIGGERED())
+        self.sim(PRESS(1)+RELEASE(1))
+        self.sim(PRESS(0)+RELEASE(0), TRIGGERED())
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(1)+RELEASE(1)+TRIGGERED())
+        self.sim(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+TRIGGERED()+RELEASE(1))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
+        self.sim(PRESS(0)+PRESS(0)+RELEASE(0), TRIGGERED()+TRIGGERED())
 
     def test_single_key_allowing_hotkey(self):
         keyboard.add_hotkey(0, lambda: TRIGGER() or ALLOW)
-        self.send(PRESS(1)+RELEASE(1))
-        self.send(PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+RELEASE(0))
-        self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+TRIGGERED()+PRESS(0)+RELEASE(0))
-        self.send(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+TRIGGERED()+PRESS(0) +RELEASE(1)+RELEASE(0))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
-        self.send(PRESS(0)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+TRIGGERED()+PRESS(0)+RELEASE(0))
+        self.sim(PRESS(1)+RELEASE(1))
+        self.sim(PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+RELEASE(0))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+TRIGGERED()+PRESS(0)+RELEASE(0))
+        self.sim(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+TRIGGERED()+PRESS(0) +RELEASE(1)+RELEASE(0))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
+        self.sim(PRESS(0)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(0)+TRIGGERED()+PRESS(0)+RELEASE(0))
 
     def test_single_key_with_modifier_blocking_hotkey(self):
         keyboard.add_hotkey((-1, 0), TRIGGER)
-        self.send(PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+RELEASE(-1))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0), PRESS(-1)+TRIGGERED()+RELEASE(-1))
-        self.send(PRESS(0)+PRESS(-1)+RELEASE(-1)+RELEASE(0))
-        self.send(PRESS(-1)+PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(-1)+RELEASE(0), PRESS(-1)+PRESS(1)+TRIGGERED()+RELEASE(1)+RELEASE(-1))
+        self.sim(PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+RELEASE(-1))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.sim(PRESS(0)+PRESS(-1)+RELEASE(-1)+RELEASE(0))
+        self.sim(PRESS(-1)+PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(-1)+RELEASE(0), PRESS(-1)+PRESS(1)+TRIGGERED()+RELEASE(1)+RELEASE(-1))
 
     def test_single_key_with_modifier_on_release_blocking_hotkey(self):
         keyboard.add_hotkey((-1, 0), TRIGGER, trigger_on_release=True)
-        self.send(PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+RELEASE(-1))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0), PRESS(-1)+RELEASE(-1)+TRIGGERED())
-        self.send(PRESS(0)+PRESS(-1)+RELEASE(-1)+RELEASE(0))
-        self.send(PRESS(-1)+PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(-1)+RELEASE(0), PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1)+TRIGGERED())
+        self.sim(PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+RELEASE(-1))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0), PRESS(-1)+RELEASE(-1)+TRIGGERED())
+        self.sim(PRESS(0)+PRESS(-1)+RELEASE(-1)+RELEASE(0))
+        self.sim(PRESS(-1)+PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(-1)+RELEASE(0), PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1)+TRIGGERED())
 
     def test_single_key_with_many_modifiers_blocking_hotkey(self):
         keyboard.add_hotkey((-2, -1, 0), TRIGGER)
-        self.send(PRESS(-2)+PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+RELEASE(-1)+RELEASE(-2))
-        self.send(PRESS(-2)+PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), PRESS(-2)+PRESS(-1)+TRIGGERED()+RELEASE(-1)+RELEASE(-2))
-        self.send(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-2)+RELEASE(-1), PRESS(-1)+PRESS(-2)+TRIGGERED()+RELEASE(-2)+RELEASE(-1))
-        self.send(PRESS(-2)+PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(-2)+RELEASE(0), PRESS(-2)+PRESS(-1)+TRIGGERED()+RELEASE(-1)+RELEASE(-2))
-        self.send(PRESS(-3)+PRESS(-2)+PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2)+RELEASE(-3))
+        self.sim(PRESS(-2)+PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+RELEASE(-1)+RELEASE(-2))
+        self.sim(PRESS(-2)+PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), PRESS(-2)+PRESS(-1)+TRIGGERED()+RELEASE(-1)+RELEASE(-2))
+        self.sim(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-2)+RELEASE(-1), PRESS(-1)+PRESS(-2)+TRIGGERED()+RELEASE(-2)+RELEASE(-1))
+        self.sim(PRESS(-2)+PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(-2)+RELEASE(0), PRESS(-2)+PRESS(-1)+TRIGGERED()+RELEASE(-1)+RELEASE(-2))
+        self.sim(PRESS(-3)+PRESS(-2)+PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2)+RELEASE(-3))
 
     def test_single_keys_multistep_blocking_hotkey(self):
         keyboard.add_hotkey((((0,),), ((1,),)), TRIGGER)
-        self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
-        self.send(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
-        self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
-        self.send(PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2)+TRIGGERED())
-        self.send(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
-        self.send(PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+TRIGGERED()+RELEASE(0))
-        self.send(PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2), PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2)+TRIGGERED())
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
+        self.sim(PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+TRIGGERED()+RELEASE(0))
+        self.sim(PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2), PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(2)+RELEASE(2))
 
     def test_keys_with_modifiers_multistep_blocking_hotkey(self):
         keyboard.add_hotkey((((0,),), ((-1,), (1,),)), TRIGGER)
-        self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+RELEASE(-1))
-        self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
-        self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+RELEASE(-1))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1))
 
     def test_single_key_on_release_blocking_hotkey(self):
         keyboard.add_hotkey(0, TRIGGER, trigger_on_release=True)
-        self.send(PRESS(1)+RELEASE(1))
-        self.send(PRESS(0)+RELEASE(0), TRIGGERED())
-        self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(1)+RELEASE(1)+TRIGGERED())
-        self.send(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+RELEASE(1)+TRIGGERED())
+        self.sim(PRESS(1)+RELEASE(1))
+        self.sim(PRESS(0)+RELEASE(0), TRIGGERED())
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(0)+RELEASE(0), TRIGGERED()+PRESS(1)+RELEASE(1)+TRIGGERED())
+        self.sim(PRESS(1)+PRESS(0)+RELEASE(1)+RELEASE(0), PRESS(1)+RELEASE(1)+TRIGGERED())
         keyboard.release(0)
         del self.output_events[:]
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
-        self.send(PRESS(0)+PRESS(0)+RELEASE(0), PRESS(0)+TRIGGERED()+RELEASE(0))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(-1)+RELEASE(0))
+        self.sim(PRESS(0)+PRESS(0)+RELEASE(0), PRESS(0)+TRIGGERED()+RELEASE(0))
 
     def test_keys_with_modifiers_multistep_on_release_blocking_hotkey(self):
         keyboard.add_hotkey((((0,),), ((-1,), (1,),)), TRIGGER, trigger_on_release=True)
-        self.send(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1))
-        self.send(PRESS(-1)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+RELEASE(-1))
-        self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
-        self.send(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1))
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+RELEASE(-1))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(2)+RELEASE(2)+RELEASE(-1))
 
     def test_hotkey_trigger_order(self):
         keyboard.add_hotkey(0, lambda: TRIGGER(1000), trigger_on_release=False)
         keyboard.add_hotkey(0, lambda: TRIGGER(2000), trigger_on_release=True)
         keyboard.add_hotkey(0, lambda: TRIGGER(3000), trigger_on_release=False)
-        self.send(PRESS(0), TRIGGERED(1000)+TRIGGERED(3000))
-        self.send(RELEASE(0), TRIGGERED(2000))
+        self.sim(PRESS(0), TRIGGERED(1000)+TRIGGERED(3000))
+        self.sim(RELEASE(0), TRIGGERED(2000))
 
     def test_many_steps_hotkey(self):
         keyboard.add_hotkey((((0,),), ((0,),), ((0,),), ((1,),)), TRIGGER)
-        self.send(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
-        self.send(PRESS(0)+PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
-        self.send(PRESS(0)+PRESS(0)+PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
-        self.send(PRESS(0)+PRESS(0)+PRESS(0)+PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), PRESS(0)+TRIGGERED()+RELEASE(0))
-        self.send(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(0)+PRESS(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(0)+PRESS(0)+PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(0)+PRESS(0)+PRESS(0)+PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), PRESS(0)+TRIGGERED()+RELEASE(0))
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
 
     def test_hotkey_timeout(self):
         keyboard.add_hotkey((((0,),), ((-1,), (1,),)), TRIGGER, timeout=1)
-        self.send(PRESS(0, time=0.1)+RELEASE(0, time=0.2)+PRESS(-1, time=0.5)+PRESS(1, time=0.7)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
-        self.send(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=1.5)+PRESS(1, time=1.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
+        self.sim(PRESS(0, time=0.1)+RELEASE(0, time=0.2)+PRESS(-1, time=0.5)+PRESS(1, time=0.7)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.sim(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=1.5)+PRESS(1, time=1.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
 
-    @unittest.skip
     def test_combo_hotkey(self):
         keyboard.add_hotkey((0, 1), TRIGGER)
-        self.send(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
-        self.send(PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1), TRIGGERED())
-        self.send(PRESS(2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(2))
-        self.send(PRESS(-2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(-2))
+        self.sim(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(2))
+        self.sim(PRESS(-2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(-2))
 
     @unittest.skip
     def test_all_modifiers_combo_hotkey(self):
         keyboard.add_hotkey((-1, -2), TRIGGER)
-        self.send(PRESS(-1)+PRESS(-2)+RELEASE(-1)+RELEASE(-2), TRIGGERED())
-        self.send(PRESS(-1)+RELEASE(-1)+PRESS(-2)+RELEASE(-2))
-        self.send(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), TRIGGERED()+PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2))
+        self.sim(PRESS(-1)+PRESS(-2)+RELEASE(-1)+RELEASE(-2), TRIGGERED())
+        self.sim(PRESS(-1)+RELEASE(-1)+PRESS(-2)+RELEASE(-2))
+        self.sim(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), TRIGGERED()+PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2))
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
