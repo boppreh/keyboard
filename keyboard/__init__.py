@@ -391,6 +391,7 @@ class _KeyboardListener(object):
                 # Suspended event is now suppressed, forget about it.
                 self.suspended_event_pairs.remove((suspended_event, suspended_modifiers))
             elif decision is ALLOW:
+
                 # Suspended event is now allowed, replay it.
 
                 # The suspended event may have had a different set of modifiers
@@ -562,8 +563,7 @@ class _HotkeyHook(_SimpleHook):
         self.transitions = self.build_hotkey_transition_table(hotkey)
 
         self.state = 0 
-        self.suspended_events = []
-        self.scan_code_releases_to_suppress = set()
+        self.decisions = {}
 
     def build_hotkey_transition_table(self, hotkey):
             """
@@ -600,58 +600,51 @@ class _HotkeyHook(_SimpleHook):
         """
         #breakpoint()
         events_to_suppress = []
-        step = self.hotkey.steps[min(self.state, len(self.hotkey.steps)-1)] 
-        is_main_key = event.scan_code in step.main_key.scan_codes if step.is_standard else any(event.scan_code in key.scan_codes for key in step.keys)
+        step = self.hotkey.steps[min(self.state, len(self.hotkey.steps)-1)]
+        is_main_key = event.scan_code not in _modifier_scan_codes or not step.is_standard
+        is_expected_main_key = is_main_key and any(event.scan_code in key.scan_codes for key in step.keys)
+        expected_event_type = KEY_UP if self.trigger_on_release else KEY_DOWN
 
         if event.event_type == KEY_UP:
-            if event.scan_code in [suspended_event.scan_code for suspended_event in self.suspended_events]:
-                # The KEY_UP for a suspended KEY_DOWN. Suspend it too.
-                self.suspended_events.append(event)
-            elif event.scan_code in self.scan_code_releases_to_suppress:
-                events_to_suppress.append(event)
-                self.scan_code_releases_to_suppress.remove(event.scan_code)
-        elif event.scan_code in _modifier_scan_codes and step.is_standard:
-            pass
-        elif self.state < len(self.hotkey.steps):
-            if self.suspended_events and event.time - max(e.time for e in self.suspended_events) >= self.timeout:
+            pending_presses_by_scan_code = {e.scan_code: e for e in self.decisions if e.event_type == KEY_DOWN}
+            corresponding_press = pending_presses_by_scan_code.get(event.scan_code)
+
+            self.decisions[event] = self.decisions.get(corresponding_press, ALLOW)
+
+            if self.decisions.get(corresponding_press, SUSPEND) is not SUSPEND:
+                del self.decisions[corresponding_press]
+
+        elif is_main_key and self.state < len(self.hotkey.steps):
+            if self.decisions and event.time - max([e.time for e in self.decisions]) >= self.timeout:
                 self.state = 0
-                self.suspended_events.clear()
+                self.decisions = {e: d for e, d in self.decisions.items() if d == SUPPRESS}
 
-            if step.is_standard:
-                input_scan_codes = tuple(sorted([event.scan_code] + list(active_modifiers)))
-            else:
-                input_scan_codes = tuple(sorted(list(physically_pressed_keys)))
+            self.decisions[event] = SUSPEND
 
-            self.suspended_events.append(event)
-
-            if step.is_standard or len(physically_pressed_keys) >= len(step.keys) or not is_main_key:
-                self.state = self.transitions[self.state, input_scan_codes]
-
+            old_state = self.state
+            input_scan_codes = tuple(sorted({event.scan_code} | active_modifiers if step.is_standard else physically_pressed_keys))
+            self.state = self.transitions[self.state, input_scan_codes]
+            if old_state >= self.state and step.is_standard or len(physically_pressed_keys) >= len(step.keys):
                 # How many key presses it took to get to this state.
                 n_useful_presses_left = sum(1 if step.is_standard else len(step.keys) for step in self.hotkey.steps[:self.state])
-                for suspended_event in sorted(self.suspended_events, key=lambda e: e.time, reverse=True):
+                for suspended_event in sorted(self.decisions, key=lambda e: e.time, reverse=True):
                     # Every key press beyond this point is not useful for this hotkey, and should be allowed.
                     if n_useful_presses_left <= 0:
-                        self.suspended_events.remove(suspended_event)
-                    if suspended_event.event_type == KEY_DOWN:
-                        n_useful_presses_left -= 1
+                        del self.decisions[suspended_event]
+                    n_useful_presses_left -= suspended_event.event_type == KEY_DOWN
 
-        if self.state == len(self.hotkey.steps) and is_main_key and (event.event_type == KEY_UP if self.trigger_on_release else KEY_DOWN):
-            if self.callback() is not ALLOW:
-                for suspended_event in self.suspended_events:
-                    is_logically_pressed = suspended_event.scan_code in logically_pressed_keys
-
-                    if not (suspended_event.event_type == KEY_UP and is_logically_pressed):
-                        events_to_suppress.append(suspended_event)
-
-                    if suspended_event.event_type == KEY_DOWN and not is_logically_pressed:
-                        self.scan_code_releases_to_suppress.add(suspended_event.scan_code)
-                    elif suspended_event.event_type == KEY_UP:
-                        self.scan_code_releases_to_suppress.discard(suspended_event.scan_code)
+        if event.event_type == expected_event_type and is_expected_main_key and self.state == len(self.hotkey.steps):
+            if self.callback() is ALLOW:
+                self.decisions = {e: SUPPRESS for e, d in self.decisions.items() if d is SUPPRESS}
+            else:
+                self.decisions = {e: SUPPRESS for e, d in self.decisions.items() if d in (SUPPRESS, SUSPEND)}
             self.state = 0
-            self.suspended_events.clear()
 
-        return {**{suspended_event: SUSPEND for suspended_event in self.suspended_events}, **{e: SUPPRESS for e in events_to_suppress}}
+        for e, d in self.decisions.items():
+            if e.event_type == KEY_UP and d is SUPPRESS and e.scan_code in logically_pressed_keys:
+                self.decisions[e] = ALLOW
+
+        return self.decisions
 
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_release=False):
     if args:
