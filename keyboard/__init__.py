@@ -562,69 +562,96 @@ class _HotkeyHook(_SimpleHook):
         # and input events.
         self.transitions = self.build_hotkey_transition_table(hotkey)
 
-        self.state = 0 
+        # Map of {event: one_of(SUPPRESS, ALLOW, SUSPEND)}. Suspended and suppressed
+        # key presses are kept around until the corresponding key release comes.
         self.decisions = {}
+        # The current state of the hotkey's Finite State Machine. Every state
+        # corresponding to a step in the hotkey, with one extra state after to
+        # represent a hotkey that was completed but the callback not yet invoked.
+        self.state = 0 
 
     def build_hotkey_transition_table(self, hotkey):
-            """
-            Builds a transition table mapping current hotkey step and received scan code
-            to the new step. Technically a Moore-type Finite State Machine.
+        """
+        Builds a transition table mapping current hotkey step and received scan code
+        to the new step. Technically a Moore-type Finite State Machine.
 
-            transitions[current_state, (1, 2, 3)] -> new_state
-            """
-            transitions = _collections.defaultdict(lambda: 0)
-            get_final_state = lambda sequence, state=0: state if not sequence else get_final_state(sequence[1:], state=transitions[state, sequence[0]])
+        transitions[current_state, (1, 2, 3)] -> new_state
+        """
+        transitions = _collections.defaultdict(lambda: 0)
+        # Runs a sequence of input through the current transitions.
+        get_final_state = lambda sequence, state=0: state if not sequence else get_final_state(sequence[1:], state=transitions[state, sequence[0]])
 
-            history = []
-            for i, step in enumerate(hotkey.steps):
-                for previous_inputs in set(history):
-                    # If a wrong input is given, but which could be the start (or middle)
-                    # or a correct sequence, what's the most advanced state it would reach?
-                    overlapping_state = max(get_final_state(history[j:] + [previous_inputs]) for j in range(1, len(history)+1))
-                    transitions[i, previous_inputs] = overlapping_state
+        history = []
+        for i, step in enumerate(hotkey.steps):
+            for previous_inputs in set(history):
+                # If a wrong input is given, but which could be the start (or middle)
+                # of a correct sequence, what's the most advanced state it would reach?
+                overlapping_state = max(get_final_state(history[j:] + [previous_inputs]) for j in range(1, len(history)+1))
+                transitions[i, previous_inputs] = overlapping_state
 
-                for input_scan_codes in _itertools.product(*[key.scan_codes for key in step.keys]):
-                    transitions[i, tuple(sorted(input_scan_codes))] = i+1
+            # Since each key in the hotkey combination can have multiple scan codes,
+            # the cartesian product is taken between all scan codes in each step.
+            for input_scan_codes in _itertools.product(*[key.scan_codes for key in step.keys]):
+                transitions[i, tuple(sorted(input_scan_codes))] = i+1
 
-                history.append(input_scan_codes)
+            history.append(input_scan_codes)
 
-            return transitions
+        return transitions
 
     def process_event(self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers):
         """
         Processes receiving events, updating its current state and calling
-        `callback` whenever the hotkey is completed.
+        `self.callback` whenever the hotkey is completed.
 
         Most of this code is to keep track of what events have been suspended
-        or suppressed, to return the correct decision to the listener.
+        or suppressed, to return the correct decision to the listener. It tries
+        to follow standard hotkey behavior as closely as I could deduce it from
+        the OS and other programs.
+
+        It might look like a rat's nest of if-else conditionals and stateful
+        mutations, and it is. But trust me, it used to be even worse, and this is
+        the fourth clean-slate attempt, plus several full days of effort to
+        simplify this attempt down..
+
+        If you have a suggestion on how to simplify it and still pass the tests,
+        I'll be thankful.
         """
-        #breakpoint()
-        events_to_suppress = []
         step = self.hotkey.steps[min(self.state, len(self.hotkey.steps)-1)]
-        is_main_key = event.scan_code not in _modifier_scan_codes or not step.is_standard
-        is_expected_main_key = is_main_key and any(event.scan_code in key.scan_codes for key in step.keys)
-        expected_event_type = KEY_UP if self.trigger_on_release else KEY_DOWN
+
+        if event.scan_code in _modifier_scan_codes and step.is_standard:
+            return self.decisions
 
         if event.event_type == KEY_UP:
-            pending_presses_by_scan_code = {e.scan_code: e for e in self.decisions if e.event_type == KEY_DOWN}
-            corresponding_press = pending_presses_by_scan_code.get(event.scan_code)
+            # If we have a previous decision on the corresponding key press for
+            # this key release, repeat the same decision.
+            previous_presses = [e for e in self.decisions if e.event_type == KEY_DOWN and e.scan_code == event.scan_code]
+            if previous_presses:
+                self.decisions[event] = self.decisions[previous_presses[-1]]
+                if self.decisions[event] is not SUSPEND:
+                    # ALLOW and SUPPRESS decisions for key presses are kept around
+                    # for the benefit of the corresponding release. Since it just
+                    # happened, delete it.
+                    for previous_press in previous_presses:
+                        del self.decisions[previous_press]
+        elif self.state < len(self.hotkey.steps):
+            # If a main key is pressed and the hotkey is not completed yet,
+            # it's time to update the state.
 
-            self.decisions[event] = self.decisions.get(corresponding_press, ALLOW)
-
-            if self.decisions.get(corresponding_press, SUSPEND) is not SUSPEND:
-                del self.decisions[corresponding_press]
-
-        elif is_main_key and self.state < len(self.hotkey.steps):
             if self.decisions and event.time - max([e.time for e in self.decisions]) >= self.timeout:
+                # In case of timeout reset the state and the suspended events.
                 self.state = 0
                 self.decisions = {e: d for e, d in self.decisions.items() if d == SUPPRESS}
 
             self.decisions[event] = SUSPEND
 
             old_state = self.state
+            # Normalize input keys as sorted tuple.
             input_scan_codes = tuple(sorted({event.scan_code} | active_modifiers if step.is_standard else physically_pressed_keys))
             self.state = self.transitions[self.state, input_scan_codes]
             if old_state >= self.state and step.is_standard or len(physically_pressed_keys) >= len(step.keys):
+                # The pressed key was unexpected, and the state did not go forward.
+                # We must check if any of the suspended events can be allowed now.
+
                 # How many key presses it took to get to this state.
                 n_useful_presses_left = sum(1 if step.is_standard else len(step.keys) for step in self.hotkey.steps[:self.state])
                 for suspended_event in sorted(self.decisions, key=lambda e: e.time, reverse=True):
@@ -633,15 +660,20 @@ class _HotkeyHook(_SimpleHook):
                         del self.decisions[suspended_event]
                     n_useful_presses_left -= suspended_event.event_type == KEY_DOWN
 
-        if event.event_type == expected_event_type and is_expected_main_key and self.state == len(self.hotkey.steps):
-            if self.callback() is ALLOW:
-                self.decisions = {e: SUPPRESS for e, d in self.decisions.items() if d is SUPPRESS}
-            else:
-                self.decisions = {e: SUPPRESS for e, d in self.decisions.items() if d in (SUPPRESS, SUSPEND)}
+        is_expected_event_type = event.event_type == (KEY_UP if self.trigger_on_release else KEY_DOWN)
+        is_expected_key = any(event.scan_code in key.scan_codes for key in step.keys)
+        if is_expected_event_type and is_expected_key and self.state == len(self.hotkey.steps):
+            # The hotkey is completed, and the callback is finally invoked.
+            callback_decision = ALLOW if self.callback() is ALLOW else SUPPRESS
+            for e, event_decision in self.decisions.items():
+                if event_decision is SUSPEND:
+                    self.decisions[e] = callback_decision
             self.state = 0
 
-        for e, d in self.decisions.items():
-            if e.event_type == KEY_UP and d is SUPPRESS and e.scan_code in logically_pressed_keys:
+        # To prevent stuck keys, key releases are not suppressed if a key press
+        # was allowed through in the past ("logically pressed").
+        for e, event_decision in self.decisions.items():
+            if e.event_type == KEY_UP and event_decision is SUPPRESS and e.scan_code in logically_pressed_keys:
                 self.decisions[e] = ALLOW
 
         return self.decisions

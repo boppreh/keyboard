@@ -176,7 +176,6 @@ class TestNewCore(unittest.TestCase):
         self.sim(PRESS(2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(2))
         self.sim(PRESS(-2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(-2))
 
-    @unittest.skip
     def test_all_modifiers_combo_hotkey(self):
         keyboard.add_hotkey((-1, -2), TRIGGER)
         self.sim(PRESS(-1)+PRESS(-2)+RELEASE(-1)+RELEASE(-2), TRIGGERED())
