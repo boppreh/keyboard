@@ -52,8 +52,12 @@ class TestNewCore(unittest.TestCase):
 
         to_names = lambda es: '+'.join(map(format_event, es))
         self.assertEqual(to_names(self.output_events), to_names(expected))
-
         del self.output_events[:]
+
+        for hook_obj in keyboard._listener.suppressing_hooks:
+            if isinstance(hook_obj, keyboard._HotkeyHook):
+                self.assertEqual(hook_obj.state, 0)
+                self.assertTrue(all(decision is not keyboard.SUSPEND for event, decision in hook_obj.decisions.items()))
 
     def test_allowing_hook(self):
         keyboard.hook(lambda event: ALLOW)
@@ -150,8 +154,7 @@ class TestNewCore(unittest.TestCase):
         keyboard.add_hotkey(0, lambda: TRIGGER(1000), trigger_on_release=False)
         keyboard.add_hotkey(0, lambda: TRIGGER(2000), trigger_on_release=True)
         keyboard.add_hotkey(0, lambda: TRIGGER(3000), trigger_on_release=False)
-        self.sim(PRESS(0), TRIGGERED(1000)+TRIGGERED(3000))
-        self.sim(RELEASE(0), TRIGGERED(2000))
+        self.sim(PRESS(0)+RELEASE(0), TRIGGERED(1000)+TRIGGERED(3000)+TRIGGERED(2000))
 
     def test_many_steps_hotkey(self):
         keyboard.add_hotkey((((0,),), ((0,),), ((0,),), ((1,),)), TRIGGER)
@@ -163,8 +166,8 @@ class TestNewCore(unittest.TestCase):
 
     def test_hotkey_timeout(self):
         keyboard.add_hotkey((((0,),), ((-1,), (1,),)), TRIGGER, timeout=1)
-        self.sim(PRESS(0, time=0.1)+RELEASE(0, time=0.2)+PRESS(-1, time=0.5)+PRESS(1, time=0.7)+RELEASE(1)+RELEASE(-1), PRESS(-1)+TRIGGERED()+RELEASE(-1))
-        self.sim(PRESS(0, time=0)+RELEASE(0, time=0)+PRESS(-1, time=1.5)+PRESS(1, time=1.5)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
+        self.sim(PRESS(0, time=0.1)+RELEASE(0, time=0.2)+PRESS(-1, time=0.5)+PRESS(1, time=0.7)+RELEASE(1, time=0.8)+RELEASE(-1, time=0.9), PRESS(-1)+TRIGGERED()+RELEASE(-1))
+        self.sim(PRESS(0, time=1)+RELEASE(0, time=1.1)+PRESS(-1, time=2.5)+PRESS(1, time=2.6)+RELEASE(1)+RELEASE(-1), PRESS(-1)+RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(1)+RELEASE(-1))
 
     def test_combo_hotkey(self):
         keyboard.add_hotkey((0, 1), TRIGGER)
