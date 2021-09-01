@@ -171,10 +171,21 @@ class TestNewCore(unittest.TestCase):
 
     def test_combo_hotkey(self):
         keyboard.add_hotkey((0, 1), TRIGGER)
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1))
         self.sim(PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
         self.sim(PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1), TRIGGERED())
         self.sim(PRESS(2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(2))
         self.sim(PRESS(-2)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1)+RELEASE(-2))
+
+    def test_multistep_combo_hotkey(self):
+        keyboard.add_hotkey((((0,),), ((0,), (1,),)), TRIGGER)
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(0)+PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), TRIGGERED())
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(0)+RELEASE(0)+PRESS(0)+PRESS(1)+RELEASE(0)+RELEASE(1), PRESS(0)+RELEASE(0)+TRIGGERED())
+
+    def test_multistep_combo_hotkey_alt(self):
+        keyboard.add_hotkey((((0,),(1,)), ((0,),)), TRIGGER)
+        self.sim(PRESS(0)+PRESS(0)+PRESS(1)+PRESS(0)+RELEASE(0)+RELEASE(1), TRIGGERED())
 
     def test_all_modifiers_combo_hotkey(self):
         keyboard.add_hotkey((-1, -2), TRIGGER)
