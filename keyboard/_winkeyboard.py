@@ -9,6 +9,7 @@ well documented on Microsoft's website and scattered examples.
 # TODO:
 - Keypad numbers still print as numbers even when numlock is off.
 - No way to specify if user wants a keypad key or not in `map_char`.
+- Use SendInput instead of keybd_event to work on games (see https://pypi.org/project/PyDirectInput/).
 """
 from __future__ import unicode_literals
 import re
