@@ -451,7 +451,7 @@ class _KeyboardListener(object):
             if event.event_type == KEY_DOWN:
                 self.pressed_events[event.scan_code] = event
             elif event.event_type == KEY_UP:
-                del self.pressed_events[event.scan_code]
+                self.pressed_events.pop(event.scan_code, None)
 
             if event.scan_code in _modifier_scan_codes:
                 if event.event_type == KEY_DOWN:
@@ -972,8 +972,8 @@ def unhook_all():
     Removes all keyboard hooks in use, including hotkeys, abbreviations, word
     listeners, blocked keys, `record`ers and `wait`s.
     """
-    _listener.suppressing_hooks.clear()
-    _listener.nonsuppressing_hooks.clear()
+    del _listener.suppressing_hooks[:]
+    del _listener.nonsuppressing_hooks[:]
 unregister_all_hotkeys = remove_all_hotkeys = clear_all_hotkeys = unhook_all_hotkeys = unhook_all
 
 def remap_key(src, dst):
