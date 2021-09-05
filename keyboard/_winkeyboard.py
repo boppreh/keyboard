@@ -496,8 +496,15 @@ class Listener(object):
         self.shift_vks = set([0x10, 0xa0, 0xa1])
         self.cancelled = False
 
+    def on_exit(self):
+        if self.cancelled: return
+        UnhookWindowsHookEx(self.hook_id)
+        self.cancelled = True
+
     def stop(self):
-        atexit.unregister(UnhookWindowsHookEx)
+        if hasattr(atexit, 'unregister'):
+            # Python3
+            atexit.unregister(self.on_exit)
         UnhookWindowsHookEx(self.hook_id)
         self.cancelled = True
 
@@ -568,7 +575,7 @@ class Listener(object):
 
         # Register to remove the hook when the interpreter exits. Unfortunately a
         # try/finally block doesn't seem to work here.
-        atexit.register(UnhookWindowsHookEx, self.hook_id)
+        atexit.register(self.on_exit)
 
         msg = LPMSG()
         while not GetMessage(msg, 0, 0, 0) and not self.cancelled:

@@ -63,7 +63,7 @@ class TestNewCore(unittest.TestCase):
         keyboard.hook(lambda event: ALLOW)
         self.sim(PRESS(0)+RELEASE(0), PRESS(0)+RELEASE(0))
     def test_suppressing_hook(self):
-        keyboard.hook(lambda event: keyboard.SUPPRESS)
+        keyboard.hook(lambda event: keyboard.SUPPRESS, suppress=True)
         self.sim(PRESS(0)+RELEASE(0), [])
 
     def test_suppressing_key_hook(self):
