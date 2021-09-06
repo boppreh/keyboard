@@ -265,6 +265,8 @@ class _KeyboardListener(object):
     Class for managing hooks and processing keyboard events. Keeps track of which
     keys are pressed (physically and logically), which keys are suspended, etc.
     """
+    STOP_PROCESSING = object()
+
     def __init__(self):
         # Lock for changing states.
         self.lock = _threading.Lock()
@@ -289,7 +291,7 @@ class _KeyboardListener(object):
         self.hook_disable_by_id = _collections.defaultdict(set)
         self.async_events_queue = _queue.Queue()
 
-        self.flag_running = _Event()
+        self.os_listener = None
 
     def register(self, hook_obj, ids, suppress):
         """
@@ -341,10 +343,8 @@ class _KeyboardListener(object):
         If not yet started, starts the background threads that intercept OS
         events and handles hooks.
         """
-        if self.flag_running.is_set():
+        if self.os_listener:
             return
-
-        self.flag_running.set()
 
         self.os_listener = _os_keyboard.Listener()
         listening_thread = _threading.Thread(target=lambda: self.os_listener.listen(self.process_sync_event))
@@ -353,7 +353,7 @@ class _KeyboardListener(object):
 
         # While this thread reads events from the queue and runs hooks
         # asynchronously.
-        processing_thread = _threading.Thread(target=self.process_async_queue, args=(self.flag_running,))
+        processing_thread = _threading.Thread(target=self.process_async_queue)
         processing_thread.daemon = True
         processing_thread.start()
 
@@ -363,11 +363,15 @@ class _KeyboardListener(object):
         interception to stop. Further events will not be processed, but the
         threads may live a little longer while they wind down.
         """
-        if not self.flag_running.is_set():
+        if not self.os_listener:
             return
 
-        self.flag_running.clear()
+        with self.async_events_queue.mutex:
+            self.async_events_queue.queue.clear()
+        self.async_events_queue.put(self.STOP_PROCESSING)
+
         self.os_listener.stop()
+        self.os_listener = None
 
         # A new flag_running object must be created, otherwise a fast stop/start
         # pair may cause the async thread to never see the flag being cleared.
@@ -431,7 +435,7 @@ class _KeyboardListener(object):
             return SUPPRESS
         elif decision is SUPPRESS:
             return SUPPRESS
-        elif decision is ALLOW:
+        else:
             return ALLOW
 
     def process_sync_event(self, event):
@@ -450,13 +454,13 @@ class _KeyboardListener(object):
             # Update list of active modifiers and pressed keys.
             if event.event_type == KEY_DOWN:
                 self.pressed_events[event.scan_code] = event
-            elif event.event_type == KEY_UP:
+            else:
                 self.pressed_events.pop(event.scan_code, None)
 
             if event.scan_code in _modifier_scan_codes:
                 if event.event_type == KEY_DOWN:
                     self.active_modifiers.add(event.scan_code)
-                elif event.event_type == KEY_UP:
+                else:
                     self.active_modifiers.discard(event.scan_code)
 
             # Send event to be processed by non-blocking hooks.
@@ -466,23 +470,23 @@ class _KeyboardListener(object):
         if decision is ALLOW:
             if event.event_type == KEY_DOWN:
                 self.logically_pressed_keys.add(event.scan_code)
-            elif event.event_type == KEY_UP:
+            else:
                 self.logically_pressed_keys.discard(event.scan_code)
             return True
         else:
             return False
 
-    def process_async_queue(self, flag_running):
+    def process_async_queue(self):
         """
         Reads events from the queue set up by `process_sync_event`, running the hooks
         that are not capable of suppressing events, asynchronously without blocking
         the OS from passing the event forward.
         """
-        while flag_running.is_set():
-            try:
-                event = self.async_events_queue.get(timeout=3)
-            except _queue.Empty:
-                continue
+        while True:
+            event = self.async_events_queue.get()
+
+            if event is self.STOP_PROCESSING:
+                return
 
             for hook_obj in self.nonsuppressing_hooks:
                 # Ignore decisions of non-suppressing hooks.
@@ -685,7 +689,7 @@ class _HotkeyHook(_SimpleHook):
             # Normalize input keys as sorted tuple.
             input_scan_codes = tuple(sorted({event.scan_code} | active_modifiers if step.is_standard else physically_pressed_keys))
             self.state = self.transitions[self.state, input_scan_codes]
-            if old_state >= self.state and step.is_standard or len(physically_pressed_keys) >= len(step.keys):
+            if self.state <= old_state and (step.is_standard or len(physically_pressed_keys) >= len(step.keys)):
                 # The pressed key was unexpected, and the state did not go forward.
                 # We must check if any of the suspended events can be allowed now.
 
@@ -712,7 +716,7 @@ class _HotkeyHook(_SimpleHook):
         for e, event_decision in self.decisions.items():
             if e.event_type == KEY_UP and event_decision is SUPPRESS and e.scan_code in logically_pressed_keys:
                 self.decisions[e] = ALLOW
-
+        
         return self.decisions
 
 def add_hotkey(hotkey, callback, args=(), suppress=True, timeout=1, trigger_on_release=False):
