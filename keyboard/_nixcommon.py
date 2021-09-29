@@ -61,7 +61,7 @@ class EventDevice(object):
                 self._input_file = open(self.path, 'rb')
             except IOError as e:
                 if e.strerror == 'Permission denied':
-                    print('Permission denied ({}). You must be in the "input" to access global events. Use "sudo usermod -a -G input USER" to add user to the required group.'.format(self.path))
+                    print("# ERROR: Failed to read device '{}'. You must be in the "input" group to access global events. Use "sudo usermod -a -G input USERNAME" to add user to the required group.".format(self.path))
                     exit()
 
             def try_close():
