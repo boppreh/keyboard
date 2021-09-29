@@ -61,7 +61,7 @@ class EventDevice(object):
                 self._input_file = open(self.path, 'rb')
             except IOError as e:
                 if e.strerror == 'Permission denied':
-                    print('Permission denied ({}). You must be sudo to access global events.'.format(self.path))
+                    print('Permission denied ({}). You must be in the "input" to access global events. Use "sudo usermod -a -G input USER" to add user to the required group.'.format(self.path))
                     exit()
 
             def try_close():
@@ -167,8 +167,3 @@ def aggregate_devices(type_name):
     # If no keyboards were found we can only use the fake device to send keys.
     assert fake_device
     return fake_device
-
-
-def ensure_root():
-    if os.geteuid() != 0:
-        raise ImportError('You must be root to use this library on linux.')
