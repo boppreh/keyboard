@@ -352,6 +352,7 @@ class KeyEventListener(object):
         self.listening = True
         self.tap = None
         self.modifier_scancodes = defaultdict(list)
+        self.pressed_modifiers = set()
 
     def run(self):
         """ Creates a listener and loops while waiting for an event. Intended to run as
@@ -395,7 +396,7 @@ class KeyEventListener(object):
                     (Quartz.kCGEventFlagMaskShift, ("shift", )),
                     (Quartz.kCGEventFlagMaskAlphaShift, ("caps lock", )),
                     (Quartz.kCGEventFlagMaskControl, ("ctrl",)),
-                    (Quartz.kCGEventFlagMaskCommand, ("command",)),
+                    (Quartz.kCGEventFlagMaskCommand, ("command", "windows")),
                     (Quartz.kCGEventFlagMaskAlternate, ("option", "alt")),
             ):
                 ends_with_suffix = any(key_name.endswith(suffix) for suffix in key_name_suffixes)
@@ -405,13 +406,16 @@ class KeyEventListener(object):
                     if not (flags & bitmask):
                         event_type = "up"
                         self.modifier_scancodes[key_name_suffix] = [] # just to be sure...
+                        for suffix in key_name_suffixes: self.pressed_modifiers.discard(suffix)
                     else:
                         if scan_code in self.modifier_scancodes[key_name_suffix]:
-                            self.modifier_scancodes[key_name_suffix].remove(scan_code)
                             event_type = "up"
+                            self.modifier_scancodes[key_name_suffix].remove(scan_code)
+                            for suffix in key_name_suffixes: self.pressed_modifiers.discard(suffix)
                         else:
-                            self.modifier_scancodes[key_name_suffix].append(scan_code)
                             event_type = "down"
+                            self.modifier_scancodes[key_name_suffix].append(scan_code)
+                            for suffix in key_name_suffixes: self.pressed_modifiers.add(suffix)
                     if event_found:
                         break
             if not event_found:
@@ -420,7 +424,8 @@ class KeyEventListener(object):
         if self.blocking:
             return None
 
-        self.callback(KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad))
+        pressed_modifiers_tuple = tuple(sorted(self.pressed_modifiers))
+        self.callback(KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad, modifiers=pressed_modifiers_tuple))
         return event
 
 key_controller = KeyController()
