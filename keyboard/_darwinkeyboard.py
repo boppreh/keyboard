@@ -448,8 +448,6 @@ def name_from_scancode(scan_code):
     return key_controller.map_scan_code(scan_code)
 
 def listen(callback):
-    if not os.geteuid() == 0:
-        raise OSError("Error 13 - Must be run as administrator")
     KeyEventListener(callback).run()
 
 def type_unicode(character):
