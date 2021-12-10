@@ -775,7 +775,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         return remove_
 
     state = _State()
-    state.remove_catch_misses = None
+    state.remove_catch_misses = lambda: None
     state.remove_last_step = None
     state.suppressed_events = []
     state.last_update = float('-inf')
@@ -809,6 +809,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         if new_index == 0:
             # This is done for performance reasons, avoiding a global key hook
             # that is always on.
+            state.remove_catch_misses()
             state.remove_catch_misses = lambda: None
         elif new_index == 1:
             state.remove_catch_misses()
