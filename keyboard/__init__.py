@@ -958,7 +958,7 @@ def write(text, delay=0, restore_state_after=True, exact=None, delaymin=0,delaym
                 _os_keyboard.type_unicode(letter)
             if delay :
                 _time.sleep(delay)
-            if delaymin and delaymax:
+            elif delaymin and delaymax:
                 random_delay = random.uniform(delaymin,delaymax)
                 _time.sleep(random_delay)
     else:
@@ -981,7 +981,7 @@ def write(text, delay=0, restore_state_after=True, exact=None, delaymin=0,delaym
 
             if delay:
                 _time.sleep(delay)
-            if delaymin and delaymax:
+            elif delaymin and delaymax:
                 random_delay = random.uniform(delaymin,delaymax)
                 _time.sleep(random_delay)
 
