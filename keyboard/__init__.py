@@ -937,6 +937,8 @@ def write(text, delay=0, restore_state_after=True, exact=None, delaymin=0,delaym
 
     - `delay` is the number of seconds to wait between keypresses, defaults to
     no delay.
+    - `delaymin` and `delaymax` are used when you want a dynamic delay. When delay 
+    variable given, `delaymin` and `delaymax` will be ignored.
     - `restore_state_after` can be used to restore the state of pressed keys
     after the text is typed, i.e. presses the keys that were released at the
     beginning. Defaults to True.
