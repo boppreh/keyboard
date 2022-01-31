@@ -1231,9 +1231,12 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     hooked = hook(handler)
     def remove():
         hooked()
-        del _word_listeners[word]
-        del _word_listeners[handler]
-        del _word_listeners[remove]
+        if word in _word_listeners:
+            del _word_listeners[word]
+        if handler in _word_listeners:
+            del _word_listeners[handler]
+        if remove in _word_listeners:
+            del _word_listeners[remove]
     _word_listeners[word] = _word_listeners[handler] = _word_listeners[remove] = remove
     # TODO: allow multiple word listeners and removing them correctly.
     return remove
