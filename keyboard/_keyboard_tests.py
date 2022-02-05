@@ -279,6 +279,21 @@ class TestNewCore(unittest.TestCase):
         self.sim([], TRIGGERED()+PRESS(0)+RELEASE(0))
         hook.disable()
 
+    def test_is_pressed(self):
+        self.assertFalse(keyboard.is_pressed(0))
+        self.sim(PRESS(0))
+        self.assertTrue(keyboard.is_pressed(0))
+        self.sim(RELEASE(0))
+        self.assertFalse(keyboard.is_pressed(0))
+
+        self.sim(PRESS(0))
+        self.assertFalse(keyboard.is_pressed((0, 1)))
+        self.sim(PRESS(1))
+        self.assertTrue(keyboard.is_pressed((0, 1)))
+
+        with self.assertRaises(ValueError):
+            keyboard.is_pressed('0, 1')
+
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
         keyboard.unhook_all()
