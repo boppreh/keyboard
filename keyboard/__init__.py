@@ -433,7 +433,8 @@ class _KeyboardListener(object):
                 self.suspended_event_pairs.remove(
                     (suspended_event, suspended_modifiers)
                 )
-            elif decision is ALLOW:
+            else:
+                assert decision is ALLOW
                 # Suspended event is now allowed, replay it.
                 if suspended_event.scan_code not in _modifier_scan_codes:
                     # The suspended event may have had a different set of modifiers
@@ -444,9 +445,6 @@ class _KeyboardListener(object):
                     for modifier in temporary_modifiers_state - suspended_modifiers:
                         _os_keyboard.release(modifier)
                         temporary_modifiers_state.remove(modifier)
-                    for modifier in suspended_modifiers - temporary_modifiers_state:
-                        _os_keyboard.press(modifier)
-                        temporary_modifiers_state.add(modifier)
 
                 if suspended_event.event_type == KEY_DOWN:
                     _os_keyboard.press(suspended_event.scan_code)
@@ -459,8 +457,6 @@ class _KeyboardListener(object):
         # Restore state of modifiers.
         for modifier in self.active_modifiers - temporary_modifiers_state:
             _os_keyboard.press(modifier)
-        for modifier in temporary_modifiers_state - self.active_modifiers:
-            _os_keyboard.release(modifier)
         _listener.is_replaying = False
 
         decision = max((decisions.get(event, ALLOW) for decisions in hooks_decisions))

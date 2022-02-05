@@ -201,6 +201,10 @@ class TestNewCore(unittest.TestCase):
         #self.sim(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), TRIGGERED()+PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2))
         self.sim(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), TRIGGERED()+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2))
 
+    def test_pending_modifiers(self):
+        keyboard.add_hotkey((-1, 1), TRIGGER)
+        self.sim(PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1))
+
     ###
 
     def test_unhook_fn(self):
