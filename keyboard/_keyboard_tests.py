@@ -6,6 +6,7 @@ import unittest
 import keyboard
 from keyboard import KEY_UP, KEY_DOWN, KeyboardEvent, SUPPRESS, ALLOW
 import itertools
+import time
 
 itercounter = itertools.count(1, step=0.0002)
 make_event = lambda event_type, scan_code, time=None: KeyboardEvent(event_type=event_type, scan_code=scan_code, time=next(itercounter) if time is None else time)
@@ -293,6 +294,16 @@ class TestNewCore(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             keyboard.is_pressed('0, 1')
+
+    def test_call_later(self):
+        triggered = []
+        def fn(arg1, arg2):
+            assert arg1 == 1 and arg2 == 2
+            triggered.append(True)
+        keyboard.call_later(fn, (1, 2), 0.01)
+        self.assertFalse(triggered)
+        time.sleep(0.05)
+        self.assertTrue(triggered)
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
