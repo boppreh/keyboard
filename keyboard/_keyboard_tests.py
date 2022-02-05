@@ -207,6 +207,10 @@ class TestNewCore(unittest.TestCase):
 
     ###
 
+    def test_hotkey_with_args(self):
+        keyboard.add_hotkey((0, 1), TRIGGER, args=(1005,))
+        self.sim(PRESS(0)+PRESS(1), TRIGGERED(1005))
+
     def test_unhook_fn(self):
         result = []
         fn = lambda e: result.append(True)
@@ -232,6 +236,11 @@ class TestNewCore(unittest.TestCase):
         hook.disable()
         self.sim(PRESS(0))
         self.assertEqual(result, [])
+
+    def test_hook_disable(self):
+        result = []
+        hook = keyboard.hook(lambda e: "string", suppress=True)
+        self.sim(PRESS(0))
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
