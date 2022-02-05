@@ -262,7 +262,22 @@ class TestNewCore(unittest.TestCase):
             keyboard.parse_hotkey(1.5)
 
     def test_send(self):
-        pass
+        keyboard.send(0)
+        self.sim([], PRESS(0)+RELEASE(0))
+
+        keyboard.send(0, do_press=False, do_release=True)
+        self.sim([], RELEASE(0))
+
+        keyboard.send(0, do_press=True, do_release=False)
+        self.sim([], PRESS(0))
+
+        hook = keyboard.add_hotkey(0, TRIGGER)
+        keyboard.send(0)
+        self.sim([], PRESS(0)+RELEASE(0))
+        keyboard.send(0, process_events=True)
+        # TODO: PRESS and RELEASE are actually suppressed, but the way the testing framework is organized they still appear in the output events.
+        self.sim([], TRIGGERED()+PRESS(0)+RELEASE(0))
+        hook.disable()
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
