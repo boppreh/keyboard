@@ -668,7 +668,9 @@ class _HotkeyHook(_SimpleHook):
             if previous_presses:
                 self.decisions[event] = self.decisions[previous_presses[-1]]
                 if self.decisions[event] is SUSPEND:
-                    if not step.is_standard and any(event.scan_code in key.scan_codes for key in step.keys) and (self.state == 0 or any(event.scan_code in key.scan_codes for key in self.hotkey.steps[self.state-1].keys)):
+                    is_used_in_this_step = any(event.scan_code in key.scan_codes for key in step.keys)
+                    is_used_in_previous_step = self.state > 0 and any(event.scan_code in key.scan_codes for key in self.hotkey.steps[self.state-1].keys)
+                    if not step.is_standard and is_used_in_this_step and not is_used_in_previous_step:
                         # We just released a key that we needed for the current step,
                         # and we didn't need it for the previous step, which cancels
                         # the hotkey. Roll back the state.
