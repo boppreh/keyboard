@@ -16,6 +16,7 @@ def TRIGGER(n=1000):
     keyboard.release(n)
     keyboard._listener.is_replaying = False
 TRIGGERED = lambda n=1000: [make_event(KEY_UP, n)]
+NAME_MAP = {'0': (0, False), '1': (1, False), '10': (10, True)}
 
 keyboard.stop()
 
@@ -40,7 +41,7 @@ class TestNewCore(unittest.TestCase):
             self.output_events.append(event)
         keyboard._os_keyboard.press = lambda key: send_fake_event(KEY_DOWN, key)
         keyboard._os_keyboard.release = lambda key: send_fake_event(KEY_UP, key)
-        keyboard._os_keyboard.map_name = lambda name: 1/0
+        keyboard._os_keyboard.map_name = lambda name: NAME_MAP[name]
 
     def sim(self, input_events, expected=None):
         if expected is None:
@@ -241,6 +242,13 @@ class TestNewCore(unittest.TestCase):
         result = []
         hook = keyboard.hook(lambda e: "string", suppress=True)
         self.sim(PRESS(0))
+
+    def test_key_to_scan_code(self):
+        self.assertEqual(keyboard.key_to_scan_codes(5), (5,))
+        self.assertEqual(keyboard.key_to_scan_codes((1, 2,)), (1, 2,))
+        with self.assertRaises(ValueError):
+            keyboard.key_to_scan_codes('missing')
+        self.assertEqual(keyboard.key_to_scan_codes('missing', 'replacement'), 'replacement')
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):

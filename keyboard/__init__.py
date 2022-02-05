@@ -884,7 +884,7 @@ def add_hotkey(
     return _listener.register(hook_obj, suppress=suppress, ids=[callback, hotkey])
 
 
-def key_to_scan_codes(key, error_if_missing=True):
+def key_to_scan_codes(key, default=None):
     """
     Returns a list of scan codes associated with this key (name or scan code).
     """
@@ -899,30 +899,25 @@ def key_to_scan_codes(key, error_if_missing=True):
 
     normalized = normalize_name(key)
     if normalized in sided_modifiers:
-        left_scan_codes = key_to_scan_codes("left " + normalized, False)
-        right_scan_codes = key_to_scan_codes("right " + normalized, False)
+        left_scan_codes = key_to_scan_codes("left " + normalized, ())
+        right_scan_codes = key_to_scan_codes("right " + normalized, ())
         return left_scan_codes + tuple(
             c for c in right_scan_codes if c not in left_scan_codes
         )
 
     try:
         # Put items in ordered dict to remove duplicates.
-        t = tuple(
+        return tuple(
             _collections.OrderedDict(
                 (scan_code, True)
                 for scan_code, modifier in _os_keyboard.map_name(normalized)
             )
         )
-        e = None
     except (KeyError, ValueError) as exception:
-        t = ()
-        e = exception
-
-    if not t and error_if_missing:
-        raise ValueError("Key {} is not mapped to any known key.".format(repr(key)), e)
-    else:
-
-        return t
+        if default is None:
+            raise ValueError("Key {} is not mapped to any known key.".format(repr(key)), exception)
+        else:
+            return default
 
 
 class Hotkey(object):
@@ -1596,6 +1591,6 @@ register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
 
 # Start listening threads.
-_modifier_scan_codes.update(*(key_to_scan_codes(name, False) for name in all_modifiers))
+_modifier_scan_codes.update(*(key_to_scan_codes(name, ()) for name in all_modifiers))
 _listener = _KeyboardListener()
 _listener.start()
