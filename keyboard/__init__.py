@@ -614,7 +614,7 @@ def hook(callback, suppress=False, extra_ids=()):
     """
     hook_obj = _SimpleHook(callback)
     return _listener.register(hook_obj, [callback] + list(extra_ids), suppress)
-
+add_hook = hook
 
 class _KeyHook(_SimpleHook):
     def __init__(self, scan_codes, callback):

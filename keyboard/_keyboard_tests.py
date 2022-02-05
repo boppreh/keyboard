@@ -201,6 +201,34 @@ class TestNewCore(unittest.TestCase):
         #self.sim(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), TRIGGERED()+PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2))
         self.sim(PRESS(-1)+PRESS(-2)+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2), TRIGGERED()+PRESS(0)+RELEASE(0)+RELEASE(-1)+RELEASE(-2))
 
+    ###
+
+    def test_unhook_fn(self):
+        result = []
+        fn = lambda e: result.append(True)
+        keyboard.hook(fn, suppress=True)
+        self.sim(PRESS(0))
+        self.assertEqual(result, [True])
+
+        result = []
+        keyboard.unhook(fn)
+        keyboard.unhook(fn)
+        self.sim(PRESS(0))
+        self.assertEqual(result, [])
+
+    def test_hook_disable(self):
+        result = []
+        fn = lambda e: result.append(True)
+        hook = keyboard.hook(fn, suppress=True)
+        self.sim(PRESS(0))
+        self.assertEqual(result, [True])
+
+        result = []
+        hook.disable()
+        hook.disable()
+        self.sim(PRESS(0))
+        self.assertEqual(result, [])
+
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
         keyboard.unhook_all()
