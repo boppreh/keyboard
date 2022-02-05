@@ -924,6 +924,9 @@ class Hotkey(object):
     def __init__(self, steps):
         self.steps = tuple(steps)
 
+    def __eq__(self, other):
+        return str(self) == str(other)
+
     def __repr__(self):
         return ", ".join(map(str, self.steps))
 
@@ -932,12 +935,16 @@ class Step(object):
     def __init__(self, keys):
         self.keys = tuple(keys)
         self.modifiers = [key for key in self.keys if is_modifier(key.scan_codes[0])]
-        if len(self.keys) == len(self.modifiers) + 1:
+        non_modifiers = [key for key in self.keys if key not in self.modifiers]
+        if len(non_modifiers) == 1:
             self.is_standard = True
-            self.main_key = next(key for key in self.keys if key not in self.modifiers)
+            self.main_key = non_modifiers[0]
         else:
             self.is_standard = False
             self.main_key = None
+
+    def __eq__(self, other):
+        return str(self) == str(other)
 
     def __repr__(self):
         return "+".join(map(str, self.keys))
@@ -950,6 +957,9 @@ class Key(object):
         assert self.scan_codes and all(
             _is_number(scan_code) for scan_code in self.scan_codes
         )
+
+    def __eq__(self, other):
+        return str(self) == str(other)
 
     def __repr__(self):
         if self.label:
@@ -977,7 +987,7 @@ def parse_hotkey(hotkey):
     """
     if isinstance(hotkey, Hotkey):
         return hotkey
-    elif _is_number(hotkey) or len(hotkey) == 1:
+    elif _is_number(hotkey) or hasattr(hotkey, '__len__') and len(hotkey) == 1:
         key = Key(hotkey, key_to_scan_codes(hotkey))
         step = Step([key])
         return Hotkey([step])
@@ -989,12 +999,14 @@ def parse_hotkey(hotkey):
         else:
             steps = [Step(Key(None, k) for k in step) for step in hotkey]
             return Hotkey(steps)
-
-    steps = []
-    for step in _re.split(r",\s?", hotkey):
-        key_names = _re.split(r"\s?\+\s?", step)
-        steps.append(Step([Key(name, key_to_scan_codes(name)) for name in key_names]))
-    return Hotkey(steps)
+    elif isinstance(hotkey, str):
+        steps = []
+        for step in _re.split(r",\s?", hotkey):
+            key_names = _re.split(r"\s?\+\s?", step)
+            steps.append(Step([Key(name, key_to_scan_codes(name)) for name in key_names]))
+        return Hotkey(steps)
+    else:
+        raise TypeError('Hotkey type must be keyboard.Hotkey, int, list of ints, or str. Found {} ({})'.format(repr(hotkey), type(hotkey)))
 
 
 def send(hotkey, do_press=True, do_release=True, process_events=False):

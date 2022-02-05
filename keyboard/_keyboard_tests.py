@@ -16,7 +16,7 @@ def TRIGGER(n=1000):
     keyboard.release(n)
     keyboard._listener.is_replaying = False
 TRIGGERED = lambda n=1000: [make_event(KEY_UP, n)]
-NAME_MAP = {'0': (0, False), '1': (1, False), '10': (10, True)}
+NAME_MAP = {'0': [(0, False)], '1': [(1, False)], '10': [(10, True)]}
 
 keyboard.stop()
 
@@ -249,6 +249,20 @@ class TestNewCore(unittest.TestCase):
         with self.assertRaises(ValueError):
             keyboard.key_to_scan_codes('missing')
         self.assertEqual(keyboard.key_to_scan_codes('missing', 'replacement'), 'replacement')
+
+    def test_parse_hotkey(self):
+        self.assertEqual(keyboard.parse_hotkey(0), keyboard.Hotkey([keyboard.Step([keyboard.Key(0, (0,))])]))
+        self.assertEqual(keyboard.parse_hotkey((0, 1)), keyboard.Hotkey([keyboard.Step([keyboard.Key(0, (0,)), keyboard.Key(1, (1,))])]))
+        self.assertEqual(keyboard.parse_hotkey((((0,),(1,)), ((0,),))), keyboard.Hotkey([keyboard.Step([keyboard.Key(0, (0,)), keyboard.Key(1, (1,))]), keyboard.Step([keyboard.Key(0, (0,))])]))
+        self.assertEqual(keyboard.parse_hotkey(keyboard.parse_hotkey(0)), keyboard.parse_hotkey(0))
+        self.assertEqual(keyboard.parse_hotkey('0'), keyboard.parse_hotkey(0))
+        self.assertEqual(keyboard.parse_hotkey('0+1'), keyboard.parse_hotkey((0, 1)))
+        self.assertEqual(keyboard.parse_hotkey('0+1, 0'), keyboard.parse_hotkey((((0,),(1,)), ((0,),))))
+        with self.assertRaises(TypeError):
+            keyboard.parse_hotkey(1.5)
+
+    def test_send(self):
+        pass
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
