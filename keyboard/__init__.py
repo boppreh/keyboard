@@ -1133,7 +1133,7 @@ def block_key(key):
     """
     Suppresses all key events of the given key, regardless of modifiers.
     """
-    return hook_key(key, lambda e: False, suppress=True)
+    return hook_key(key, lambda e: None, suppress=True)
 
 
 def unhook(callback_or_hook_or_hotkey):

@@ -308,6 +308,11 @@ class TestNewCore(unittest.TestCase):
         self.sim(PRESS(1)+RELEASE(1), TRIGGERED(1000)+TRIGGERED(2000))
         self.sim(PRESS(2)+RELEASE(2), TRIGGERED(1000)+TRIGGERED(3000)+TRIGGERED(2000)+TRIGGERED(4000))
 
+    def test_block_key(self):
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(0)+RELEASE(0)+PRESS(1))
+        keyboard.block_key(0)
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(1))
+
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
         keyboard.unhook_all()
