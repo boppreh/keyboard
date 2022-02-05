@@ -401,20 +401,19 @@ class _KeyboardListener(object):
                 # Suspended event is now suppressed, forget about it.
                 self.suspended_event_pairs.remove((suspended_event, suspended_modifiers))
             elif decision is ALLOW:
-
                 # Suspended event is now allowed, replay it.
-
-                # The suspended event may have had a different set of modifiers
-                # than what is currently active. We temporarily send fake key
-                # presses and releases the match the suspended modifiers,
-                # replay the suspended event, then restore the state of the
-                # modifiers.
-                for modifier in temporary_modifiers_state - suspended_modifiers:
-                    _os_keyboard.release(modifier)
-                    temporary_modifiers_state.remove(modifier)
-                for modifier in suspended_modifiers - temporary_modifiers_state:
-                    _os_keyboard.press(modifier)
-                    temporary_modifiers_state.add(modifier)
+                if suspended_event.scan_code not in _modifier_scan_codes:
+                    # The suspended event may have had a different set of modifiers
+                    # than what is currently active. We temporarily send fake key
+                    # presses and releases the match the suspended modifiers,
+                    # replay the suspended event, then restore the state of the
+                    # modifiers.
+                    for modifier in temporary_modifiers_state - suspended_modifiers:
+                        _os_keyboard.release(modifier)
+                        temporary_modifiers_state.remove(modifier)
+                    for modifier in suspended_modifiers - temporary_modifiers_state:
+                        _os_keyboard.press(modifier)
+                        temporary_modifiers_state.add(modifier)
 
                 if suspended_event.event_type == KEY_DOWN:
                     _os_keyboard.press(suspended_event.scan_code)
@@ -652,7 +651,7 @@ class _HotkeyHook(_SimpleHook):
         It might look like a rat's nest of if-else conditionals and stateful
         mutations, and it is. But trust me, it used to be even worse, and this is
         the fourth clean-slate attempt, plus several full days of effort to
-        simplify this attempt down..
+        simplify this attempt down...
 
         If you have a suggestion on how to simplify it and still pass the tests,
         I'll be thankful.
@@ -668,7 +667,16 @@ class _HotkeyHook(_SimpleHook):
             previous_presses = [e for e in self.decisions if e.event_type == KEY_DOWN and e.scan_code == event.scan_code]
             if previous_presses:
                 self.decisions[event] = self.decisions[previous_presses[-1]]
-                if self.decisions[event] is not SUSPEND:
+                if self.decisions[event] is SUSPEND:
+                    if not step.is_standard and any(event.scan_code in key.scan_codes for key in step.keys) and (self.state == 0 or any(event.scan_code in key.scan_codes for key in self.hotkey.steps[self.state-1].keys)):
+                        # We just released a key that we needed for the current step,
+                        # and we didn't need it for the previous step, which cancels
+                        # the hotkey. Roll back the state.
+                        # TODO: don't go back to state 0, but instead check what's
+                        # the other possible state we could be in.
+                        self.state = 0
+                        self.decisions = {e: d for e, d in self.decisions.items() if d == SUPPRESS}
+                else:
                     # ALLOW and SUPPRESS decisions for key presses are kept around
                     # for the benefit of the corresponding release. Since it just
                     # happened, delete it.
