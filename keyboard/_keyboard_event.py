@@ -9,8 +9,9 @@ try:
 except NameError:
     basestring = str
 
-KEY_DOWN = 'down'
-KEY_UP = 'up'
+KEY_DOWN = "down"
+KEY_UP = "up"
+
 
 class KeyboardEvent(object):
     event_type = None
@@ -21,7 +22,16 @@ class KeyboardEvent(object):
     modifiers = None
     is_keypad = None
 
-    def __init__(self, event_type, scan_code, name=None, time=None, device=None, modifiers=None, is_keypad=None):
+    def __init__(
+        self,
+        event_type,
+        scan_code,
+        name=None,
+        time=None,
+        device=None,
+        modifiers=None,
+        is_keypad=None,
+    ):
         self.event_type = event_type
         self.scan_code = scan_code
         self.time = now() if time is None else time
@@ -32,8 +42,17 @@ class KeyboardEvent(object):
 
     def to_json(self, ensure_ascii=False):
         attrs = dict(
-            (attr, getattr(self, attr)) for attr in ['event_type', 'scan_code', 'name', 'time', 'device', 'is_keypad', 'modifiers']
-            if not attr.startswith('_')
+            (attr, getattr(self, attr))
+            for attr in [
+                "event_type",
+                "scan_code",
+                "name",
+                "time",
+                "device",
+                "is_keypad",
+                "modifiers",
+            ]
+            if not attr.startswith("_")
         )
         return json.dumps(attrs, ensure_ascii=ensure_ascii)
 
@@ -41,7 +60,9 @@ class KeyboardEvent(object):
         return hash((self.event_type, self.scan_code, self.time, self.device))
 
     def __repr__(self):
-        return 'KeyboardEvent({} {} at {})'.format(self.name or 'Unknown {}'.format(self.scan_code), self.event_type, self.time)
+        return "KeyboardEvent({} {} at {})".format(
+            self.name or "Unknown {}".format(self.scan_code), self.event_type, self.time
+        )
 
     def __eq__(self, other):
         return (
