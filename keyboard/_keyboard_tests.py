@@ -69,10 +69,10 @@ class TestNewCore(unittest.TestCase):
         self.sim(PRESS(0)+RELEASE(0), [])
 
     def test_suppressing_key_hook(self):
-        keyboard.hook_key(0, TRIGGER)
+        keyboard.hook_key(0, lambda e: TRIGGER(), suppress=True)
         self.sim(PRESS(1)+PRESS(0), PRESS(1)+TRIGGERED())
     def test_allowing_key_hook(self):
-        keyboard.hook_key(0, lambda: TRIGGER() or ALLOW)
+        keyboard.hook_key(0, lambda e: TRIGGER() or ALLOW, suppress=True)
         self.sim(PRESS(1)+PRESS(0), PRESS(1)+TRIGGERED()+PRESS(0))
 
     def test_single_key_blocking_hotkey(self):
@@ -215,7 +215,7 @@ class TestNewCore(unittest.TestCase):
 
     def test_unhook_fn(self):
         result = []
-        fn = lambda e: result.append(True)
+        fn = lambda e: result.append(True) or keyboard.ALLOW
         keyboard.hook(fn, suppress=True)
         self.sim(PRESS(0))
         self.assertEqual(result, [True])
@@ -228,7 +228,7 @@ class TestNewCore(unittest.TestCase):
 
     def test_hook_disable(self):
         result = []
-        fn = lambda e: result.append(True)
+        fn = lambda e: result.append(True) or keyboard.ALLOW
         hook = keyboard.hook(fn, suppress=True)
         self.sim(PRESS(0))
         self.assertEqual(result, [True])
@@ -238,11 +238,6 @@ class TestNewCore(unittest.TestCase):
         hook.disable()
         self.sim(PRESS(0))
         self.assertEqual(result, [])
-
-    def test_hook_disable(self):
-        result = []
-        hook = keyboard.hook(lambda e: "string", suppress=True)
-        self.sim(PRESS(0))
 
     def test_key_to_scan_code(self):
         self.assertEqual(keyboard.key_to_scan_codes(5), (5,))
@@ -304,6 +299,14 @@ class TestNewCore(unittest.TestCase):
         self.assertFalse(triggered)
         time.sleep(0.05)
         self.assertTrue(triggered)
+
+    def test_on_press_on_release(self):
+        keyboard.on_press(lambda e: TRIGGER(1000), suppress=True)
+        keyboard.on_release(lambda e: TRIGGER(2000), suppress=True)
+        keyboard.on_press_key(2, lambda e: TRIGGER(3000), suppress=True)
+        keyboard.on_release_key(2, lambda e: TRIGGER(4000), suppress=True)
+        self.sim(PRESS(1)+RELEASE(1), TRIGGERED(1000)+TRIGGERED(2000))
+        self.sim(PRESS(2)+RELEASE(2), TRIGGERED(1000)+TRIGGERED(3000)+TRIGGERED(2000)+TRIGGERED(4000))
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):

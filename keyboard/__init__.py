@@ -579,7 +579,7 @@ class _SimpleHook(object):
         self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers
     ):
         result = self.callback(event)
-        return {event: SUPPRESS if result is SUPPRESS else ALLOW}
+        return {event: result if result in (ALLOW, SUPPRESS) else SUPPRESS}
 
 
 def hook(callback, suppress=False, extra_ids=()):
@@ -588,8 +588,8 @@ def hook(callback, suppress=False, extra_ids=()):
     each time a key is pressed or released.
 
     If `suppress` is True, then the callback is invoked before the event is
-    received by other programs, and if the callback returns `keyboard.SUPPRESS`
-    then the event is not suppressed.
+    received by other programs, and the event is suppressed unless the callback
+    returns `keyboard.ALLOW`.
 
     The event passed to the callback is of type `keyboard.KeyboardEvent`,
     with the following attributes:
@@ -621,16 +621,20 @@ class _KeyHook(_SimpleHook):
         self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers
     ):
         if event.scan_code in self.scan_codes:
-            result = self.callback()
+            result = self.callback(event)
             return {event: result if result in (ALLOW, SUPPRESS) else SUPPRESS}
         else:
             return {event: ALLOW}
 
 
-def hook_key(key, callback, suppress=True):
+def hook_key(key, callback, suppress=False):
     """
     Hooks key up and key down events for a single key. Returns the event handler
     created.
+
+    If `suppress` is True, then the callback is invoked before the event is
+    received by other programs, and the event is suppressed unless the callback
+    returns `keyboard.ALLOW`.
 
     Returns a Hook object with `.enable()` and `.disable()` methods.
     """
