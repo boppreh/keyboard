@@ -61,6 +61,10 @@ class TestNewCore(unittest.TestCase):
                 self.assertEqual(hook_obj.state, 0)
                 self.assertTrue(all(decision is not keyboard.SUSPEND for event, decision in hook_obj.decisions.items()))
 
+    ####
+    # Test core functions to hotkey handling.
+    ####
+
     def test_allowing_hook(self):
         keyboard.hook(lambda event: ALLOW)
         self.sim(PRESS(0)+RELEASE(0), PRESS(0)+RELEASE(0))
@@ -208,6 +212,8 @@ class TestNewCore(unittest.TestCase):
         self.sim(PRESS(-1)+PRESS(0)+RELEASE(0)+RELEASE(-1))
 
     ###
+    # Test higher level functions.
+    ###
 
     def test_hotkey_with_args(self):
         keyboard.add_hotkey((0, 1), TRIGGER, args=(1005,))
@@ -312,6 +318,11 @@ class TestNewCore(unittest.TestCase):
         self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(0)+RELEASE(0)+PRESS(1))
         keyboard.block_key(0)
         self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(1))
+
+    def test_remap_key(self):
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(0)+RELEASE(0)+PRESS(1))
+        keyboard.remap_key(0, 2)
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(2)+RELEASE(2)+PRESS(1))
 
 class TestKeyboard(unittest.TestCase):
     def tearDown(self):
