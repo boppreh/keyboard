@@ -351,5 +351,17 @@ class TestNewCore(unittest.TestCase):
             self.sim([], RELEASE(-1)+PRESS(-2)+PRESS(1))
         self.sim([], RELEASE(1)+RELEASE(-2)+PRESS(-1))
 
+    def test_stash_state(self):
+        keyboard.stash_state()
+        self.sim([])
+
+        self.sim(PRESS(-1)+PRESS(0))
+        stashed_state = keyboard.stash_state()
+        self.sim([], RELEASE(-1)+RELEASE(0))
+
+        self.sim(PRESS(-2))
+        keyboard.restore_state(stashed_state)
+        self.sim([], RELEASE(-2)+PRESS(0)+PRESS(-1))
+
 if __name__ == '__main__':
     unittest.main()
