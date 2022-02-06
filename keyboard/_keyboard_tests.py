@@ -17,7 +17,7 @@ def TRIGGER(n=1000):
     keyboard.release(n)
     keyboard._listener.is_replaying = False
 TRIGGERED = lambda n=1000: [make_event(KEY_UP, n)]
-NAME_MAP = {'-2': [(-2, False)], '-1': [(-1, False)], '0': [(0, False)], '1': [(1, False)], '2': [(2, False)], '10': [(10, True)]}
+NAME_MAP = {'-2': [(-2, [])], '-1': [(-1, [])], '0': [(0, [])], '1': [(1, [])], '2': [(2, [])], '9': [(9, [-2, -1])], 'enter': [(99, [])]}
 
 keyboard.stop()
 
@@ -43,6 +43,7 @@ class TestNewCore(unittest.TestCase):
         keyboard._os_keyboard.press = lambda key: send_fake_event(KEY_DOWN, key)
         keyboard._os_keyboard.release = lambda key: send_fake_event(KEY_UP, key)
         keyboard._os_keyboard.map_name = lambda name: NAME_MAP[name]
+        keyboard._os_keyboard.type_unicode = lambda letter: self.output_events.append(make_event(KEY_UP, ord(letter)))
 
     def sim(self, input_events, expected=None):
         if expected is None:
@@ -366,6 +367,37 @@ class TestNewCore(unittest.TestCase):
         self.sim(PRESS(-2))
         keyboard.restore_modifiers(stashed_state)
         self.sim([], RELEASE(-2)+PRESS(-1))
+
+    def test_write(self):
+        keyboard.write('', exact=False)
+        self.sim([])
+
+        keyboard.write('0', exact=False)
+        self.sim([], PRESS(0)+RELEASE(0))
+
+        keyboard.write('012', exact=False)
+        self.sim([], PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(2)+RELEASE(2))
+
+        keyboard.write('09', exact=False)
+        self.sim([], PRESS(0)+RELEASE(0)+PRESS(-2)+PRESS(-1)+PRESS(9)+RELEASE(9)+RELEASE(-2)+RELEASE(-1))
+
+        self.sim(PRESS(-1))
+        keyboard.write('0', exact=False, restore_state_after=True)
+        self.sim([], RELEASE(-1)+PRESS(0)+RELEASE(0)+PRESS(-1))
+
+        self.sim(PRESS(-1))
+        keyboard.write('0', exact=False, restore_state_after=False)
+        self.sim([], RELEASE(-1)+PRESS(0)+RELEASE(0))
+
+        keyboard.write('a\n', exact=True)
+        self.sim([], TRIGGERED(ord('a'))+PRESS(99)+RELEASE(99))
+
+        keyboard.write('a\n0', exact=False)
+        self.sim([], TRIGGERED(ord('a'))+PRESS(99)+RELEASE(99)+PRESS(0)+RELEASE(0))
+
+        # TODO: test delay
+
+
 
 if __name__ == '__main__':
     unittest.main()
