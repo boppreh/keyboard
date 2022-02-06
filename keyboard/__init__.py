@@ -1420,29 +1420,30 @@ def read_key(suppress=False, timeout=None):
                 return event.name or event.scan_code
 
 
-def read_hotkey(suppress=True):
+def read_hotkey(suppress=True, timeout=None):
     """
     Similar to `read_key()`, but blocks until the user presses and releases a
     hotkey (or single key), then returns a string representing the hotkey
     pressed.
+
+    If `timeout` is not None, waits at most `timeout` seconds else raise a
+    queue.Empty exception.
 
     Example:
 
         read_hotkey()
         # "ctrl+shift+p"
     """
+    names = []
     queue = _queue.Queue()
-    fn = lambda e: queue.put(e) or e.event_type == KEY_DOWN
-    hooked = hook(fn, suppress=suppress)
-    while True:
-        event = queue.get()
-        if event.event_type == KEY_UP:
-            unhook(hooked)
-            with _listener.lock:
-                names = [e.name for e in _listener.pressed_events.values()] + [
-                    event.name
-                ]
-            return get_hotkey_name(names)
+    with hook(queue.put, suppress=suppress):
+        while True:
+            event = queue.get(timeout=timeout)
+            if event.event_type == KEY_DOWN:
+                names.append(event.name or event.scan_code)
+            elif names:
+                break
+    return get_hotkey_name(names)
 
 
 def get_typed_strings(events, allow_backspace=True):
