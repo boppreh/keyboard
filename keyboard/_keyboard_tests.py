@@ -251,7 +251,7 @@ class TestNewCore(unittest.TestCase):
             self.sim(PRESS(0))
         self.assertEqual(result, [True])
 
-        result.clear()
+        del result[:]
         self.sim(PRESS(0))
         self.assertEqual(result, [])
 

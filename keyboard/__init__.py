@@ -626,7 +626,7 @@ add_hook = hook
 
 class _KeyHook(_SimpleHook):
     def __init__(self, scan_codes, callback):
-        super().__init__(callback)
+        super(_KeyHook, self).__init__(callback)
         self.scan_codes = scan_codes
 
     def process_event(
@@ -660,7 +660,7 @@ class _HotkeyHook(_SimpleHook):
     """
 
     def __init__(self, hotkey, timeout, trigger_on_release, callback):
-        super().__init__(callback)
+        super(_HotkeyHook, self).__init__(callback)
         self.hotkey = hotkey
         self.timeout = timeout
         self.trigger_on_release = trigger_on_release
