@@ -5,6 +5,7 @@ import unittest
 
 import keyboard
 from keyboard import KEY_UP, KEY_DOWN, KeyboardEvent, SUPPRESS, ALLOW
+from threading import Thread
 import itertools
 import time
 
@@ -397,7 +398,11 @@ class TestNewCore(unittest.TestCase):
 
         # TODO: test delay
 
-
+    def test_get_hotkey_name(self):
+        self.assertEqual(keyboard.get_hotkey_name([]), '')
+        self.assertEqual(keyboard.get_hotkey_name(['left ctrl', '+', 'shift']), 'ctrl+shift+plus')
+        self.sim(PRESS(-1)+PRESS(0))
+        self.assertEqual(keyboard.get_hotkey_name(), '-1+0')
 
 if __name__ == '__main__':
     unittest.main()

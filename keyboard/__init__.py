@@ -1348,7 +1348,7 @@ def wait(hotkey=None, suppress=False, trigger_on_release=False):
         lock = _Event()
         remove = add_hotkey(
             hotkey,
-            lambda: lock.set(),
+            lock.set,
             suppress=suppress,
             trigger_on_release=trigger_on_release,
         )
@@ -1378,7 +1378,7 @@ def get_hotkey_name(names=None):
     """
     if names is None:
         with _listener.lock:
-            names = [e.name for e in _listener.pressed_events.values()]
+            names = [e.name or str(e.scan_code) for e in _listener.pressed_events.values()]
     else:
         names = [normalize_name(name) for name in names]
     clean_names = set(
