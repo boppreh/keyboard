@@ -1207,7 +1207,7 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
     """
 
     def handler():
-        with pressed_keys():
+        with ensure_state():
             send(dst)
 
     return add_hotkey(
@@ -1216,12 +1216,12 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
 
 
 @_contextlib.contextmanager
-def pressed_keys(*keys):
+def ensure_state(*keys):
     """
     Context manager to ensure that ensures only the given keys are pressed. E.g.:
 
     ```py
-    with keyboard.pressed_keys("ctrl"):
+    with keyboard.ensure_state("ctrl"):
         mouse.scroll(-5)
     ```
 
