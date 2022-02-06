@@ -200,6 +200,7 @@ import itertools as _itertools
 import collections as _collections
 import threading as _threading
 import time as _time
+import contextlib as _contextlib
 
 # Python2... Buggy on time changes and leap seconds, but no other good option (https://stackoverflow.com/questions/1205722/how-do-i-get-monotonic-time-durations-in-python).
 _time.monotonic = getattr(_time, "monotonic", None) or _time.time
@@ -1199,13 +1200,42 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
         for modifier in _listener.active_modifiers:
             release(modifier)
         send(dst)
-        for modifier in reversed(_listener.active_modifiers):
+        for modifier in _listener.active_modifiers:
             press(modifier)
         return False
 
     return add_hotkey(
         src, handler, suppress=suppress, trigger_on_release=trigger_on_release
     )
+
+
+@_contextlib.contextmanager
+def pressed_keys(*keys):
+    """
+    Context manager to ensure that ensures only the given keys are pressed. E.g.:
+
+    ```py
+    with keyboard.pressed_keys("ctrl"):
+        mouse.scroll(-5)
+    ```
+
+    Will release any currently active modifiers, press `ctrl`, scroll the mouse,
+    release `ctrl`, and press again the previously active modifiers.
+    """
+    active_modifiers = _listener.active_modifiers
+    for modifier in active_modifiers:
+        release(modifier)
+
+    for key in keys:
+        press(key)
+
+    yield None
+
+    for key in reversed(keys):
+        release(key)
+
+    for modifier in active_modifiers:
+        press(modifier)    
 
 
 def stash_state():
