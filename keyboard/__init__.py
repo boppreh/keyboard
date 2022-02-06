@@ -1267,9 +1267,9 @@ def restore_state(scan_codes):
     with _listener.lock:
         current = set(_listener.pressed_events)
     target = set(scan_codes)
-    for scan_code in current - target:
+    for scan_code in sorted(current - target):
         _os_keyboard.release(scan_code)
-    for scan_code in target - current:
+    for scan_code in sorted(target - current):
         _os_keyboard.press(scan_code)
 
     _listener.is_replaying = False

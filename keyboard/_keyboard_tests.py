@@ -361,7 +361,7 @@ class TestNewCore(unittest.TestCase):
 
         self.sim(PRESS(-2))
         keyboard.restore_state(stashed_state)
-        self.sim([], RELEASE(-2)+PRESS(0)+PRESS(-1))
+        self.sim([], RELEASE(-2)+PRESS(-1)+PRESS(0))
 
 if __name__ == '__main__':
     unittest.main()
