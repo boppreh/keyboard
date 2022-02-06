@@ -17,7 +17,7 @@ def TRIGGER(n=1000):
     keyboard.release(n)
     keyboard._listener.is_replaying = False
 TRIGGERED = lambda n=1000: [make_event(KEY_UP, n)]
-NAME_MAP = {'-1': [(-1, False)], '0': [(0, False)], '1': [(1, False)], '2': [(2, False)], '10': [(10, True)]}
+NAME_MAP = {'-2': [(-2, False)], '-1': [(-1, False)], '0': [(0, False)], '1': [(1, False)], '2': [(2, False)], '10': [(10, True)]}
 
 keyboard.stop()
 
@@ -331,6 +331,14 @@ class TestNewCore(unittest.TestCase):
     def test_remap_key(self):
         keyboard.remap_key(0, 2)
         self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(2)+RELEASE(2)+PRESS(1))
+
+    def test_remap_hotkey(self):
+        with keyboard.remap_hotkey(0, 2):
+            self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(2)+RELEASE(2)+PRESS(1))
+
+        with keyboard.remap_hotkey("-1+1", "-2+2"):
+            # TODO: this is a really ugly substitution, with extra modifier events and an unmatched release, can we do better?
+            self.sim(PRESS(-1)+PRESS(1)+RELEASE(-1)+RELEASE(1), PRESS(-1)+RELEASE(-1)+PRESS(-2)+PRESS(2)+RELEASE(2)+RELEASE(-2)+PRESS(-1)+RELEASE(-1)+RELEASE(1))
 
 if __name__ == '__main__':
     unittest.main()

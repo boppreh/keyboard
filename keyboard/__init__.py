@@ -1192,7 +1192,6 @@ def remap_key(src, dst):
             press(dst)
         else:
             release(dst)
-        return False
 
     return hook_key(src, handler, suppress=True)
 
@@ -1208,12 +1207,8 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
     """
 
     def handler():
-        for modifier in _listener.active_modifiers:
-            release(modifier)
-        send(dst)
-        for modifier in _listener.active_modifiers:
-            press(modifier)
-        return False
+        with pressed_keys():
+            send(dst)
 
     return add_hotkey(
         src, handler, suppress=suppress, trigger_on_release=trigger_on_release
