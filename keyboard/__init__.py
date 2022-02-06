@@ -332,17 +332,21 @@ class _KeyboardListener(object):
         # closures.
 
         def enable():
+            if hook_obj.is_enabled: return
             for hook_id in ids:
                 self.hook_disable_by_id[hook_id].add(disable)
             hooks_list.append(hook_obj)
+            hook_obj.is_enabled = True
 
         hook_obj.enable = enable
 
         def disable():
+            if not hook_obj.is_enabled: return
             for hook_id in ids:
                 self.hook_disable_by_id[hook_id].discard(disable)
             if hook_obj in hooks_list:
                 hooks_list.remove(hook_obj)
+            hook_obj.is_enabled = False
 
         hook_obj.disable = disable
 
@@ -566,6 +570,7 @@ class _SimpleHook(object):
     """
 
     def __init__(self, callback):
+        self.is_enabled = False
         self.callback = callback
 
     def enable(self):
@@ -582,6 +587,12 @@ class _SimpleHook(object):
         result = self.callback(event)
         return {event: result if result in (ALLOW, SUPPRESS) else SUPPRESS}
 
+    def __enter__(self):
+        self.enable()
+        return self
+        
+    def __exit__(self, type, value, traceback):
+        self.disable()
 
 def hook(callback, suppress=False, extra_ids=()):
     """
@@ -615,8 +626,8 @@ add_hook = hook
 
 class _KeyHook(_SimpleHook):
     def __init__(self, scan_codes, callback):
+        super().__init__(callback)
         self.scan_codes = scan_codes
-        self.callback = callback
 
     def process_event(
         self, event, physically_pressed_keys, logically_pressed_keys, active_modifiers
@@ -649,7 +660,7 @@ class _HotkeyHook(_SimpleHook):
     """
 
     def __init__(self, hotkey, timeout, trigger_on_release, callback):
-        self.callback = callback
+        super().__init__(callback)
         self.hotkey = hotkey
         self.timeout = timeout
         self.trigger_on_release = trigger_on_release

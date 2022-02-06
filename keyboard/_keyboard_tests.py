@@ -245,6 +245,16 @@ class TestNewCore(unittest.TestCase):
         self.sim(PRESS(0))
         self.assertEqual(result, [])
 
+    def test_hook_context(self):
+        result = []
+        with keyboard.hook(lambda e: result.append(True) or keyboard.ALLOW, suppress=True):
+            self.sim(PRESS(0))
+        self.assertEqual(result, [True])
+
+        result.clear()
+        self.sim(PRESS(0))
+        self.assertEqual(result, [])
+
     def test_key_to_scan_code(self):
         self.assertEqual(keyboard.key_to_scan_codes(5), (5,))
         self.assertEqual(keyboard.key_to_scan_codes((1, 2,)), (1, 2,))
