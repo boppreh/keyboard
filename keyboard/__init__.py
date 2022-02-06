@@ -1397,11 +1397,8 @@ def read_event(suppress=False):
     Blocks until a keyboard event happens, then returns that event.
     """
     queue = _queue.Queue(maxsize=1)
-    hooked = hook(queue.put, suppress=suppress)
-    while True:
-        event = queue.get()
-        unhook(hooked)
-        return event
+    with hook(queue.put, suppress=suppress):
+        return queue.get()
 
 
 def read_key(suppress=False):
