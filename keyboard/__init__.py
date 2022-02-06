@@ -1392,22 +1392,32 @@ def get_hotkey_name(names=None):
     return "+".join(sorted(clean_names, key=sorting_key))
 
 
-def read_event(suppress=False):
+def read_event(suppress=False, timeout=None):
     """
     Blocks until a keyboard event happens, then returns that event.
+
+    If `timeout` is not None, waits at most `timeout` seconds else raise a
+    queue.Empty exception.
     """
     queue = _queue.Queue(maxsize=1)
     with hook(queue.put, suppress=suppress):
-        return queue.get()
+        return queue.get(timeout=timeout)
 
 
-def read_key(suppress=False):
+def read_key(suppress=False, timeout=None):
     """
     Blocks until a keyboard event happens, then returns that event's name or,
     if missing, its scan code.
+
+    If `timeout` is not None, waits at most `timeout` seconds else raise a
+    queue.Empty exception.
     """
-    event = read_event(suppress)
-    return event.name or event.scan_code
+    queue = _queue.Queue(maxsize=1)
+    with hook(queue.put, suppress=suppress):
+        while True:
+            event = queue.get(timeout=timeout)
+            if event.event_type == KEY_DOWN:
+                return event.name or event.scan_code
 
 
 def read_hotkey(suppress=True):
