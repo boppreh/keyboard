@@ -332,7 +332,8 @@ class _KeyboardListener(object):
         # closures.
 
         def enable():
-            if hook_obj.is_enabled: return
+            if hook_obj.is_enabled:
+                return
             for hook_id in ids:
                 self.hook_disable_by_id[hook_id].add(disable)
             hooks_list.append(hook_obj)
@@ -341,7 +342,8 @@ class _KeyboardListener(object):
         hook_obj.enable = enable
 
         def disable():
-            if not hook_obj.is_enabled: return
+            if not hook_obj.is_enabled:
+                return
             for hook_id in ids:
                 self.hook_disable_by_id[hook_id].discard(disable)
             if hook_obj in hooks_list:
@@ -590,9 +592,10 @@ class _SimpleHook(object):
     def __enter__(self):
         self.enable()
         return self
-        
+
     def __exit__(self, type, value, traceback):
         self.disable()
+
 
 def hook(callback, suppress=False, extra_ids=()):
     """
@@ -622,7 +625,10 @@ def hook(callback, suppress=False, extra_ids=()):
     """
     hook_obj = _SimpleHook(callback)
     return _listener.register(hook_obj, [callback] + list(extra_ids), suppress)
+
+
 add_hook = hook
+
 
 class _KeyHook(_SimpleHook):
     def __init__(self, scan_codes, callback):
@@ -931,7 +937,9 @@ def key_to_scan_codes(key, default=None):
         )
     except (KeyError, ValueError) as exception:
         if default is None:
-            raise ValueError("Key {} is not mapped to any known key.".format(repr(key)), exception)
+            raise ValueError(
+                "Key {} is not mapped to any known key.".format(repr(key)), exception
+            )
         else:
             return default
 
@@ -1003,7 +1011,7 @@ def parse_hotkey(hotkey):
     """
     if isinstance(hotkey, Hotkey):
         return hotkey
-    elif _is_number(hotkey) or hasattr(hotkey, '__len__') and len(hotkey) == 1:
+    elif _is_number(hotkey) or hasattr(hotkey, "__len__") and len(hotkey) == 1:
         key = Key(hotkey, key_to_scan_codes(hotkey))
         step = Step([key])
         return Hotkey([step])
@@ -1019,10 +1027,16 @@ def parse_hotkey(hotkey):
         steps = []
         for step in _re.split(r",\s?", hotkey):
             key_names = _re.split(r"\s?\+\s?", step)
-            steps.append(Step([Key(name, key_to_scan_codes(name)) for name in key_names]))
+            steps.append(
+                Step([Key(name, key_to_scan_codes(name)) for name in key_names])
+            )
         return Hotkey(steps)
     else:
-        raise TypeError('Hotkey type must be keyboard.Hotkey, int, list of ints, or str. Found {} ({})'.format(repr(hotkey), type(hotkey)))
+        raise TypeError(
+            "Hotkey type must be keyboard.Hotkey, int, list of ints, or str. Found {} ({})".format(
+                repr(hotkey), type(hotkey)
+            )
+        )
 
 
 def send(hotkey, do_press=True, do_release=True, process_events=False):
@@ -1241,7 +1255,7 @@ def ensure_state(*keys):
         release(key)
 
     for modifier in active_modifiers:
-        press(modifier)    
+        press(modifier)
 
 
 def stash_state():
@@ -1346,14 +1360,13 @@ def wait(hotkey=None, suppress=False, trigger_on_release=False):
     """
     if hotkey:
         lock = _Event()
-        remove = add_hotkey(
+        with add_hotkey(
             hotkey,
             lock.set,
             suppress=suppress,
             trigger_on_release=trigger_on_release,
-        )
-        lock.wait()
-        remove_hotkey(remove)
+        ):
+            lock.wait()
     else:
         while True:
             _time.sleep(1e6)
@@ -1378,7 +1391,9 @@ def get_hotkey_name(names=None):
     """
     if names is None:
         with _listener.lock:
-            names = [e.name or str(e.scan_code) for e in _listener.pressed_events.values()]
+            names = [
+                e.name or str(e.scan_code) for e in _listener.pressed_events.values()
+            ]
     else:
         names = [normalize_name(name) for name in names]
     clean_names = set(
