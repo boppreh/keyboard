@@ -340,5 +340,16 @@ class TestNewCore(unittest.TestCase):
             # TODO: this is a really ugly substitution, with extra modifier events and an unmatched release, can we do better?
             self.sim(PRESS(-1)+PRESS(1)+RELEASE(-1)+RELEASE(1), PRESS(-1)+RELEASE(-1)+PRESS(-2)+PRESS(2)+RELEASE(2)+RELEASE(-2)+PRESS(-1)+RELEASE(-1)+RELEASE(1))
 
+    def test_ensure_state(self):
+        self.sim(PRESS(-1))
+        with keyboard.ensure_state():
+            pass
+        self.sim([], RELEASE(-1)+PRESS(-1))
+
+        self.sim(PRESS(-1))
+        with keyboard.ensure_state(-2, 1):
+            self.sim([], RELEASE(-1)+PRESS(-2)+PRESS(1))
+        self.sim([], RELEASE(1)+RELEASE(-2)+PRESS(-1))
+
 if __name__ == '__main__':
     unittest.main()
