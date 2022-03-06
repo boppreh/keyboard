@@ -130,45 +130,51 @@ def init():
 
 pressed_modifiers = set()
 
+class Listener(object):
+    def __init__(self):
+        self.is_running = True
 
-def listen(callback):
-    build_device()
-    build_tables()
+    def stop(self):
+        self.is_running = False
 
-    while True:
-        time, type, code, value, device_id = device.read_event()
-        if type != EV_KEY:
-            continue
+    def listen(self, callback):
+        build_device()
+        build_tables()
 
-        scan_code = code
-        event_type = KEY_DOWN if value else KEY_UP  # 0 = UP, 1 = DOWN, 2 = HOLD
+        while self.is_running:
+            time, type, code, value, device_id = device.read_event()
+            if type != EV_KEY:
+                continue
 
-        pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
-        names = (
-            to_name[(scan_code, pressed_modifiers_tuple)]
-            or to_name[(scan_code, ())]
-            or ["unknown"]
-        )
-        name = names[0]
+            scan_code = code
+            event_type = KEY_DOWN if value else KEY_UP  # 0 = UP, 1 = DOWN, 2 = HOLD
 
-        if name in all_modifiers:
-            if event_type == KEY_DOWN:
-                pressed_modifiers.add(name)
-            else:
-                pressed_modifiers.discard(name)
-
-        is_keypad = scan_code in keypad_scan_codes
-        callback(
-            KeyboardEvent(
-                event_type=event_type,
-                scan_code=scan_code,
-                name=name,
-                time=time,
-                device=device_id,
-                is_keypad=is_keypad,
-                modifiers=pressed_modifiers_tuple,
+            pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
+            names = (
+                to_name[(scan_code, pressed_modifiers_tuple)]
+                or to_name[(scan_code, ())]
+                or ["unknown"]
             )
-        )
+            name = names[0]
+
+            if name in all_modifiers:
+                if event_type == KEY_DOWN:
+                    pressed_modifiers.add(name)
+                else:
+                    pressed_modifiers.discard(name)
+
+            is_keypad = scan_code in keypad_scan_codes
+            callback(
+                KeyboardEvent(
+                    event_type=event_type,
+                    scan_code=scan_code,
+                    name=name,
+                    time=time,
+                    device=device_id,
+                    is_keypad=is_keypad,
+                    modifiers=pressed_modifiers_tuple,
+                )
+            )
 
 
 def write_event(scan_code, is_down):
@@ -211,11 +217,3 @@ def type_unicode(character):
     for key in ["ctrl", "shift", "u"]:
         scan_code, _ = next(map_name(key))
         release(scan_code)
-
-
-if __name__ == "__main__":
-
-    def p(e):
-        print(e)
-
-    listen(p)
