@@ -174,11 +174,10 @@ class _KeyboardListener(object):
         else:
             for hook_disable in list(self.hook_disable_by_id[hook_id]):
                 hook_disable()
-                
+
     @property
     def is_running(self):
         return self.os_listener is not None
-    
 
     def start(self):
         """
@@ -357,6 +356,11 @@ def start():
     Starts the global keyboard listener, including background threads, to process
     OS events.
     """
+    _os_keyboard.init()
+    _modifier_scan_codes.clear()
+    _modifier_scan_codes.update(
+        *(key_to_scan_codes(name, ()) for name in all_modifiers)
+    )
     _listener.start()
 
 
@@ -373,9 +377,6 @@ def reload():
     the mapping of scan codes to key names.
     """
     stop()
-    _os_keyboard.init()
-    _modifier_scan_codes.clear()
-    _modifier_scan_codes.update(*(key_to_scan_codes(name, ()) for name in all_modifiers))
     start()
 
 

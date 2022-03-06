@@ -130,6 +130,7 @@ def init():
 
 pressed_modifiers = set()
 
+
 class Listener(object):
     def __init__(self):
         self.is_running = True
