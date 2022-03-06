@@ -1,114 +1,61 @@
-None
+<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
 
 
 # API
 #### Table of Contents
-<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
 
-- [keyboard.**ALLOW**](#keyboard.ALLOW)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**Hotkey**](#keyboard.Hotkey)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**KEY\_DOWN**](#keyboard.KEY_DOWN)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**KEY\_UP**](#keyboard.KEY_UP)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**Key**](#keyboard.Key)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**KeyboardEvent**](#keyboard.KeyboardEvent)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**SUPPRESS**](#keyboard.SUPPRESS)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**SUSPEND**](#keyboard.SUSPEND)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**Step**](#keyboard.Step)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**all\_modifiers**](#keyboard.all_modifiers)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**sided\_modifiers**](#keyboard.sided_modifiers)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**version**](#keyboard.version)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**ensure\_state**](#keyboard.ensure_state)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**is\_modifier**](#keyboard.is_modifier)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**start**](#keyboard.start)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**stop**](#keyboard.stop)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**reload**](#keyboard.reload)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**hook**](#keyboard.hook) *(aliases: `add_hook`)*<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**hook\_key**](#keyboard.hook_key)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**add\_hotkey**](#keyboard.add_hotkey)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**key\_to\_scan\_codes**](#keyboard.key_to_scan_codes)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**parse\_hotkey**](#keyboard.parse_hotkey)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**send**](#keyboard.send) *(aliases: `press_and_release`)*<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**press**](#keyboard.press)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**release**](#keyboard.release)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**is\_pressed**](#keyboard.is_pressed)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**call\_later**](#keyboard.call_later)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**on\_press**](#keyboard.on_press)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**on\_release**](#keyboard.on_release)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**on\_press\_key**](#keyboard.on_press_key)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**on\_release\_key**](#keyboard.on_release_key)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**block\_key**](#keyboard.block_key)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**unhook**](#keyboard.unhook) *(aliases: `clear_hotkey`, `remove_abbreviation`, `remove_hotkey`, `remove_word_listener`, `unblock_key`, `unhook_key`, `unregister_hotkey`, `unremap_hotkey`, `unremap_key`)*<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**unhook\_all**](#keyboard.unhook_all) *(aliases: `clear_all_hotkeys`, `remove_all_hotkeys`, `unhook_all_hotkeys`, `unregister_all_hotkeys`)*<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**remap\_key**](#keyboard.remap_key)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**remap\_hotkey**](#keyboard.remap_hotkey)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**stash\_state**](#keyboard.stash_state)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**restore\_state**](#keyboard.restore_state)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**restore\_modifiers**](#keyboard.restore_modifiers)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**write**](#keyboard.write)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**wait**](#keyboard.wait)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**get\_hotkey\_name**](#keyboard.get_hotkey_name)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**read\_event**](#keyboard.read_event)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**read\_key**](#keyboard.read_key)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**read\_hotkey**](#keyboard.read_hotkey)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**get\_typed\_strings**](#keyboard.get_typed_strings)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**start\_recording**](#keyboard.start_recording)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**stop\_recording**](#keyboard.stop_recording)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**record**](#keyboard.record)<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**play**](#keyboard.play) *(aliases: `replay`)*<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**add\_word\_listener**](#keyboard.add_word_listener) *(aliases: `register_word_listener`)*<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
-- [keyboard.**add\_abbreviation**](#keyboard.add_abbreviation) *(aliases: `register_abbreviation`)*<!-- This documentation was automatically generated. Please edit the source code files, and not this document directly. -->
-
+- [keyboard.**ALLOW**](#keyboard.ALLOW)
+- [keyboard.**Hotkey**](#keyboard.Hotkey)
+- [keyboard.**KEY\_DOWN**](#keyboard.KEY_DOWN)
+- [keyboard.**KEY\_UP**](#keyboard.KEY_UP)
+- [keyboard.**Key**](#keyboard.Key)
+- [keyboard.**KeyboardEvent**](#keyboard.KeyboardEvent)
+- [keyboard.**SUPPRESS**](#keyboard.SUPPRESS)
+- [keyboard.**SUSPEND**](#keyboard.SUSPEND)
+- [keyboard.**Step**](#keyboard.Step)
+- [keyboard.**all\_modifiers**](#keyboard.all_modifiers)
+- [keyboard.**sided\_modifiers**](#keyboard.sided_modifiers)
+- [keyboard.**version**](#keyboard.version)
+- [keyboard.**ensure\_state**](#keyboard.ensure_state)
+- [keyboard.**is\_modifier**](#keyboard.is_modifier)
+- [keyboard.**start**](#keyboard.start)
+- [keyboard.**stop**](#keyboard.stop)
+- [keyboard.**reload**](#keyboard.reload)
+- [keyboard.**hook**](#keyboard.hook) *(aliases: `add_hook`)*
+- [keyboard.**hook\_key**](#keyboard.hook_key)
+- [keyboard.**add\_hotkey**](#keyboard.add_hotkey)
+- [keyboard.**key\_to\_scan\_codes**](#keyboard.key_to_scan_codes)
+- [keyboard.**parse\_hotkey**](#keyboard.parse_hotkey)
+- [keyboard.**send**](#keyboard.send) *(aliases: `press_and_release`)*
+- [keyboard.**press**](#keyboard.press)
+- [keyboard.**release**](#keyboard.release)
+- [keyboard.**is\_pressed**](#keyboard.is_pressed)
+- [keyboard.**call\_later**](#keyboard.call_later)
+- [keyboard.**on\_press**](#keyboard.on_press)
+- [keyboard.**on\_release**](#keyboard.on_release)
+- [keyboard.**on\_press\_key**](#keyboard.on_press_key)
+- [keyboard.**on\_release\_key**](#keyboard.on_release_key)
+- [keyboard.**block\_key**](#keyboard.block_key)
+- [keyboard.**unhook**](#keyboard.unhook) *(aliases: `clear_hotkey`, `remove_abbreviation`, `remove_hotkey`, `remove_word_listener`, `unblock_key`, `unhook_key`, `unregister_hotkey`, `unremap_hotkey`, `unremap_key`)*
+- [keyboard.**unhook\_all**](#keyboard.unhook_all) *(aliases: `clear_all_hotkeys`, `remove_all_hotkeys`, `unhook_all_hotkeys`, `unregister_all_hotkeys`)*
+- [keyboard.**remap\_key**](#keyboard.remap_key)
+- [keyboard.**remap\_hotkey**](#keyboard.remap_hotkey)
+- [keyboard.**stash\_state**](#keyboard.stash_state)
+- [keyboard.**restore\_state**](#keyboard.restore_state)
+- [keyboard.**restore\_modifiers**](#keyboard.restore_modifiers)
+- [keyboard.**write**](#keyboard.write)
+- [keyboard.**wait**](#keyboard.wait)
+- [keyboard.**get\_hotkey\_name**](#keyboard.get_hotkey_name)
+- [keyboard.**read\_event**](#keyboard.read_event)
+- [keyboard.**read\_key**](#keyboard.read_key)
+- [keyboard.**read\_hotkey**](#keyboard.read_hotkey)
+- [keyboard.**get\_typed\_strings**](#keyboard.get_typed_strings)
+- [keyboard.**start\_recording**](#keyboard.start_recording)
+- [keyboard.**stop\_recording**](#keyboard.stop_recording)
+- [keyboard.**record**](#keyboard.record)
+- [keyboard.**play**](#keyboard.play) *(aliases: `replay`)*
+- [keyboard.**add\_word\_listener**](#keyboard.add_word_listener) *(aliases: `register_word_listener`)*
+- [keyboard.**add\_abbreviation**](#keyboard.add_abbreviation) *(aliases: `register_abbreviation`)*
 - [keyboard.**normalize\_name**](#keyboard.normalize_name)
 
 
