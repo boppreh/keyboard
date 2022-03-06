@@ -374,6 +374,8 @@ def reload():
     """
     stop()
     _os_keyboard.init()
+    _modifier_scan_codes.clear()
+    _modifier_scan_codes.update(*(key_to_scan_codes(name, ()) for name in all_modifiers))
     start()
 
 
@@ -1480,6 +1482,5 @@ register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
 
 # Start listening threads.
-_modifier_scan_codes.update(*(key_to_scan_codes(name, ()) for name in all_modifiers))
 _listener = _KeyboardListener()
-_listener.start()
+start()
