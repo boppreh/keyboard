@@ -34,6 +34,8 @@ def format_event(event):
 
 class TestNewCore(unittest.TestCase):
     def setUp(self):
+        # Note that this setup runs only the synchronous part of the keyboard listener.
+        # Non-blocking hooks will not be processed.
         self.output_events = []
         keyboard._listener = keyboard._KeyboardListener()
         keyboard._modifier_scan_codes = {-1, -2, -3}
@@ -403,6 +405,12 @@ class TestNewCore(unittest.TestCase):
         self.assertEqual(keyboard.get_hotkey_name(['left ctrl', '+', 'shift']), 'ctrl+shift+plus')
         self.sim(PRESS(-1)+PRESS(0))
         self.assertEqual(keyboard.get_hotkey_name(), '-1+0')
+
+    def test_recording(self):
+        keyboard.start_recording()
+        self.sim(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(-1))
+        events = keyboard.stop_recording()
+        #self.assertEqual(events, PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(-1))
 
 if __name__ == '__main__':
     unittest.main()
