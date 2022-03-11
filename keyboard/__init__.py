@@ -1495,5 +1495,6 @@ _listener = _KeyboardListener()
 start()
 
 import atexit as _atexit
+
 # Release all pressed keys on exit, to avoid stuck keys.
 _atexit.register(release_all_keys)
