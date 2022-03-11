@@ -375,17 +375,22 @@ class KeyController(object):
             return self.key_map.vk_to_character(scan_code)
 
 
-class KeyEventListener(object):
-    def __init__(self, callback, blocking=False):
+class Listener(object):
+    def __init__(self, blocking=False):
         self.blocking = blocking
-        self.callback = callback
         self.listening = True
         self.tap = None
         self.modifier_scancodes = defaultdict(list)
 
-    def run(self):
+    def stop(self):
+        self.listening = False
+
+    def listen(self, callback):
         """Creates a listener and loops while waiting for an event. Intended to run as
         a background thread."""
+        if not os.geteuid() == 0:
+            raise OSError("Error 13 - Must be run as administrator")
+
         self.tap = Quartz.CGEventTapCreate(
             Quartz.kCGSessionEventTap,
             Quartz.kCGHeadInsertEventTap,
@@ -459,7 +464,7 @@ class KeyEventListener(object):
         if self.blocking:
             return None
 
-        self.callback(
+        callback(
             KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad)
         )
         return event
@@ -493,13 +498,6 @@ def map_name(name):
 def name_from_scancode(scan_code):
     """Returns the name or character associated with the specified key code"""
     return key_controller.map_scan_code(scan_code)
-
-
-def listen(callback):
-    if not os.geteuid() == 0:
-        raise OSError("Error 13 - Must be run as administrator")
-    KeyEventListener(callback).run()
-
 
 def type_unicode(character):
     OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
