@@ -1087,6 +1087,14 @@ def stash_state():
     return state
 
 
+def release_all_keys():
+    """
+    Sends a release event for each key that is seen as pressed by other programs.
+    """
+    for key in list(_listener.logically_pressed_keys):
+        _os_keyboard.release(key)
+
+
 def restore_state(scan_codes):
     """
     Given a list of scan_codes ensures these keys, and only these keys, are
@@ -1485,3 +1493,7 @@ register_abbreviation = add_abbreviation
 # Start listening threads.
 _listener = _KeyboardListener()
 start()
+
+import atexit as _atexit
+# Release all pressed keys on exit, to avoid stuck keys.
+_atexit.register(release_all_keys)
