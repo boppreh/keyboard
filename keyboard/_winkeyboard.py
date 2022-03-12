@@ -437,8 +437,8 @@ def _setup_name_tables():
 
         # Go through every possible scan code, and map them to virtual key codes.
         # Then vice-versa.
-        all_scan_codes = [(sc, user32.MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK_EX, 0)) for sc in range(0x100)]
-        all_vks = [(user32.MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, 0), vk) for vk in range(0x100)]
+        all_scan_codes = [(sc, user32.MapVirtualKeyW(sc, MAPVK_VSC_TO_VK_EX)) for sc in range(0x100)]
+        all_vks = [(user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC_EX), vk) for vk in range(0x100)]
         for scan_code, vk in all_scan_codes + all_vks:
             # `to_name` and `from_name` entries will be a tuple (scan_code, vk, extended, shift_state).
             if (scan_code, vk, 0, 0, 0) in to_name:
