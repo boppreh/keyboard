@@ -563,13 +563,13 @@ class _HotkeyHook(_SimpleHook):
         if event.event_type == KEY_UP:
             # If we have a previous decision on the corresponding key press for
             # this key release, repeat the same decision.
-            previous_presses = [
+            previous_presses = {
                 e
                 for e in self.decisions
                 if e.event_type == KEY_DOWN and e.scan_code == event.scan_code
-            ]
+            }
             if previous_presses:
-                self.decisions[event] = self.decisions[previous_presses[-1]]
+                self.decisions[event] = self.decisions[max(previous_presses)]
                 if self.decisions[event] is SUSPEND:
                     is_used_in_this_step = any(
                         event.scan_code in key.scan_codes for key in step.keys
@@ -604,7 +604,7 @@ class _HotkeyHook(_SimpleHook):
 
             if (
                 self.decisions
-                and event.time - max([e.time for e in self.decisions]) >= self.timeout
+                and event.time - max(self.decisions).time >= self.timeout
             ):
                 # In case of timeout reset the state and the suspended events.
                 self.state = 0
@@ -636,7 +636,7 @@ class _HotkeyHook(_SimpleHook):
                     for step in self.hotkey.steps[: self.state]
                 )
                 for suspended_event in sorted(
-                    self.decisions, key=lambda e: e.time, reverse=True
+                    self.decisions, reverse=True
                 ):
                     # Every key press beyond this point is not useful for this hotkey, and should be allowed.
                     if n_useful_presses_left <= 0:

@@ -56,6 +56,11 @@ class KeyboardEvent(object):
         )
         return json.dumps(attrs, ensure_ascii=ensure_ascii)
 
+    def __lt__(self, other):
+        if not isinstance(other, KeyboardEvent):
+            raise NotImplementedError()
+        return self.time < other.time
+
     def __hash__(self):
         return hash((self.event_type, self.scan_code, self.time, self.device))
 
