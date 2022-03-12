@@ -150,7 +150,8 @@ class Listener(object):
 
             pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
             names = to_name[(scan_code, pressed_modifiers_tuple)] or to_name[(scan_code, ())] or ["unknown"]
-            name = names[0]
+            char = names[0]
+            name = char.lower()
 
             if name in all_modifiers:
                 if event_type == KEY_DOWN:
@@ -164,6 +165,7 @@ class Listener(object):
                     event_type=event_type,
                     scan_code=scan_code,
                     name=name,
+                    char=char,
                     time=time,
                     device=device_id,
                     is_keypad=is_keypad,

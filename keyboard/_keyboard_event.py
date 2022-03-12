@@ -31,12 +31,15 @@ class KeyboardEvent(object):
         device=None,
         modifiers=None,
         is_keypad=None,
+        char='',
     ):
         self.event_type = event_type
         self.scan_code = scan_code
         self.time = now() if time is None else time
         self.device = device
         self.is_keypad = is_keypad
+        self.char = char
+        self.modifiers = modifiers or []
         if name:
             self.name = normalize_name(name)
 

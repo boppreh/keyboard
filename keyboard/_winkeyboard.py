@@ -584,7 +584,8 @@ class Listener(object):
                 to_name[entry] = list(get_event_names(*entry))
 
             names = to_name[entry]
-            name = names[0] if names else None
+            char = names[0] if names else ''
+            name = char if names else None
 
             # TODO: inaccurate when holding multiple different shifts.
             if vk in self.shift_vks:
@@ -599,7 +600,9 @@ class Listener(object):
                     event_type=event_type,
                     scan_code=scan_code or -vk,
                     name=name,
+                    char=char,
                     is_keypad=is_keypad,
+                    modifiers=modifiers,
                 )
             )
 
