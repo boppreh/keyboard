@@ -384,6 +384,7 @@ distinct_modifiers = [
     ("caps lock",),
     ("shift", "caps lock"),
     ("alt gr", "num lock"),
+    ("windows",),
 ]
 
 name_buffer = ctypes.create_unicode_buffer(32)
@@ -403,6 +404,7 @@ def get_event_names(scan_code, vk, is_extended, modifiers):
     keyboard_state[0x14] = 0x01 * ("caps lock" in modifiers)
     keyboard_state[0x90] = 0x01 * ("num lock" in modifiers)
     keyboard_state[0x91] = 0x01 * ("scroll lock" in modifiers)
+    keyboard_state[0x5B] = 0x01 * ("windows" in modifiers)
     unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
     if unicode_ret and unicode_buffer.value:
         yield unicode_buffer.value
@@ -538,8 +540,10 @@ class Listener(object):
     def __init__(self):
         self.shift_is_pressed = False
         self.altgr_is_pressed = False
+        self.win_is_pressed = False
         self.ignore_next_right_alt = False
-        self.shift_vks = set([0x10, 0xA0, 0xA1])
+        self.shift_vks = {vk for vk, (name, _) in official_virtual_keys.items() if 'shift' in name}
+        self.win_vks = {vk for vk, (name, _) in official_virtual_keys.items() if 'windows' in name}
         self.cancelled = False
 
     def on_exit(self):
@@ -575,6 +579,7 @@ class Listener(object):
             modifiers = (
                 ("shift",) * self.shift_is_pressed
                 + ("alt gr",) * self.altgr_is_pressed
+                + ("windows",) * self.win_is_pressed
                 + ("num lock",) * (user32.GetKeyState(0x90) & 1)
                 + ("caps lock",) * (user32.GetKeyState(0x14) & 1)
                 + ("scroll lock",) * (user32.GetKeyState(0x91) & 1)
@@ -590,6 +595,8 @@ class Listener(object):
             # TODO: inaccurate when holding multiple different shifts.
             if vk in self.shift_vks:
                 self.shift_is_pressed = event_type == KEY_DOWN
+            if vk in self.win_vks:
+                self.win_is_pressed = event_type == KEY_DOWN
             if scan_code == 541 and vk == 162:
                 self.ignore_next_right_alt = True
                 self.altgr_is_pressed = event_type == KEY_DOWN
