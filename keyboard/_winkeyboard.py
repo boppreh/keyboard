@@ -16,7 +16,7 @@ import re
 import atexit
 import traceback
 from threading import Lock, Event
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 from ._canonical_names import normalize_name
@@ -370,60 +370,121 @@ official_virtual_keys = {
     0xFE: ("clear", False),
 }
 
+# Represents a pressed or released key, along with the state of the keyboard.
+# Used to compute key names
+KeyInput = namedtuple("KeyInput", "scan_code vk is_extended modifiers")
+
 tables_lock = Lock()
-to_name = defaultdict(list)
+# Maps KeyInputs to a list of names by priority, such as ['space', ' '].
+to_names = {}
+# Maps KeyInputs to the character that they would type, or empty string.
+to_char = {}
+# Maps a name to a KeyInput that would generate that key.
 from_name = defaultdict(list)
 scan_code_to_vk = {}
 
-distinct_modifiers = [
-    (),
-    ("shift",),
-    ("alt gr",),
-    ("num lock",),
-    ("shift", "num lock"),
-    ("caps lock",),
-    ("shift", "caps lock"),
-    ("alt gr", "num lock"),
-    ("windows",),
+# Modifier combinations that may result in keys being named differently.
+# Since the table of all combinations is pre-computed, we try to avoid useless
+# combinations like "ctrl" + something, since it never changes the name of the key.
+name_changing_modifiers = [
+    (),  # 'a' stays 'a'
+    ("shift",),  # 'a' becomes 'A'
+    ("alt gr",),  # 'a' becomes 'á'
+    ("alt gr", "shift"),  # 'a' becomes 'Á''
+    ("num lock",),  # Keypad 7 becomes "home"
+    ("shift", "num lock"),  # Keypad "home" stays "home", regardless of "num lock"
+    ("caps lock",),  # 'a' becomes 'A'
+    ("shift", "caps lock"),  # 'a' becomes 'á'
+    ("shift", "alt gr", "caps lock"),  # 'a' becomes 'Á'
 ]
+
+# Modifiers that change characters typed, but not control keys.
+char_modifiers = ["shift", "alt gr", "caps lock", "num lock"]
 
 name_buffer = ctypes.create_unicode_buffer(32)
 unicode_buffer = ctypes.create_unicode_buffer(32)
 keyboard_state = keyboard_state_type()
 
 
-def get_event_names(scan_code, vk, is_extended, modifiers):
-    is_keypad = (scan_code, vk, is_extended) in keypad_keys
-    is_official = vk in official_virtual_keys
-    if is_keypad and is_official:
-        yield official_virtual_keys[vk][0]
+def get_event_char(key_input):
+    """
+    Given information about a pressed key, returns what character it probably
+    would have typed (e.g. 'shift+a' -> 'A'), or '' if it's a control character.
+    """
+    if "windows" in key_input.modifiers:
+        return ""
 
-    keyboard_state[0x10] = 0x80 * ("shift" in modifiers)
-    keyboard_state[0x11] = 0x80 * ("alt gr" in modifiers)
-    keyboard_state[0x12] = 0x80 * ("alt gr" in modifiers)
-    keyboard_state[0x14] = 0x01 * ("caps lock" in modifiers)
-    keyboard_state[0x90] = 0x01 * ("num lock" in modifiers)
-    keyboard_state[0x91] = 0x01 * ("scroll lock" in modifiers)
-    keyboard_state[0x5B] = 0x01 * ("windows" in modifiers)
-    unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
+    simplified_input = key_input._replace(modifiers=tuple(m for m in key_input.modifiers if m in char_modifiers))
+    if simplified_input in to_char:
+        return to_char[simplified_input]
+
+    keyboard_state[0x10] = 0x80 * ("shift" in key_input.modifiers)
+    keyboard_state[0x11] = 0x80 * ("alt gr" in key_input.modifiers)
+    keyboard_state[0x12] = 0x80 * ("alt gr" in key_input.modifiers)
+    keyboard_state[0x14] = 0x01 * ("caps lock" in key_input.modifiers)
+    keyboard_state[0x90] = 0x01 * ("num lock" in key_input.modifiers)
+    # These modifiers don't affect the typed character.
+    # keyboard_state[0x91] = 0x01 * ("scroll lock" in key_input.modifiers)
+    # keyboard_state[0x5B] = 0x01 * ("windows" in key_input.modifiers)
+    unicode_ret = ToUnicode(key_input.vk, key_input.scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
     if unicode_ret and unicode_buffer.value:
-        yield unicode_buffer.value
+        char = str(unicode_buffer.value)
         # unicode_ret == -1 -> is dead key
         # ToUnicode has the side effect of setting global flags for dead keys.
         # Therefore we need to call it twice to clear those flags.
         # If your 6 and 7 keys are named "^6" and "^7", this is the reason.
-        ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
+        ToUnicode(key_input.vk, key_input.scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
+    else:
+        char = ""
 
-    name_ret = GetKeyNameText(scan_code << 16 | is_extended << 24, name_buffer, 1024)
+    to_char[simplified_input] = char
+    return char
+
+
+def get_event_names(key_input):
+    """
+    Given information about a pressed key, returns an ordered list of the
+    possible names.
+    """
+    # Alt gr is way outside the usual range of keys (0..127) and on my
+    # computer is named as 'ctrl'. Therefore we add it manually and hope
+    # Windows is consistent in its inconsistency.
+    if key_input.scan_code == 541 and key_input.vk == 162:
+        return ["alt gr"]
+
+    if key_input in to_names:
+        return to_names[key_input]
+
+    names = []
+
+    is_keypad = (key_input.scan_code, key_input.vk, key_input.is_extended) in keypad_keys
+    is_official = key_input.vk in official_virtual_keys
+    if is_keypad and is_official:
+        names.append(official_virtual_keys[key_input.vk][0])
+
+    # Prefer reporting 'shift+5' than 'shift+%'. The actual character typed will
+    # be stored in a separate field of the event.
+    char = get_event_char(key_input._replace(modifiers=()))
+    if char:
+        names.append(char)
+
+    name_ret = GetKeyNameText(key_input.scan_code << 16 | key_input.is_extended << 24, name_buffer, 1024)
     if name_ret and name_buffer.value:
-        yield name_buffer.value
+        # This function returns shouty values such as "SPACE", so we lowercase them.
+        names.append(str(name_buffer.value).lower())
 
-    char = user32.MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) & 0xFF
+    char = user32.MapVirtualKeyW(key_input.vk, MAPVK_VK_TO_CHAR) & 0xFF
     if char != 0:
-        yield chr(char)
+        names.append(chr(char))
 
     if not is_keypad and is_official:
-        yield official_virtual_keys[vk][0]
+        names.append(official_virtual_keys[key_input.vk][0])
+
+    names = [normalize_name(name) for name in names]
+    # Remove duplicates while keeping order.
+    sorted(set(names), key=names.index)
+    to_names[key_input] = names
+    return names
 
 
 def _setup_name_tables():
@@ -432,16 +493,20 @@ def _setup_name_tables():
     filled.
     """
     with tables_lock:
-        if to_name:
+        if to_names:
             return
 
         # Go through every possible scan code, and map them to virtual key codes.
         # Then vice-versa.
         all_scan_codes = [(sc, user32.MapVirtualKeyW(sc, MAPVK_VSC_TO_VK_EX)) for sc in range(0x100)]
         all_vks = [(user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC_EX), vk) for vk in range(0x100)]
-        for scan_code, vk in all_scan_codes + all_vks:
-            # `to_name` and `from_name` entries will be a tuple (scan_code, vk, extended, shift_state).
-            if (scan_code, vk, 0, 0, 0) in to_name:
+        all_pairs = all_scan_codes + all_vks
+        # Remove duplicates while keeping order.
+        all_pairs = sorted(set(all_pairs), key=all_pairs.index)
+
+        for scan_code, vk in all_pairs:
+            # `to_names` and `from_name` entries will be a tuple (scan_code, vk, extended, modifiers).
+            if (scan_code, vk, 0, 0, ()) in to_names:
                 continue
 
             if scan_code not in scan_code_to_vk:
@@ -449,18 +514,20 @@ def _setup_name_tables():
 
             # Brute force all combinations to find all possible names.
             for extended in [0, 1]:
-                for modifiers in distinct_modifiers:
-                    entry = (scan_code, vk, extended, modifiers)
+                for modifiers in name_changing_modifiers:
+                    entry = KeyInput(scan_code, vk, extended, modifiers)
                     # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
-                    names = list(get_event_names(*entry))
-                    if names:
-                        # Also map lowercased key names, but only after the properly cased ones.
-                        lowercase_names = [name.lower() for name in names]
-                        to_name[entry] = names + lowercase_names
-                        # Remember the "id" of the name, as the first techniques
-                        # have better results and therefore priority.
-                        for i, name in enumerate(map(normalize_name, names + lowercase_names)):
-                            from_name[name].append((i, entry))
+                    # Note that calling these functions will populate the `to_names` and `to_char` caches.
+                    names = list(get_event_names(entry))
+
+                    char = get_event_char(entry)
+                    if char:
+                        names.append(char)
+
+                    # Remember the "id" of the name, as the first techniques
+                    # have better results and therefore priority.
+                    for i, name in enumerate(names):
+                        from_name[name].append((i, entry))
 
         # TODO: single quotes on US INTL is returning the dead key (?), and therefore
         # not typing properly.
@@ -468,10 +535,7 @@ def _setup_name_tables():
         # Alt gr is way outside the usual range of keys (0..127) and on my
         # computer is named as 'ctrl'. Therefore we add it manually and hope
         # Windows is consistent in its inconsistency.
-        for extended in [0, 1]:
-            for modifiers in distinct_modifiers:
-                to_name[(541, 162, extended, modifiers)] = ["alt gr"]
-                from_name["alt gr"].append((1, (541, 162, extended, modifiers)))
+        from_name["alt gr"].append((1, (541, 162, 0, ())))
 
     modifiers_preference = defaultdict(lambda: 10)
     modifiers_preference.update({(): 0, ("shift",): 1, ("alt gr",): 2, ("ctrl",): 3, ("alt",): 4})
@@ -488,7 +552,8 @@ def _setup_name_tables():
 # Called by keyboard/__init__.py
 def init():
     with tables_lock:
-        to_name.clear()
+        to_names.clear()
+        to_char.clear()
         from_name.clear()
         scan_code_to_vk.clear()
     _setup_name_tables()
@@ -542,8 +607,8 @@ class Listener(object):
         self.altgr_is_pressed = False
         self.win_is_pressed = False
         self.ignore_next_right_alt = False
-        self.shift_vks = {vk for vk, (name, _) in official_virtual_keys.items() if 'shift' in name}
-        self.win_vks = {vk for vk, (name, _) in official_virtual_keys.items() if 'windows' in name}
+        self.shift_vks = {vk for vk, (name, _) in official_virtual_keys.items() if "shift" in name}
+        self.win_vks = {vk for vk, (name, _) in official_virtual_keys.items() if "windows" in name}
         self.cancelled = False
 
     def on_exit(self):
@@ -584,13 +649,10 @@ class Listener(object):
                 + ("caps lock",) * (user32.GetKeyState(0x14) & 1)
                 + ("scroll lock",) * (user32.GetKeyState(0x91) & 1)
             )
-            entry = (scan_code, vk, is_extended, modifiers)
-            if entry not in to_name:
-                to_name[entry] = list(get_event_names(*entry))
 
-            names = to_name[entry]
-            char = names[0] if names else ''
-            name = char if names else None
+            entry = KeyInput(scan_code, vk, is_extended, modifiers)
+            name = (get_event_names(entry) or [None])[0]
+            char = get_event_char(entry)
 
             # TODO: inaccurate when holding multiple different shifts.
             if vk in self.shift_vks:
@@ -704,6 +766,7 @@ if __name__ == "__main__":
     _setup_name_tables()
     import pprint
 
-    pprint.pprint(to_name)
+    pprint.pprint(to_char)
+    pprint.pprint(to_names)
     pprint.pprint(from_name)
     # listen(lambda e: print(e.to_json()) or True)

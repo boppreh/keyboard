@@ -31,7 +31,7 @@ class KeyboardEvent(object):
         device=None,
         modifiers=None,
         is_keypad=None,
-        char='',
+        char="",
     ):
         self.event_type = event_type
         self.scan_code = scan_code
@@ -54,6 +54,7 @@ class KeyboardEvent(object):
                 "device",
                 "is_keypad",
                 "modifiers",
+                "char",
             ]
             if not attr.startswith("_")
         )

@@ -590,6 +590,7 @@ canonical_names = {
     "Epsilontonos": "Έ",
     "epsilontonos": "έ",
     "equal": "=",
+    "equals": "=",
     "equivalence": "≡",
     "Esmall": "",
     "estimated": "℮",
