@@ -40,9 +40,7 @@ def make_uinput():
     BUS_USB = 0x03
     uinput_user_dev = "80sHHHHi64i64i64i64i"
     axis = [0] * 64 * 4
-    uinput.write(
-        struct.pack(uinput_user_dev, b"Virtual Keyboard", BUS_USB, 1, 1, 1, 0, *axis)
-    )
+    uinput.write(struct.pack(uinput_user_dev, b"Virtual Keyboard", BUS_USB, 1, 1, 1, 0, *axis))
     uinput.flush()  # Without this you may get Errno 22: Invalid argument.
 
     UI_DEV_CREATE = 0x5501
@@ -66,11 +64,7 @@ class EventDevice(object):
                 self._input_file = open(self.path, "rb")
             except IOError as e:
                 if e.strerror == "Permission denied":
-                    print(
-                        "Permission denied ({}). You must be sudo to access global events.".format(
-                            self.path
-                        )
-                    )
+                    print("Permission denied ({}). You must be sudo to access global events.".format(self.path))
                     exit()
 
             def try_close():
@@ -98,9 +92,7 @@ class EventDevice(object):
         integer, fraction = divmod(now(), 1)
         seconds = int(integer)
         microseconds = int(fraction * 1e6)
-        data_event = struct.pack(
-            event_bin_format, seconds, microseconds, type, code, value
-        )
+        data_event = struct.pack(event_bin_format, seconds, microseconds, type, code, value)
 
         # Send a sync event to ensure other programs update.
         sync_event = struct.pack(event_bin_format, seconds, microseconds, EV_SYN, 0, 0)
@@ -153,9 +145,7 @@ def list_devices_from_proc(type_name):
 
 
 def list_devices_from_by_id(name_suffix, by_id=True):
-    for path in glob(
-        "/dev/input/{}/*-event-{}".format("by-id" if by_id else "by-path", name_suffix)
-    ):
+    for path in glob("/dev/input/{}/*-event-{}".format("by-id" if by_id else "by-path", name_suffix)):
         yield EventDevice(path)
 
 

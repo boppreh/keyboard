@@ -47,9 +47,7 @@ class GenericListener(object):
             self.lock.release()
 
     def pre_process_event(self, event):
-        raise NotImplementedError(
-            "This method should be implemented in the child class."
-        )
+        raise NotImplementedError("This method should be implemented in the child class.")
 
     def process(self):
         """

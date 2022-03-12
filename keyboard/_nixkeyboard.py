@@ -79,9 +79,7 @@ def build_tables():
     for str_scan_code, str_names in re.findall(keycode_template, dump, re.MULTILINE):
         scan_code = int(str_scan_code)
         for i, str_name in enumerate(str_names.strip().split()):
-            modifiers = tuple(
-                sorted(modifier for modifier, bit in modifiers_bits.items() if i & bit)
-            )
+            modifiers = tuple(sorted(modifier for modifier, bit in modifiers_bits.items() if i & bit))
             name, is_keypad = cleanup_key(str_name)
             register_key((scan_code, modifiers), name)
             if is_keypad:
@@ -151,11 +149,7 @@ class Listener(object):
             event_type = KEY_DOWN if value else KEY_UP  # 0 = UP, 1 = DOWN, 2 = HOLD
 
             pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
-            names = (
-                to_name[(scan_code, pressed_modifiers_tuple)]
-                or to_name[(scan_code, ())]
-                or ["unknown"]
-            )
+            names = to_name[(scan_code, pressed_modifiers_tuple)] or to_name[(scan_code, ())] or ["unknown"]
             name = names[0]
 
             if name in all_modifiers:

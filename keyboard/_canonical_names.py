@@ -1235,9 +1235,7 @@ def normalize_name(name):
     the canonical representation (e.g. "left ctrl") if one is known.
     """
     if not name or not isinstance(name, basestring):
-        raise ValueError(
-            "Can only normalize non-empty string names. Unexpected " + repr(name)
-        )
+        raise ValueError("Can only normalize non-empty string names. Unexpected " + repr(name))
 
     if len(name) > 1:
         name = name.lower()

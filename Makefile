@@ -7,7 +7,7 @@ tests:
 	python -m coverage report && coverage3 html
 
 format:
-	black --exclude="keyboard/_keyboard_tests.py" keyboard || true
+	black --line-length 120 --exclude="keyboard/_keyboard_tests.py" keyboard || true
 
 docs:
 	python ../docstring2markdown/docstring2markdown.py keyboard "https://github.com/boppreh/keyboard/blob/master" > api_reference.md

@@ -403,9 +403,7 @@ def get_event_names(scan_code, vk, is_extended, modifiers):
     keyboard_state[0x14] = 0x01 * ("caps lock" in modifiers)
     keyboard_state[0x90] = 0x01 * ("num lock" in modifiers)
     keyboard_state[0x91] = 0x01 * ("scroll lock" in modifiers)
-    unicode_ret = ToUnicode(
-        vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0
-    )
+    unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
     if unicode_ret and unicode_buffer.value:
         yield unicode_buffer.value
         # unicode_ret == -1 -> is dead key
@@ -437,14 +435,8 @@ def _setup_name_tables():
 
         # Go through every possible scan code, and map them to virtual key codes.
         # Then vice-versa.
-        all_scan_codes = [
-            (sc, user32.MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK_EX, 0))
-            for sc in range(0x100)
-        ]
-        all_vks = [
-            (user32.MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, 0), vk)
-            for vk in range(0x100)
-        ]
+        all_scan_codes = [(sc, user32.MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK_EX, 0)) for sc in range(0x100)]
+        all_vks = [(user32.MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, 0), vk) for vk in range(0x100)]
         for scan_code, vk in all_scan_codes + all_vks:
             # `to_name` and `from_name` entries will be a tuple (scan_code, vk, extended, shift_state).
             if (scan_code, vk, 0, 0, 0) in to_name:
@@ -465,9 +457,7 @@ def _setup_name_tables():
                         to_name[entry] = names + lowercase_names
                         # Remember the "id" of the name, as the first techniques
                         # have better results and therefore priority.
-                        for i, name in enumerate(
-                            map(normalize_name, names + lowercase_names)
-                        ):
+                        for i, name in enumerate(map(normalize_name, names + lowercase_names)):
                             from_name[name].append((i, entry))
 
         # TODO: single quotes on US INTL is returning the dead key (?), and therefore
@@ -482,9 +472,7 @@ def _setup_name_tables():
                 from_name["alt gr"].append((1, (541, 162, extended, modifiers)))
 
     modifiers_preference = defaultdict(lambda: 10)
-    modifiers_preference.update(
-        {(): 0, ("shift",): 1, ("alt gr",): 2, ("ctrl",): 3, ("alt",): 4}
-    )
+    modifiers_preference.update({(): 0, ("shift",): 1, ("alt gr",): 2, ("ctrl",): 3, ("alt",): 4})
 
     def order_key(line):
         i, entry = line
@@ -625,9 +613,7 @@ class Listener(object):
                     event_type = keyboard_event_types[wParam]
                     is_extended = lParam.contents.flags & 1
                     scan_code = lParam.contents.scan_code
-                    should_continue = process_key(
-                        event_type, vk, scan_code, is_extended
-                    )
+                    should_continue = process_key(event_type, vk, scan_code, is_extended)
                     if not should_continue:
                         return -1
             except Exception as e:
@@ -639,9 +625,7 @@ class Listener(object):
         self.keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
         handle = GetModuleHandleW(None)
         thread_id = DWORD(0)
-        self.hook_id = SetWindowsHookEx(
-            WH_KEYBOARD_LL, self.keyboard_callback, handle, thread_id
-        )
+        self.hook_id = SetWindowsHookEx(WH_KEYBOARD_LL, self.keyboard_callback, handle, thread_id)
 
         # Register to remove the hook when the interpreter exits. Unfortunately a
         # try/finally block doesn't seem to work here.
@@ -658,9 +642,7 @@ def map_name(name):
 
     entries = from_name.get(name)
     if not entries:
-        raise ValueError(
-            "Key name {} is not mapped to any known key.".format(repr(name))
-        )
+        raise ValueError("Key name {} is not mapped to any known key.".format(repr(name)))
     for i, entry in entries:
         scan_code, vk, is_extended, modifiers = entry
         yield scan_code or -vk, modifiers
@@ -698,9 +680,7 @@ def type_unicode(character):
         higher, lower = surrogates[i : i + 2]
         structure = KEYBDINPUT(0, (lower << 8) + higher, KEYEVENTF_UNICODE, 0, None)
         presses.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
-        structure = KEYBDINPUT(
-            0, (lower << 8) + higher, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, 0, None
-        )
+        structure = KEYBDINPUT(0, (lower << 8) + higher, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, 0, None)
         releases.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
     inputs = presses + releases
     nInputs = len(inputs)

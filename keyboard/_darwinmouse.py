@@ -73,9 +73,7 @@ class MouseEventListener(object):
 
     def handler(self, proxy, e_type, event, refcon):
         # TODO Separate event types by button/wheel/move
-        scan_code = Quartz.CGEventGetIntegerValueField(
-            event, Quartz.kCGKeyboardEventKeycode
-        )
+        scan_code = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
         key_name = name_from_scancode(scan_code)
         flags = Quartz.CGEventGetFlags(event)
         event_type = ""
@@ -88,9 +86,7 @@ class MouseEventListener(object):
         if self.blocking:
             return None
 
-        self.callback(
-            KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad)
-        )
+        self.callback(KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad))
         return event
 
 
@@ -106,9 +102,7 @@ def listen(queue):
     """Appends events to the queue (ButtonEvent, WheelEvent, and MoveEvent)."""
     if not os.geteuid() == 0:
         raise OSError("Error 13 - Must be run as administrator")
-    listener = MouseEventListener(
-        lambda e: queue.put(e) or is_allowed(e.name, e.event_type == KEY_UP)
-    )
+    listener = MouseEventListener(lambda e: queue.put(e) or is_allowed(e.name, e.event_type == KEY_UP))
     t = threading.Thread(target=listener.run, args=())
     t.daemon = True
     t.start()
@@ -123,8 +117,7 @@ def press(button=LEFT):
     # Check if this is a double-click (same location within the last 300ms)
     if (
         _last_click["time"] is not None
-        and datetime.datetime.now() - _last_click["time"]
-        < datetime.timedelta(seconds=0.3)
+        and datetime.datetime.now() - _last_click["time"] < datetime.timedelta(seconds=0.3)
         and _last_click["button"] == button
         and _last_click["position"] == location
     ):
@@ -133,9 +126,7 @@ def press(button=LEFT):
     else:
         # Not a double-click - Reset last click
         _last_click["click_count"] = 1
-    Quartz.CGEventSetIntegerValueField(
-        e, Quartz.kCGMouseEventClickState, _last_click["click_count"]
-    )
+    Quartz.CGEventSetIntegerValueField(e, Quartz.kCGMouseEventClickState, _last_click["click_count"])
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
     _button_state[button] = True
     _last_click["time"] = datetime.datetime.now()
@@ -151,15 +142,12 @@ def release(button=LEFT):
 
     if (
         _last_click["time"] is not None
-        and _last_click["time"]
-        > datetime.datetime.now() - datetime.timedelta(microseconds=300000)
+        and _last_click["time"] > datetime.datetime.now() - datetime.timedelta(microseconds=300000)
         and _last_click["button"] == button
         and _last_click["position"] == location
     ):
         # Repeated Click
-        Quartz.CGEventSetIntegerValueField(
-            e, Quartz.kCGMouseEventClickState, _last_click["click_count"]
-        )
+        Quartz.CGEventSetIntegerValueField(e, Quartz.kCGMouseEventClickState, _last_click["click_count"])
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
     _button_state[button] = False
 
@@ -168,12 +156,8 @@ def wheel(delta=1):
     """Sends a wheel event for the provided number of clicks. May be negative to reverse
     direction."""
     location = get_position()
-    e = Quartz.CGEventCreateMouseEvent(
-        None, Quartz.kCGEventScrollWheel, location, Quartz.kCGMouseButtonLeft
-    )
-    e2 = Quartz.CGEventCreateScrollWheelEvent(
-        None, Quartz.kCGScrollEventUnitLine, 1, delta
-    )
+    e = Quartz.CGEventCreateMouseEvent(None, Quartz.kCGEventScrollWheel, location, Quartz.kCGMouseButtonLeft)
+    e2 = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitLine, 1, delta)
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e2)
 
@@ -182,14 +166,10 @@ def move_to(x, y):
     """Sets the mouse's location to the specified coordinates."""
     for b in _button_state:
         if _button_state[b]:
-            e = Quartz.CGEventCreateMouseEvent(
-                None, _button_mapping[b][3], (x, y), _button_mapping[b][0]  # Drag Event
-            )
+            e = Quartz.CGEventCreateMouseEvent(None, _button_mapping[b][3], (x, y), _button_mapping[b][0])  # Drag Event
             break
     else:
-        e = Quartz.CGEventCreateMouseEvent(
-            None, Quartz.kCGEventMouseMoved, (x, y), Quartz.kCGMouseButtonLeft
-        )
+        e = Quartz.CGEventCreateMouseEvent(None, Quartz.kCGEventMouseMoved, (x, y), Quartz.kCGMouseButtonLeft)
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
 
 

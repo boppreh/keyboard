@@ -123,9 +123,7 @@ def listen(queue):
         arg = None
 
         if type == EV_KEY:
-            event = ButtonEvent(
-                DOWN if value else UP, button_by_code.get(code, "?"), time
-            )
+            event = ButtonEvent(DOWN if value else UP, button_by_code.get(code, "?"), time)
         elif type == EV_REL:
             (value,) = struct.unpack("i", struct.pack("I", value))
 

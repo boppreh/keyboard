@@ -145,9 +145,7 @@ def drag(start_x, start_y, end_x, end_y, absolute=True, duration=0):
     release()
 
 
-def on_button(
-    callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP, DOWN, DOUBLE)
-):
+def on_button(callback, args=(), buttons=(LEFT, MIDDLE, RIGHT, X, X2), types=(UP, DOWN, DOUBLE)):
     """Invokes `callback` with `args` when the specified event happens."""
     if not isinstance(buttons, (tuple, list)):
         buttons = (buttons,)
