@@ -338,11 +338,10 @@ class TestNewCore(unittest.TestCase):
 
     def test_remap_hotkey(self):
         with keyboard.remap_hotkey(0, 2):
-            self.sim(PRESS(0)+RELEASE(0)+PRESS(1), PRESS(2)+RELEASE(2)+PRESS(1))
+            self.sim(PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1), PRESS(2)+RELEASE(2)+PRESS(1)+RELEASE(1))
 
         with keyboard.remap_hotkey("-1+1", "-2+2"):
-            # TODO: this is a really ugly substitution, with extra modifier events and an unmatched release, can we do better?
-            self.sim(PRESS(-1)+PRESS(1)+RELEASE(-1)+RELEASE(1), PRESS(-1)+RELEASE(-1)+PRESS(-2)+PRESS(2)+RELEASE(2)+RELEASE(-2)+PRESS(-1)+RELEASE(-1)+RELEASE(1))
+            self.sim(PRESS(-1)+PRESS(1)+RELEASE(-1)+RELEASE(1), PRESS(-1)+RELEASE(-1)+PRESS(-2)+PRESS(2)+RELEASE(2)+RELEASE(-2)+PRESS(-1)+RELEASE(-1))
 
     def test_ensure_state(self):
         self.sim(PRESS(-1))
