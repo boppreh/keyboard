@@ -52,23 +52,25 @@ canonical_names = {
     "pgdown": "page down",
     "pgup": "page up",
     "play/pause": "play/pause media",
-    "num multiply": "*",
-    "num divide": "/",
-    "num add": "+",
-    "num plus": "+",
-    "num minus": "-",
-    "num sub": "-",
-    "num enter": "enter",
-    "num 0": "0",
-    "num 1": "1",
-    "num 2": "2",
-    "num 3": "3",
-    "num 4": "4",
-    "num 5": "5",
-    "num 6": "6",
-    "num 7": "7",
-    "num 8": "8",
-    "num 9": "9",
+    "numpad num decimal": "numpad decimal",
+    "nummult": "numpad *",
+    "num multiply": "numpad *",
+    "num divide": "numpad /",
+    "num add": "numpad +",
+    "num plus": "numpad +",
+    "num minus": "numpad -",
+    "num sub": "numpad -",
+    "num enter": "numpad enter",
+    "num 0": "numpad 0",
+    "num 1": "numpad 1",
+    "num 2": "numpad 2",
+    "num 3": "numpad 3",
+    "num 4": "numpad 4",
+    "num 5": "numpad 5",
+    "num 6": "numpad 6",
+    "num 7": "numpad 7",
+    "num 8": "numpad 8",
+    "num 9": "numpad 9",
     "left win": "left windows",
     "right win": "right windows",
     "left control": "left ctrl",
@@ -109,6 +111,7 @@ canonical_names = {
     "Acircumflextilde": "Ẫ",
     "acircumflextilde": "ẫ",
     "acute": "´",
+    "acute/cedilla": "´",
     "Acute": "",
     "acutecomb": "́",
     "Acutesmall": "",
@@ -1237,6 +1240,10 @@ def normalize_name(name):
     """
     if not name or not isinstance(name, basestring):
         raise ValueError("Can only normalize non-empty string names. Unexpected " + repr(name))
+
+    if name in canonical_names:
+        # Exact match.
+        return canonical_names[name]
 
     if len(name) > 1:
         name = name.lower()

@@ -833,7 +833,18 @@ def release(hotkey, process_events=False):
     send(hotkey, False, True, process_events=process_events)
 
 
-def is_pressed(hotkey):
+def get_pressed_keys(physically=True):
+    """
+    Returns the scan code of all keys currently active.
+
+    If `physically` is True, returns scan codes reported by the OS as physically
+    pressed on the keyboard. If `physically` is False, returns the scan codes of
+    keys that are seen by other programs as pressed (fake presses).
+    """
+    with _listener.lock:
+        return set(_listener.pressed_events) if physically else set(_listener.logically_pressed_keys)
+
+def is_pressed(hotkey, physically=True):
     """
     Returns True if the key is pressed.
 
@@ -850,8 +861,7 @@ def is_pressed(hotkey):
     if len(steps) > 1:
         raise ValueError("Impossible to check if multi-step hotkeys are pressed (`a+b` is ok, `a, b` isn't).")
 
-    with _listener.lock:
-        pressed_scan_codes = set(_listener.pressed_events)
+    pressed_scan_codes = get_pressed_keys(physically=physically)
     for key in steps[0].keys:
         if not any(scan_code in pressed_scan_codes for scan_code in key.scan_codes):
             return False
@@ -975,20 +985,26 @@ def ensure_state(*keys):
     Will release any currently active modifiers, press `ctrl`, scroll the mouse,
     release `ctrl`, and press again the previously active modifiers.
     """
-    active_modifiers = _listener.active_modifiers
-    for modifier in active_modifiers:
-        release(modifier)
+    try:
+        target_scan_codes = set(key_to_scan_codes(key)[0] for key in keys)
+    except IndexError:
+        raise ValueError('Unable to press unknown key ' + repr(key))
 
-    for key in keys:
+    already_pressed_scan_codes = get_pressed_keys(physically=False)
+
+    for key in already_pressed_scan_codes - target_scan_codes:
+        release(key)
+
+    for key in target_scan_codes - already_pressed_scan_codes:
         press(key)
 
     yield None
 
-    for key in reversed(keys):
-        release(key)
+    for key in target_scan_codes - already_pressed_scan_codes:
+        press(key)
 
-    for modifier in active_modifiers:
-        press(modifier)
+    for key in already_pressed_scan_codes - target_scan_codes:
+        press(key)
 
 
 def stash_state():
@@ -1008,7 +1024,7 @@ def release_all_keys():
     """
     Sends a release event for each key that is seen as pressed by other programs.
     """
-    for key in list(_listener.logically_pressed_keys):
+    for key in get_pressed_keys(physically=False):
         _os_keyboard.release(key)
 
 
@@ -1074,18 +1090,16 @@ def write(text, delay=0, restore_state_after=True, exact=None):
             try:
                 entries = _os_keyboard.map_name(normalize_name(letter))
                 scan_code, modifiers = next(iter(entries))
+                # Remove num and scroll lock, since many users have them active
+                # and we won't be using keys affected by them to type.
+                modifiers = [m for m in modifiers if m not in ('num lock', 'scroll lock')]
             except (KeyError, ValueError, StopIteration):
                 _os_keyboard.type_unicode(letter)
                 continue
 
-            for modifier in modifiers:
-                press(modifier)
-
-            _os_keyboard.press(scan_code)
-            _os_keyboard.release(scan_code)
-
-            for modifier in modifiers:
-                release(modifier)
+            with ensure_state(modifiers):
+                _os_keyboard.press(scan_code)
+                _os_keyboard.release(scan_code)
 
             if delay:
                 _time.sleep(delay)
