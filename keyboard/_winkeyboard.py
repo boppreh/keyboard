@@ -676,7 +676,7 @@ class Listener(object):
             scan_code = key_mapper.input_to_scan_code(key_input)
 
             is_numpad = key_mapper.is_input_numpad(key_input)
-            print(name, char, scan_code, key_mapper.is_input_numpad(key_input), key_input)
+            #print(name, char, scan_code, key_mapper.is_input_numpad(key_input), key_input)
             return callback(
                 KeyboardEvent(
                     event_type=event_type,
