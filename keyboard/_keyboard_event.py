@@ -20,7 +20,7 @@ class KeyboardEvent(object):
     time = None
     device = None
     modifiers = None
-    is_keypad = None
+    is_numpad = None
 
     def __init__(
         self,
@@ -30,14 +30,14 @@ class KeyboardEvent(object):
         time=None,
         device=None,
         modifiers=None,
-        is_keypad=None,
+        is_numpad=None,
         char="",
     ):
         self.event_type = event_type
         self.scan_code = scan_code
         self.time = now() if time is None else time
         self.device = device
-        self.is_keypad = is_keypad
+        self.is_numpad = is_numpad
         self.char = char
         self.modifiers = modifiers or []
         if name:
@@ -52,7 +52,7 @@ class KeyboardEvent(object):
                 "name",
                 "time",
                 "device",
-                "is_keypad",
+                "is_numpad",
                 "modifiers",
                 "char",
             ]
