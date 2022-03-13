@@ -442,7 +442,7 @@ class Listener(object):
         if self.blocking:
             return None
 
-        callback(KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad))
+        callback(KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad, char=name[0] if len(name) == 1 else ''))
         return event
 
 

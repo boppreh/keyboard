@@ -1242,27 +1242,23 @@ def get_typed_strings(events, allow_backspace=True):
     capslock_pressed = False
     string = ""
     for event in events:
-        name = event.name
+        char = event.char
 
         # Space is the only key that we _parse_hotkey to the spelled out name
         # because of legibility. Now we have to undo that.
         if event.name == "space":
-            name = " "
+            char = " "
 
-        if "shift" in event.name:
-            shift_pressed = event.event_type == "down"
-        elif event.name == "caps lock" and event.event_type == "down":
-            capslock_pressed = not capslock_pressed
-        elif allow_backspace and event.name == backspace_name and event.event_type == "down":
-            string = string[:-1]
-        elif event.event_type == "down":
-            if len(name) == 1:
-                if shift_pressed ^ capslock_pressed:
-                    name = name.upper()
-                string = string + name
-            else:
+        if event.event_type == 'down':
+            if allow_backspace and event.name == backspace_name:
+                string = string[:-1]
+            elif event.name in all_modifiers:
+                continue
+            elif event.name in ('enter', 'escape', 'tab') or not char:
                 yield string
                 string = ""
+            else:
+                string += char
     yield string
 
 
