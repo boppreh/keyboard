@@ -1008,7 +1008,7 @@ def ensure_state(*keys):
     yield None
 
     for key in sorted(target_scan_codes - already_pressed_scan_codes, reverse=True):
-        release(key)
+        press(key)
 
     for key in sorted(already_pressed_scan_codes - target_scan_codes, reverse=True):
         press(key)

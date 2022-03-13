@@ -496,7 +496,7 @@ class KeyMapper(object):
             char = self.get_char_by_input(key_input)
             if char:
                 # Manually cache "numpad N" versions.
-                self.name_to_inputs['numpad ' + char].append(key_input)
+                self.name_to_inputs["numpad " + char].append(key_input)
 
         # My alt gr has the VK of left control and an extremely high scan code.
         alt_gr_input = KeyInput(scan_code=541, vk=162, is_extended=False, modifiers=())
@@ -597,6 +597,7 @@ class KeyMapper(object):
         else:
             return key_input.scan_code
 
+
 key_mapper = None
 
 # Called by keyboard/__init__.py
@@ -676,7 +677,7 @@ class Listener(object):
             scan_code = key_mapper.input_to_scan_code(key_input)
 
             is_numpad = key_mapper.is_input_numpad(key_input)
-            #print(name, char, scan_code, key_mapper.is_input_numpad(key_input), key_input)
+            # print(name, char, scan_code, key_mapper.is_input_numpad(key_input), key_input)
             return callback(
                 KeyboardEvent(
                     event_type=event_type,
@@ -745,11 +746,16 @@ def _send_event(code, event_type_flag):
         key_input = key_mapper.get_input_by_scan_code(code)
         user32.keybd_event(key_input.vk, key_input.scan_code, key_input.is_extended | event_type_flag, 0)
 
+
 def list_available_keys():
     if not key_mapper:
         init()
 
-    return {name: set(key_mapper.input_to_scan_code(key_input) for key_input in key_inputs) for name, key_inputs in key_mapper.name_to_inputs.items()}
+    return {
+        name: set(key_mapper.input_to_scan_code(key_input) for key_input in key_inputs)
+        for name, key_inputs in key_mapper.name_to_inputs.items()
+    }
+
 
 def press(code):
     _send_event(code, KEYEVENTF_KEYDOWN)

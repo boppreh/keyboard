@@ -382,7 +382,7 @@ class TestNewCore(unittest.TestCase):
         self.sim([], PRESS(0)+RELEASE(0)+PRESS(1)+RELEASE(1)+PRESS(2)+RELEASE(2))
 
         keyboard.write('09', exact=False)
-        self.sim([], PRESS(0)+RELEASE(0)+PRESS(-2)+PRESS(-1)+PRESS(9)+RELEASE(9)+RELEASE(-2)+RELEASE(-1))
+        self.sim([], PRESS(0)+RELEASE(0)+PRESS(-2)+PRESS(-1)+PRESS(9)+RELEASE(9)+RELEASE(-1)+RELEASE(-2))
 
         self.sim(PRESS(-1))
         keyboard.write('0', exact=False, restore_state_after=True)
