@@ -844,12 +844,14 @@ def get_pressed_keys(physically=True):
     with _listener.lock:
         return set(_listener.pressed_events) if physically else set(_listener.logically_pressed_keys)
 
+
 def list_available_keys():
     """
     Returns a dictionary {name: scan_codes} for all known keys.
     """
     # TODO: implement for Linux and Mac OS.
     return _os_keyboard.list_available_keys()
+
 
 def is_pressed(hotkey, physically=True):
     """
@@ -995,7 +997,7 @@ def ensure_state(*keys):
     try:
         target_scan_codes = set(key_to_scan_codes(key)[0] for key in keys)
     except IndexError as e:
-        raise ValueError('Unable to press unknown key ' + repr(keys))
+        raise ValueError("Unable to press unknown key " + repr(keys))
 
     already_pressed_scan_codes = get_pressed_keys(physically=False)
 
@@ -1008,7 +1010,7 @@ def ensure_state(*keys):
     yield None
 
     for key in sorted(target_scan_codes - already_pressed_scan_codes, reverse=True):
-        press(key)
+        release(key)
 
     for key in sorted(already_pressed_scan_codes - target_scan_codes, reverse=True):
         press(key)
@@ -1099,7 +1101,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                 scan_code, modifiers = next(iter(entries))
                 # Remove num and scroll lock, since many users have them active
                 # and we won't be using keys affected by them to type.
-                modifiers = [m for m in modifiers if m not in ('num lock', 'scroll lock')]
+                modifiers = [m for m in modifiers if m not in ("num lock", "scroll lock")]
             except (KeyError, ValueError, StopIteration):
                 _os_keyboard.type_unicode(letter)
                 continue
@@ -1249,12 +1251,12 @@ def get_typed_strings(events, allow_backspace=True):
         if event.name == "space":
             char = " "
 
-        if event.event_type == 'down':
+        if event.event_type == "down":
             if allow_backspace and event.name == backspace_name:
                 string = string[:-1]
-            elif event.name in all_modifiers:
+            elif is_modifier(event.scan_code):
                 continue
-            elif event.name in ('enter', 'escape', 'tab') or not char:
+            elif event.name in ("enter", "escape", "tab") or not char:
                 yield string
                 string = ""
             else:
