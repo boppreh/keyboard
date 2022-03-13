@@ -14,7 +14,7 @@ from ._nixcommon import EV_KEY, aggregate_devices, ensure_root
 def cleanup_key(name):
     """Formats a dumpkeys format to our standard."""
     name = name.lstrip("+")
-    is_keypad = name.startswith("KP_")
+    is_numpad = name.startswith("KP_")
     for mod in ("Meta_", "Control_", "dead_", "KP_"):
         if name.startswith(mod):
             name = name[len(mod) :]
@@ -30,7 +30,7 @@ def cleanup_key(name):
     if name.endswith("_l"):
         name = "left " + name[:-2]
 
-    return normalize_name(name), is_keypad
+    return normalize_name(name), is_numpad
 
 
 def cleanup_modifier(modifier):
@@ -53,7 +53,7 @@ import re
 
 to_name = defaultdict(list)
 from_name = defaultdict(list)
-keypad_scan_codes = set()
+numpad_scan_codes = set()
 
 
 def register_key(key_and_modifiers, name):
@@ -80,11 +80,11 @@ def build_tables():
         scan_code = int(str_scan_code)
         for i, str_name in enumerate(str_names.strip().split()):
             modifiers = tuple(sorted(modifier for modifier, bit in modifiers_bits.items() if i & bit))
-            name, is_keypad = cleanup_key(str_name)
+            name, is_numpad = cleanup_key(str_name)
             register_key((scan_code, modifiers), name)
-            if is_keypad:
-                keypad_scan_codes.add(scan_code)
-                register_key((scan_code, modifiers), "keypad " + name)
+            if is_numpad:
+                numpad_scan_codes.add(scan_code)
+                register_key((scan_code, modifiers), "numpad " + name)
 
     # dumpkeys consistently misreports the Windows key, sometimes
     # skipping it completely or reporting as 'alt. 125 = left win,
@@ -159,7 +159,7 @@ class Listener(object):
                 else:
                     pressed_modifiers.discard(name)
 
-            is_keypad = scan_code in keypad_scan_codes
+            is_numpad = scan_code in numpad_scan_codes
             callback(
                 KeyboardEvent(
                     event_type=event_type,
@@ -168,7 +168,7 @@ class Listener(object):
                     char=char,
                     time=time,
                     device=device_id,
-                    is_keypad=is_keypad,
+                    is_numpad=is_numpad,
                     modifiers=pressed_modifiers_tuple,
                 )
             )
