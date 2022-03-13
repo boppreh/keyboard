@@ -994,23 +994,23 @@ def ensure_state(*keys):
     """
     try:
         target_scan_codes = set(key_to_scan_codes(key)[0] for key in keys)
-    except IndexError:
-        raise ValueError('Unable to press unknown key ' + repr(key))
+    except IndexError as e:
+        raise ValueError('Unable to press unknown key ' + repr(keys))
 
     already_pressed_scan_codes = get_pressed_keys(physically=False)
 
-    for key in already_pressed_scan_codes - target_scan_codes:
+    for key in sorted(already_pressed_scan_codes - target_scan_codes):
         release(key)
 
-    for key in target_scan_codes - already_pressed_scan_codes:
+    for key in sorted(target_scan_codes - already_pressed_scan_codes):
         press(key)
 
     yield None
 
-    for key in target_scan_codes - already_pressed_scan_codes:
-        press(key)
+    for key in sorted(target_scan_codes - already_pressed_scan_codes, reverse=True):
+        release(key)
 
-    for key in already_pressed_scan_codes - target_scan_codes:
+    for key in sorted(already_pressed_scan_codes - target_scan_codes, reverse=True):
         press(key)
 
 
@@ -1104,7 +1104,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                 _os_keyboard.type_unicode(letter)
                 continue
 
-            with ensure_state(modifiers):
+            with ensure_state(*modifiers):
                 _os_keyboard.press(scan_code)
                 _os_keyboard.release(scan_code)
 
