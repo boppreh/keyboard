@@ -844,6 +844,13 @@ def get_pressed_keys(physically=True):
     with _listener.lock:
         return set(_listener.pressed_events) if physically else set(_listener.logically_pressed_keys)
 
+def list_available_keys():
+    """
+    Returns a dictionary {name: scan_codes} for all known keys.
+    """
+    # TODO: implement for Linux and Mac OS.
+    return _os_keyboard.list_available_keys()
+
 def is_pressed(hotkey, physically=True):
     """
     Returns True if the key is pressed.

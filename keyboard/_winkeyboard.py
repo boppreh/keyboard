@@ -745,6 +745,11 @@ def _send_event(code, event_type_flag):
         key_input = key_mapper.get_input_by_scan_code(code)
         user32.keybd_event(key_input.vk, key_input.scan_code, key_input.is_extended | event_type_flag, 0)
 
+def list_available_keys():
+    if not key_mapper:
+        init()
+
+    return {name: set(key_mapper.input_to_scan_code(key_input) for key_input in key_inputs) for name, key_inputs in key_mapper.name_to_inputs.items()}
 
 def press(code):
     _send_event(code, KEYEVENTF_KEYDOWN)
