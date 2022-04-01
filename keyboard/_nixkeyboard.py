@@ -73,7 +73,7 @@ def build_tables():
         dump = check_output(['dumpkeys', '--keys-only'], universal_newlines=True)
     except CalledProcessError as e:
         if e.returncode == 1:
-            raise ValueError('Failed to run dumpkeys to get key names. Check if your user is part of the "tty" group, and if not, add it with "sudo useradd -a -G tty USER".')
+            raise ValueError('Failed to run dumpkeys to get key names. Check if your user is part of the "tty" group, and if not, add it with "sudo usermod -a -G tty USER".')
         else:
             raise
 
