@@ -578,8 +578,8 @@ def hook(callback, suppress=False, on_remove=lambda: None):
 
     append(callback)
     def remove_():
-        del _hooks[callback]
-        del _hooks[remove_]
+        _hooks.pop(callback, None)
+        _hooks.pop(remove_, None)
         remove(callback)
         on_remove()
     _hooks[callback] = _hooks[remove_] = remove_
@@ -613,9 +613,9 @@ def hook_key(key, callback, suppress=False):
         store[scan_code].append(callback)
 
     def remove_():
-        del _hooks[callback]
-        del _hooks[key]
-        del _hooks[remove_]
+        _hooks.pop(callback, None)
+        _hooks.pop(key, None)
+        _hooks.pop(remove_ ,None)
         for scan_code in scan_codes:
             store[scan_code].remove(callback)
     _hooks[callback] = _hooks[key] = _hooks[remove_] = remove_
@@ -768,9 +768,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         remove_step = _add_hotkey_step(handler, steps[0], suppress)
         def remove_():
             remove_step()
-            del _hotkeys[hotkey]
-            del _hotkeys[remove_]
-            del _hotkeys[callback]
+            _hotkeys.pop(hotkey, None)
+            _hotkeys.pop(remove_, None)
+            _hotkeys.pop(callback, None)
         # TODO: allow multiple callbacks for each hotkey without overwriting the
         # remover.
         _hotkeys[hotkey] = _hotkeys[remove_] = _hotkeys[callback] = remove_
@@ -852,9 +852,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     def remove_():
         state.remove_catch_misses()
         state.remove_last_step()
-        del _hotkeys[hotkey]
-        del _hotkeys[remove_]
-        del _hotkeys[callback]
+        _hotkeys.pop(hotkey, None)
+        _hotkeys.pop(remove_, None)
+        _hotkeys.pop(callback, None)
     # TODO: allow multiple callbacks for each hotkey without overwriting the
     # remover.
     _hotkeys[hotkey] = _hotkeys[remove_] = _hotkeys[callback] = remove_
