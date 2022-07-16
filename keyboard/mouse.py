@@ -75,7 +75,7 @@ def move(x, y, absolute=True, duration=0):
     y = int(y)
 
     # Requires an extra system call on Linux, but `move_relative` is measured
-    # in millimiters so we would lose precision.
+    # in millimeters so we would lose precision.
     position_x, position_y = get_position()
 
     if not absolute:
@@ -205,7 +205,7 @@ def play(events, speed_factor=1.0, include_clicks=True, include_moves=True, incl
     intervals. If speed_factor is <= 0 then the actions are replayed as fast
     as the OS allows. Pairs well with `record()`.
 
-    The parameters `include_*` define if events of that type should be inluded
+    The parameters `include_*` define if events of that type should be included
     in the replay or ignored.
     """
     last_time = None
