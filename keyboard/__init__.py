@@ -272,7 +272,7 @@ class _KeyboardListener(_GenericListener):
         #|
         #|             Type of event that triggered this modifier update.
         #|             |
-        #|             |         Type of key that triggered this modiier update.
+        #|             |         Type of key that triggered this modifier update.
         #|             |         |
         #|             |         |            Should we send a fake key press?
         #|             |         |            |
