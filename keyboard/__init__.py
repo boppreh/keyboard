@@ -973,6 +973,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                 scan_code, modifiers = next(iter(entries))
             except (KeyError, ValueError, StopIteration):
                 _os_keyboard.type_unicode(letter)
+                if delay: _time.sleep(delay)
                 continue
             
             for modifier in modifiers:
