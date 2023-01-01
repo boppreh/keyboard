@@ -1215,7 +1215,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     state.time = -1
 
     def handler(event):
-        name = event.name
+        name = event.name if event.name is not None else ''
         if event.event_type == KEY_UP or name in all_modifiers: return
 
         if timeout and event.time - state.time > timeout:
