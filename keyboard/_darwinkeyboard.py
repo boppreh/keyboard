@@ -68,7 +68,73 @@ class KeyMap(object):
         0x7d: 'down',
         0x7e: 'up',
     }.items())
-    layout_specific_keys = {}
+    layout_specific_keys = {
+        0x00: ('a', 'A'),
+        0x01: ('s', 'S'),
+        0x02: ('d', 'D'),
+        0x03: ('f', 'F'),
+        0x04: ('h', 'H'),
+    # kVK_ANSI_G = 0x05,
+    # kVK_ANSI_Z = 0x06,
+    # kVK_ANSI_X = 0x07,
+    # kVK_ANSI_C = 0x08,
+    # kVK_ANSI_V = 0x09,
+        0x0B: ('b', 'B'),
+    # kVK_ANSI_Q = 0x0C,
+    # kVK_ANSI_W = 0x0D,
+    # kVK_ANSI_E = 0x0E,
+    # kVK_ANSI_R = 0x0F,
+    # kVK_ANSI_Y = 0x10,
+    # kVK_ANSI_T = 0x11,
+        0x12: ('1', '1'),
+        0x13: ('2', '2'),
+        0x14: ('3', '3'),
+        0x15: ('4', '4'),
+        0x16: ('6', '6'),
+        0x17: ('5', '5'),
+    # kVK_ANSI_Equal = 0x18,
+    # kVK_ANSI_9 = 0x19,
+    # kVK_ANSI_7 = 0x1A,
+    # kVK_ANSI_Minus = 0x1B,
+    # kVK_ANSI_8 = 0x1C,
+    # kVK_ANSI_0 = 0x1D,
+    # kVK_ANSI_RightBracket = 0x1E,
+    # kVK_ANSI_O = 0x1F,
+    # kVK_ANSI_U = 0x20,
+    # kVK_ANSI_LeftBracket = 0x21,
+    # kVK_ANSI_I = 0x22,
+    # kVK_ANSI_P = 0x23,
+    # kVK_ANSI_L = 0x25,
+    # kVK_ANSI_J = 0x26,
+    # kVK_ANSI_Quote = 0x27,
+    # kVK_ANSI_K = 0x28,
+    # kVK_ANSI_Semicolon = 0x29,
+    # kVK_ANSI_Backslash = 0x2A,
+    # kVK_ANSI_Comma = 0x2B,
+    # kVK_ANSI_Slash = 0x2C,
+    # kVK_ANSI_N = 0x2D,
+    # kVK_ANSI_M = 0x2E,
+    # kVK_ANSI_Period = 0x2F,
+    # kVK_ANSI_Grave = 0x32,
+    # kVK_ANSI_KeypadDecimal = 0x41,
+    # kVK_ANSI_KeypadMultiply = 0x43,
+    # kVK_ANSI_KeypadPlus = 0x45,
+    # kVK_ANSI_KeypadClear = 0x47,
+    # kVK_ANSI_KeypadDivide = 0x4B,
+    # kVK_ANSI_KeypadEnter = 0x4C,
+    # kVK_ANSI_KeypadMinus = 0x4E,
+    # kVK_ANSI_KeypadEquals = 0x51,
+    # kVK_ANSI_Keypad0 = 0x52,
+    # kVK_ANSI_Keypad1 = 0x53,
+    # kVK_ANSI_Keypad2 = 0x54,
+    # kVK_ANSI_Keypad3 = 0x55,
+    # kVK_ANSI_Keypad4 = 0x56,
+    # kVK_ANSI_Keypad5 = 0x57,
+    # kVK_ANSI_Keypad6 = 0x58,
+    # kVK_ANSI_Keypad7 = 0x59,
+    # kVK_ANSI_Keypad8 = 0x5B,
+    # kVK_ANSI_Keypad9 = 0x5C
+    }
     def __init__(self):
         # Virtual key codes are usually the same for any given key, unless you have a different
         # keyboard layout. The only way I've found to determine the layout relies on (supposedly
@@ -167,8 +233,8 @@ class KeyMap(object):
                                            shifted_char)
 
             shifted_key = u''.join(unichr(shifted_char[i]) for i in range(char_count.value))
-
-            self.layout_specific_keys[key_code] = (non_shifted_key, shifted_key)
+            if non_shifted_key:
+                self.layout_specific_keys[key_code] = (non_shifted_key, shifted_key)
         # Cleanup
         Carbon.CFRelease(klis)
 
@@ -236,7 +302,7 @@ class KeyController(object):
             'KEYTYPE_ILLUMINATION_DOWN': 22,
             'KEYTYPE_ILLUMINATION_TOGGLE': 23
         }
-    
+
     def press(self, key_code):
         """ Sends a 'down' event for the specified scan code """
         if key_code >= 128:
@@ -444,7 +510,7 @@ def release(scan_code):
     key_controller.release(scan_code)
 
 def map_name(name):
-    """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code 
+    """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code
     and ``modifiers`` is an array of string modifier names (like 'shift') """
     yield key_controller.map_char(name)
 
