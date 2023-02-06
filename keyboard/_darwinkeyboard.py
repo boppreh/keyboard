@@ -28,10 +28,10 @@ class KeyMap(object):
         0x37: 'command',
         0x38: 'shift',
         0x39: 'capslock',
-        0x3a: 'option',
+        0x3a: 'left alt',
         0x3b: 'control',
         0x3c: 'right shift',
-        0x3d: 'right option',
+        0x3d: 'right alt',
         0x3e: 'right control',
         0x3f: 'function',
         0x40: 'f17',
@@ -454,6 +454,18 @@ def name_from_scancode(scan_code):
 
 def listen(callback):
     KeyEventListener(callback).run()
+
+def lock_state(name):
+    """ Given a locking key (`caps`, `num`, `scroll`) this returns True if the lock is
+    engaged and False otherwise. Note that OSX does not support num or scroll lock. """
+    if name.lower() == "caps":
+        return bool(Carbon.GetCurrentKeyModifiers() & 0x0400) # bit for Caps Lock
+    elif name.lower() == "num":
+        return False # OSX does not support num lock
+    elif name.lower() == "scroll":
+        return False # OSX does not support scroll lock
+    else:
+        raise ValueError("Unrecognized lock type (valid options are 'caps', 'num', 'scroll'): " + name)
 
 def type_unicode(character):
     OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)

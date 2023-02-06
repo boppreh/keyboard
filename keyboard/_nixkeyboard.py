@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import struct
-import traceback
 from time import time as now
 from collections import namedtuple
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
@@ -188,6 +187,24 @@ def type_unicode(character):
     for key in ['ctrl', 'shift', 'u']:
         scan_code, _ = next(map_name(key))
         release(scan_code)
+
+def lock_state(name):
+    """ Given a locking key (`caps`, `num`, `scroll`) this returns True if the lock is
+    engaged and False otherwise. """
+    
+    try:
+        flag = int(check_output("xset q | grep LED", shell=True).strip()[-1])
+    except:
+        raise # Specific errors to be implemented later
+
+    if name.lower() == "caps":
+        return bool(flag & 0x01) # bitflag for Caps Lock
+    elif name.lower() == "num":
+        return bool(flag & 0x02) # bitflag for Num Lock
+    elif name.lower() == "scroll":
+        return bool(flag & 0x04) # bitflag for Scroll Lock
+    else:
+        raise ValueError("Unrecognized lock type (valid options are 'caps', 'num', 'scroll'): " + name)
 
 if __name__ == '__main__':
     def p(e):
