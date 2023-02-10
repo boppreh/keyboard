@@ -729,7 +729,7 @@ Like [`restore_state`](#keyboard.restore_state), but only restores modifier keys
 
 <a name="keyboard.write"/>
 
-## keyboard.**write**(text, delay=0, restore\_state\_after=True, exact=None)
+## keyboard.**write**(text, delay=0, restore\_state\_after=True, exact=None, delaymin=0,delaymax=0)
 
 [\[source\]](https://github.com/boppreh/keyboard/blob/master/keyboard/__init__.py#L926)
 
@@ -743,6 +743,8 @@ the text is typed, and modifiers are restored afterwards.
 
 - `delay` is the number of seconds to wait between keypresses, defaults to
 no delay.
+- `delaymin` and `delaymax` are used when you want a dynamic delay. When delay 
+variable given, `delaymin` and `delaymax` will be ignored.
 - `restore_state_after` can be used to restore the state of pressed keys
 after the text is typed, i.e. presses the keys that were released at the
 beginning. Defaults to True.

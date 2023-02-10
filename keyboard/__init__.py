@@ -200,6 +200,7 @@ import itertools as _itertools
 import collections as _collections
 from threading import Thread as _Thread, Lock as _Lock
 import time as _time
+import random
 # Python2... Buggy on time changes and leap seconds, but no other good option (https://stackoverflow.com/questions/1205722/how-do-i-get-monotonic-time-durations-in-python).
 _time.monotonic = getattr(_time, 'monotonic', None) or _time.time
 
@@ -934,8 +935,8 @@ def restore_modifiers(scan_codes):
     Like `restore_state`, but only restores modifier keys.
     """
     restore_state((scan_code for scan_code in scan_codes if is_modifier(scan_code)))
-
-def write(text, delay=0, restore_state_after=True, exact=None):
+    
+def write(text, delay=0, restore_state_after=True, exact=None, delaymin=0,delaymax=0):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
     text. Characters not available on the keyboard are typed as explicit unicode
@@ -946,6 +947,8 @@ def write(text, delay=0, restore_state_after=True, exact=None):
 
     - `delay` is the number of seconds to wait between keypresses, defaults to
     no delay.
+    - `delaymin` and `delaymax` are used when you want a dynamic delay. When delay 
+    variable given, `delaymin` and `delaymax` will be ignored.
     - `restore_state_after` can be used to restore the state of pressed keys
     after the text is typed, i.e. presses the keys that were released at the
     beginning. Defaults to True.
@@ -965,7 +968,11 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                 send(letter)
             else:
                 _os_keyboard.type_unicode(letter)
-            if delay: _time.sleep(delay)
+            if delay :
+                _time.sleep(delay)
+            elif delaymin and delaymax:
+                random_delay = random.uniform(delaymin,delaymax)
+                _time.sleep(random_delay)
     else:
         for letter in text:
             try:
@@ -986,6 +993,9 @@ def write(text, delay=0, restore_state_after=True, exact=None):
 
             if delay:
                 _time.sleep(delay)
+            elif delaymin and delaymax:
+                random_delay = random.uniform(delaymin,delaymax)
+                _time.sleep(random_delay)
 
     if restore_state_after:
         restore_modifiers(state)
