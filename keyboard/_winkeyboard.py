@@ -4,14 +4,28 @@ This is the Windows backend for keyboard events, and is implemented by
 invoking the Win32 API through the ctypes module. This is error prone
 and can introduce very unpythonic failure modes, such as segfaults and
 low level memory leaks. But it is also dependency-free, very performant
-well documented on Microsoft's webstie and scattered examples.
+well documented on Microsoft's website and scattered examples.
+
+# TODO:
+- Keypad numbers still print as numbers even when numlock is off.
+- No way to specify if user wants a keypad key or not in `map_char`.
 """
+from __future__ import unicode_literals
+import re
 import atexit
 from threading import Lock, Thread
 import re
+import traceback
+from collections import defaultdict
 
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP, normalize_name
-from ._suppress import KeyTable
+
+from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from ._canonical_names import normalize_name
+try:
+    # Force Python2 to convert to unicode and not to str.
+    chr = unichr
+except NameError:
+    pass
 
 try:
     from queue import Queue
@@ -22,13 +36,21 @@ except ImportError:
 # this would be simply #include "windows.h".
 
 import ctypes
+
 from ctypes import c_short, c_char, c_uint8, c_int32, c_int, c_uint, c_uint32, c_long, Structure, CFUNCTYPE, POINTER, WINFUNCTYPE, byref, pointer, sizeof, Union, c_ushort, create_string_buffer, cast
 from ctypes.wintypes import WORD, DWORD, BOOL, HHOOK, MSG, LPWSTR, WCHAR, WPARAM, LPARAM, LONG, USHORT, HWND, UINT, HANDLE, LPCWSTR, ULONG, BYTE, HACCEL
+
 LPMSG = POINTER(MSG)
 ULONG_PTR = POINTER(DWORD)
 
-# Shortcut.
-user32 = ctypes.windll.user32
+kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+GetModuleHandleW = kernel32.GetModuleHandleW
+GetModuleHandleW.restype = HMODULE
+GetModuleHandleW.argtypes = [LPCWSTR]
+
+#https://github.com/boppreh/mouse/issues/1
+#user32 = ctypes.windll.user32
+user32 = ctypes.WinDLL('user32', use_last_error = True)
 
 VK_PACKET = 0xE7
 
@@ -180,8 +202,8 @@ RegisterRawInputDevices.restype = UINT
 
 LowLevelKeyboardProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
 
-SetWindowsHookEx = user32.SetWindowsHookExA
-#SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, c_int, c_int]
+SetWindowsHookEx = user32.SetWindowsHookExW
+SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, HINSTANCE , DWORD]
 SetWindowsHookEx.restype = HHOOK
 
 CallNextHookEx = user32.CallNextHookEx
@@ -193,7 +215,7 @@ UnhookWindowsHookEx.argtypes = [HHOOK]
 UnhookWindowsHookEx.restype = BOOL
 
 GetMessage = user32.GetMessageW
-GetMessage.argtypes = [LPMSG, c_int, c_int, c_int]
+GetMessage.argtypes = [LPMSG, HWND, c_uint, c_uint]
 GetMessage.restype = BOOL
 
 TranslateMessage = user32.TranslateMessage
@@ -226,14 +248,18 @@ SendInput = user32.SendInput
 SendInput.argtypes = [c_uint, POINTER(INPUT), c_int]
 SendInput.restype = c_uint
 
+# https://msdn.microsoft.com/en-us/library/windows/desktop/ms646307(v=vs.85).aspx
+MAPVK_VK_TO_CHAR = 2
 MAPVK_VK_TO_VSC = 0
 MAPVK_VSC_TO_VK = 1
+MAPVK_VK_TO_VSC_EX = 4
+MAPVK_VSC_TO_VK_EX = 3 
 
 VkKeyScan = user32.VkKeyScanW
 VkKeyScan.argtypes = [WCHAR]
 VkKeyScan.restype = c_short
 
-NULL = c_int(0)
+LLKHF_INJECTED = 0x00000010
 
 WM_INPUT = 0x00FF
 
@@ -254,7 +280,7 @@ keyboard_event_types = {
 
 # List taken from the official documentation, but stripped of the OEM-specific keys.
 # Keys are virtual key codes, values are pairs (name, is_keypad).
-from_virtual_key = {
+official_virtual_keys = {
     0x03: ('control-break processing', False),
     0x08: ('backspace', False),
     0x09: ('tab', False),
@@ -385,7 +411,7 @@ from_virtual_key = {
     0xa7: ('browser forward', False),
     0xa8: ('browser refresh', False),
     0xa9: ('browser stop', False),
-    0xaa: ('browser search key ', False),
+    0xaa: ('browser search key', False),
     0xab: ('browser favorites', False),
     0xac: ('browser start and home', False),
     0xad: ('volume mute', False),
@@ -403,7 +429,7 @@ from_virtual_key = {
     0xbc: (',', False),
     0xbd: ('-', False),
     0xbe: ('.', False),
-    # 0xbe: ('/', False), # Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '/?' key.
+    #0xbe:('/', False), # Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '/?.
     0xe5: ('ime process', False),
     0xf6: ('attn', False),
     0xf7: ('crsel', False),
@@ -416,82 +442,160 @@ from_virtual_key = {
     0xfe: ('clear', False),
 }
 
-# Exceptions to our logic. Still trying to figure out what is happening.
-possible_extended_keys = [0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0xc, 0x6b, 0x2e, 0x2d, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f]
-reversed_extended_keys = [0x6f, 0xd]
-
-from_scan_code = {}
-to_scan_code = {}
-vk_to_scan_code = {}
-scan_code_to_vk = {}
 tables_lock = Lock()
+to_name = defaultdict(list)
+from_name = defaultdict(list)
+scan_code_to_vk = {}
 
-# Alt gr is way outside the usual range of keys (0..127) and on my
-# computer is named as 'ctrl'. Therefore we add it manually and hope
-# Windows is consistent in its inconsistency.
-alt_gr_scan_code = 541
+distinct_modifiers = [
+    (),
+    ('shift',),
+    ('alt gr',),
+    ('num lock',),
+    ('shift', 'num lock'),
+    ('caps lock',),
+    ('shift', 'caps lock'),
+    ('alt gr', 'num lock'),
+]
 
-# These tables are used as backup when a key name can not be found by virtual
-# key code.
-def _setup_tables():
+name_buffer = ctypes.create_unicode_buffer(32)
+unicode_buffer = ctypes.create_unicode_buffer(32)
+keyboard_state = keyboard_state_type()
+def get_event_names(scan_code, vk, is_extended, modifiers):
+    is_keypad = (scan_code, vk, is_extended) in keypad_keys
+    is_official = vk in official_virtual_keys
+    if is_keypad and is_official:
+        yield official_virtual_keys[vk][0]
+
+    keyboard_state[0x10] = 0x80 * ('shift' in modifiers)
+    keyboard_state[0x11] = 0x80 * ('alt gr' in modifiers)
+    keyboard_state[0x12] = 0x80 * ('alt gr' in modifiers)
+    keyboard_state[0x14] = 0x01 * ('caps lock' in modifiers)
+    keyboard_state[0x90] = 0x01 * ('num lock' in modifiers)
+    keyboard_state[0x91] = 0x01 * ('scroll lock' in modifiers)
+    unicode_ret = ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
+    if unicode_ret and unicode_buffer.value:
+        yield unicode_buffer.value
+        # unicode_ret == -1 -> is dead key
+        # ToUnicode has the side effect of setting global flags for dead keys.
+        # Therefore we need to call it twice to clear those flags.
+        # If your 6 and 7 keys are named "^6" and "^7", this is the reason.
+        ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
+
+    name_ret = GetKeyNameText(scan_code << 16 | is_extended << 24, name_buffer, 1024)
+    if name_ret and name_buffer.value:
+        yield name_buffer.value
+
+    char = user32.MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) & 0xFF
+    if char != 0:
+        yield chr(char)
+
+    if not is_keypad and is_official:
+        yield official_virtual_keys[vk][0]
+
+def _setup_name_tables():
     """
     Ensures the scan code/virtual key code/name translation tables are
     filled.
     """
-    tables_lock.acquire()
+    with tables_lock:
+        if to_name: return
 
-    try:
-        if from_scan_code and to_scan_code: return
+        # Go through every possible scan code, and map them to virtual key codes.
+        # Then vice-versa.
+        all_scan_codes = [(sc, user32.MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK_EX, 0)) for sc in range(0x100)]
+        all_vks =        [(user32.MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, 0), vk) for vk in range(0x100)]
+        for scan_code, vk in all_scan_codes + all_vks:
+            # `to_name` and `from_name` entries will be a tuple (scan_code, vk, extended, shift_state).
+            if (scan_code, vk, 0, 0, 0) in to_name:
+                continue
 
-        for vk in range(0x01, 0x100):
-            scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
-            if not scan_code: continue
-
-            # Scan codes may map to multiple virtual key codes.
-            # In this case prefer the officially defined ones.
-            if scan_code_to_vk.get(scan_code, 0) not in from_virtual_key:
+            if scan_code not in scan_code_to_vk:
                 scan_code_to_vk[scan_code] = vk
-            vk_to_scan_code[vk] = scan_code
 
-        name_buffer = ctypes.create_unicode_buffer(32)
-        keyboard_state = keyboard_state_type()
-        for scan_code in range(2**(23-16)):
-            from_scan_code[scan_code] = ['unknown', 'unknown']
+            # Brute force all combinations to find all possible names.
+            for extended in [0, 1]:
+                for modifiers in distinct_modifiers:
+                    entry = (scan_code, vk, extended, modifiers)
+                    # Get key names from ToUnicode, GetKeyNameText, MapVirtualKeyW and official virtual keys.
+                    names = list(get_event_names(*entry))
+                    if names:
+                        # Also map lowercased key names, but only after the properly cased ones.
+                        lowercase_names = [name.lower() for name in names]
+                        to_name[entry] = names + lowercase_names
+                        # Remember the "id" of the name, as the first techniques
+                        # have better results and therefore priority.
+                        for i, name in enumerate(map(normalize_name, names + lowercase_names)):
+                            from_name[name].append((i, entry))
 
-            # Get pure key name, such as "shift". This depends on locale and
-            # may return a translated name.
-            for enhanced in [1, 0]:
-                ret = GetKeyNameText(scan_code << 16 | enhanced << 24, name_buffer, 1024)
-                if not ret:
-                    continue
-                name = normalize_name(name_buffer.value)
-                from_scan_code[scan_code] = [name, name]
-                to_scan_code[name] = (scan_code, False)
+        # TODO: single quotes on US INTL is returning the dead key (?), and therefore
+        # not typing properly.
 
-            if scan_code not in scan_code_to_vk: continue
-            # Get associated character, such as "^", possibly overwriting the pure key name.
-            for shift_state in [0, 1]:
-                keyboard_state[0x10] = shift_state * 0xFF
-                vk = scan_code_to_vk.get(scan_code, 0)
-                ret = ToUnicode(vk, scan_code, keyboard_state, name_buffer, len(name_buffer), 0)
-                if ret:
-                    # Sometimes two characters are written before the char we want,
-                    # usually an accented one such as Â. Couldn't figure out why.
-                    char = name_buffer.value[-1]
-                    if char not in to_scan_code:
-                        to_scan_code[char] = (scan_code, bool(shift_state))
-                    from_scan_code[scan_code][shift_state] = char
+        # Alt gr is way outside the usual range of keys (0..127) and on my
+        # computer is named as 'ctrl'. Therefore we add it manually and hope
+        # Windows is consistent in its inconsistency.
+        for extended in [0, 1]:
+            for modifiers in distinct_modifiers:
+                to_name[(541, 162, extended, modifiers)] = ['alt gr']
+                from_name['alt gr'].append((1, (541, 162, extended, modifiers)))
 
-        from_scan_code[alt_gr_scan_code] = ['alt gr', 'alt gr']
-        to_scan_code['alt gr'] = (alt_gr_scan_code, False)
-    finally:
-        tables_lock.release()
+    modifiers_preference = defaultdict(lambda: 10)
+    modifiers_preference.update({(): 0, ('shift',): 1, ('alt gr',): 2, ('ctrl',): 3, ('alt',): 4})
+    def order_key(line):
+        i, entry = line
+        scan_code, vk, extended, modifiers = entry
+        return modifiers_preference[modifiers], i, extended, vk, scan_code
+    for name, entries in list(from_name.items()):
+        from_name[name] = sorted(set(entries), key=order_key)
+
+# Called by keyboard/__init__.py
+init = _setup_name_tables
+
+# List created manually.
+keypad_keys = [
+    # (scan_code, virtual_key_code, is_extended)
+    (126, 194, 0),
+    (126, 194, 0),
+    (28, 13, 1),
+    (28, 13, 1),
+    (53, 111, 1),
+    (53, 111, 1),
+    (55, 106, 0),
+    (55, 106, 0),
+    (69, 144, 1),
+    (69, 144, 1),
+    (71, 103, 0),
+    (71, 36, 0),
+    (72, 104, 0),
+    (72, 38, 0),
+    (73, 105, 0),
+    (73, 33, 0),
+    (74, 109, 0),
+    (74, 109, 0),
+    (75, 100, 0),
+    (75, 37, 0),
+    (76, 101, 0),
+    (76, 12, 0),
+    (77, 102, 0),
+    (77, 39, 0),
+    (78, 107, 0),
+    (78, 107, 0),
+    (79, 35, 0),
+    (79, 97, 0),
+    (80, 40, 0),
+    (80, 98, 0),
+    (81, 34, 0),
+    (81, 99, 0),
+    (82, 45, 0),
+    (82, 96, 0),
+    (83, 110, 0),
+    (83, 46, 0),
+]
 
 shift_is_pressed = False
-alt_gr_is_pressed = False
-
-init = _setup_tables
-
+altgr_is_pressed = False
+ignore_next_right_alt = False
+shift_vks = set([0x10, 0xa0, 0xa1])
 def prepare_intercept(callback):
     """
     Registers a Windows low level keyboard hook. The provided callback will
@@ -502,62 +606,65 @@ def prepare_intercept(callback):
     No event is processed until the Windows messages are pumped (see
     start_intercept).
     """
-    _setup_tables()
+    _setup_name_tables()
     
     def process_key(event_type, vk, scan_code, is_extended):
-        global alt_gr_is_pressed
-        global shift_is_pressed
+        global shift_is_pressed, altgr_is_pressed, ignore_next_right_alt
+        #print(event_type, vk, scan_code, is_extended)
 
-        name = 'unknown'
-        is_keypad = False
-        if scan_code == alt_gr_scan_code:
-            alt_gr_is_pressed = event_type == KEY_DOWN
-            name = 'alt gr'
-        else:
-            if vk in from_virtual_key:
-                # Pressing AltGr also triggers "right menu" quickly after. We
-                # try to filter out this event. The `alt_gr_is_pressed` flag
-                # is to avoid messing with keyboards that don't even have an
-                # alt gr key.
-                if vk == 165:
-                    return True
+        # Pressing alt-gr also generates an extra "right alt" event
+        if vk == 0xA5 and ignore_next_right_alt:
+            ignore_next_right_alt = False
+            return True
 
-                name, is_keypad = from_virtual_key[vk]
-                if vk in possible_extended_keys and not is_extended:
-                    is_keypad = True
-                # What the hell Windows?
-                if vk in reversed_extended_keys and is_extended:
-                    is_keypad = True                
-            
-            elif scan_code in from_scan_code:
-                name = from_scan_code[scan_code][shift_is_pressed]
-            
-        if event_type == KEY_DOWN and name == 'shift':
-            shift_is_pressed = True
-        elif event_type == KEY_UP and name == 'shift':
-            shift_is_pressed = False
+        modifiers = (
+            ('shift',) * shift_is_pressed +
+            ('alt gr',) * altgr_is_pressed +
+            ('num lock',) * (user32.GetKeyState(0x90) & 1) +
+            ('caps lock',) * (user32.GetKeyState(0x14) & 1) +
+            ('scroll lock',) * (user32.GetKeyState(0x91) & 1)
+        )
+        entry = (scan_code, vk, is_extended, modifiers)
+        if entry not in to_name:
+            to_name[entry] = list(get_event_names(*entry))
 
-        return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name, is_keypad=is_keypad))
+        names = to_name[entry]
+        name = names[0] if names else None
+
+        # TODO: inaccurate when holding multiple different shifts.
+        if vk in shift_vks:
+            shift_is_pressed = event_type == KEY_DOWN
+        if scan_code == 541 and vk == 162:
+            ignore_next_right_alt = True
+            altgr_is_pressed = event_type == KEY_DOWN
+
+        is_keypad = (scan_code, vk, is_extended) in keypad_keys
+        return callback(KeyboardEvent(event_type=event_type, scan_code=scan_code or -vk, name=name, is_keypad=is_keypad))
 
     def low_level_keyboard_handler(nCode, wParam, lParam):
         try:
             vk = lParam.contents.vk_code
+            # Ignore the second `alt` DOWN observed in some cases.
+            fake_alt = (LLKHF_INJECTED | 0x20)
             # Ignore events generated by SendInput with Unicode.
-            if vk != VK_PACKET:
-                event_type = keyboard_event_types[wParam]
+            if vk != VK_PACKET and lParam.contents.flags & fake_alt != fake_alt:
+                event_type = KEY_UP if wParam & 0x01 else KEY_DOWN
                 is_extended = lParam.contents.flags & 1
                 scan_code = lParam.contents.scan_code
                 should_continue = process_key(event_type, vk, scan_code, is_extended)
                 if not should_continue:
                     return -1
         except Exception as e:
-            print('Error in keyboard hook: ', e)
+            print('Error in keyboard hook:')
+            traceback.print_exc()
 
-        return CallNextHookEx(NULL, nCode, wParam, lParam)
+        return CallNextHookEx(None, nCode, wParam, lParam)
 
     WH_KEYBOARD_LL = c_int(13)
     keyboard_callback = LowLevelKeyboardProc(low_level_keyboard_handler)
-    keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, NULL, NULL)
+    handle =  GetModuleHandleW(None)
+    thread_id = DWORD(0)
+    keyboard_hook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_callback, handle, thread_id)
 
     # Register to remove the hook when the interpreter exits. Unfortunately a
     # try/finally block doesn't seem to work here.
@@ -635,16 +742,22 @@ def map_char(name):
         return scan_code, ['shift'] if shift else []
     else:
         raise ValueError('Key name {} is not mapped to any known key.'.format(repr(name)))
+    for i, entry in entries:
+        scan_code, vk, is_extended, modifiers = entry
+        yield scan_code or -vk, modifiers
 
-# For pressing and releasing, we need both the scan code and virtual key code.
-# Only one is necessary most of the time, but some intrusive software require both.
 def _send_event(code, event_type):
-    if code < 0:
-        vk = -code
-        code = vk_to_scan_code[vk]
-    else:
+    if code == 541:
+        # Alt-gr is made of ctrl+alt. Just sending even 541 doesn't do anything.
+        user32.keybd_event(0x11, code, event_type, 0)
+        user32.keybd_event(0x12, code, event_type, 0)
+    elif code > 0:
         vk = scan_code_to_vk.get(code, 0)
-    user32.keybd_event(vk, code, event_type, 0)
+        user32.keybd_event(vk, code, event_type, 0)
+    else:
+        # Negative scan code is a way to indicate we don't have a scan code,
+        # and the value actually contains the Virtual key code.
+        user32.keybd_event(-code, 0, event_type, 0)
 
 def press(code):
     _send_event(code, 0)
@@ -655,12 +768,16 @@ def release(code):
 def type_unicode(character):
     # This code and related structures are based on
     # http://stackoverflow.com/a/11910555/252218
-    inputs = []
     surrogates = bytearray(character.encode('utf-16le'))
+    presses = []
+    releases = []
     for i in range(0, len(surrogates), 2):
         higher, lower = surrogates[i:i+2]
         structure = KEYBDINPUT(0, (lower << 8) + higher, KEYEVENTF_UNICODE, 0, None)
-        inputs.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
+        presses.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
+        structure = KEYBDINPUT(0, (lower << 8) + higher, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, 0, None)
+        releases.append(INPUT(INPUT_KEYBOARD, _INPUTunion(ki=structure)))
+    inputs = presses + releases
     nInputs = len(inputs)
     LPINPUT = INPUT * nInputs
     pInputs = LPINPUT(*inputs)
@@ -728,8 +845,8 @@ class RawInputDeviceListener(object):
         return user32.DefWindowProcA(c_int(hwnd), c_int(msg), c_int(wParam), c_int(lParam))
 
 if __name__ == '__main__':
-    import keyboard
-    def p(event):
-        print(event)
-    keyboard.hook(p)
-    input()
+    _setup_name_tables()
+    import pprint
+    pprint.pprint(to_name)
+    pprint.pprint(from_name)
+    #listen(lambda e: print(e.to_json()) or True)

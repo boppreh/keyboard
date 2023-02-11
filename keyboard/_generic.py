@@ -27,7 +27,7 @@ class GenericListener(object):
 
     def start_if_necessary(self):
         """
-        Starts the listening thread if it wans't already.
+        Starts the listening thread if it wasn't already.
         """
         self.lock.acquire()
         try:
@@ -69,4 +69,5 @@ class GenericListener(object):
 
     def remove_handler(self, handler):
         """ Removes a previously added event handler. """
-        self.handlers.remove(handler)
+        while handler in self.handlers:
+            self.handlers.remove(handler)

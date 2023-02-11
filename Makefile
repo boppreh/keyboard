@@ -1,19 +1,18 @@
 test: tests
-
 tests:
-	coverage2 run -m keyboard._keyboard_tests && coverage2 run -am keyboard._mouse_tests
-	coverage3 run -m keyboard._keyboard_tests && coverage3 run -am keyboard._mouse_tests && coverage3 report && coverage3 html
+	python2 -m coverage run -m keyboard._keyboard_tests
+	python2 -m coverage run -am keyboard._mouse_tests
+	python -m coverage run -am keyboard._keyboard_tests
+	python -m coverage run -am keyboard._mouse_tests
+	python -m coverage report && coverage3 html
+
+build: tests keyboard setup.py README.md CHANGES.md MANIFEST.in
+	python ../docstring2markdown/docstring2markdown.py keyboard "https://github.com/boppreh/keyboard/blob/master" > README.md
+	find . \( -name "*.py" -o -name "*.sh" -o -name "* .md" \) -exec dos2unix {} \;
+	python setup.py sdist --format=zip bdist_wheel && twine check dist/*
 
 release:
-	python3 make_release.py
-
-readme:
-	python3 ../docstring2markdown/docstring2markdown.py keyboard "https://github.com/boppreh/keyboard/blob/master" > README.md
+	python make_release.py
 
 clean:
 	rm -rfv dist build coverage_html_report keyboard.egg-info
-
-install:
-	pip install .
-
-all: clean tests readme release

@@ -9,7 +9,9 @@ import atexit
 
 from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN, DOUBLE, WHEEL, HORIZONTAL, VERTICAL
 
-user32 = ctypes.windll.user32
+#https://github.com/boppreh/mouse/issues/1
+#user32 = ctypes.windll.user32
+user32 = ctypes.WinDLL('user32', use_last_error = True)
 
 class MSLLHOOKSTRUCT(Structure):
     _fields_ = [("x", c_long),
@@ -23,11 +25,11 @@ class MSLLHOOKSTRUCT(Structure):
 LowLevelMouseProc = CFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(MSLLHOOKSTRUCT))
 
 SetWindowsHookEx = user32.SetWindowsHookExA
-SetWindowsHookEx.argtypes = [c_int, LowLevelMouseProc, c_int, c_int]
+#SetWindowsHookEx.argtypes = [c_int, LowLevelMouseProc, c_int, c_int]
 SetWindowsHookEx.restype = HHOOK
 
 CallNextHookEx = user32.CallNextHookEx
-CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(MSLLHOOKSTRUCT)]
+#CallNextHookEx.argtypes = [c_int , c_int, c_int, POINTER(MSLLHOOKSTRUCT)]
 CallNextHookEx.restype = c_int
 
 UnhookWindowsHookEx = user32.UnhookWindowsHookEx

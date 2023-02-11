@@ -21,6 +21,9 @@ EV_ABS = 0x03
 EV_MSC = 0x04
 
 def make_uinput():
+    if not os.path.exists('/dev/uinput'):
+        raise IOError('No uinput module found.')
+
     import fcntl, struct
 
     # Requires uinput driver, but it's usually available.
@@ -58,7 +61,7 @@ class EventDevice(object):
                 self._input_file = open(self.path, 'rb')
             except IOError as e:
                 if e.strerror == 'Permission denied':
-                    print('Permission denied ({}). You must be sudo to access global events.'.format(self.path))
+                    print("# ERROR: Failed to read device '{}'. You must be in the 'input' group to access global events. Use 'sudo usermod -a -G input USERNAME' to add user to the required group.".format(self.path))
                     exit()
 
             def try_close():
@@ -103,7 +106,7 @@ class AggregatedEventDevice(object):
                 self.event_queue.put(device.read_event())
         for device in self.devices:
             thread = Thread(target=start_reading, args=[device])
-            thread.setDaemon(True)
+            thread.daemon = True
             thread.start()
 
     def read_event(self):
@@ -129,8 +132,8 @@ def list_devices_from_proc(type_name):
         if type_name in handlers:
             yield EventDevice(path)
 
-def list_devices_from_by_id(type_name):
-    for path in glob('/dev/input/by-id/*-event-' + type_name):
+def list_devices_from_by_id(name_suffix, by_id=True):
+    for path in glob('/dev/input/{}/*-event-{}'.format('by-id' if by_id else 'by-path', name_suffix)):
         yield EventDevice(path)
 
 def aggregate_devices(type_name):
@@ -138,10 +141,15 @@ def aggregate_devices(type_name):
     # on each one, like a notebook with a "keyboard" device exclusive for the
     # power button. Instead of figuring out which keyboard allows which key to
     # send events, we create a fake device and send all events through there.
-    uinput = make_uinput()
-    fake_device = EventDevice('uinput Fake Device')
-    fake_device._input_file = uinput
-    fake_device._output_file = uinput
+    try:
+        uinput = make_uinput()
+        fake_device = EventDevice('uinput Fake Device')
+        fake_device._input_file = uinput
+        fake_device._output_file = uinput
+    except IOError as e:
+        import warnings
+        warnings.warn('Failed to create a device file using `uinput` module. Sending of events may be limited or unavailable depending on plugged-in devices.', stacklevel=2)
+        fake_device = None
 
     # We don't aggregate devices from different sources to avoid
     # duplicates.
@@ -152,14 +160,10 @@ def aggregate_devices(type_name):
 
     # breaks on mouse for virtualbox
     # was getting /dev/input/by-id/usb-VirtualBox_USB_Tablet-event-mouse
-    devices_from_by_id = list(list_devices_from_by_id(type_name))
+    devices_from_by_id = list(list_devices_from_by_id(type_name)) or list(list_devices_from_by_id(type_name, by_id=False))
     if devices_from_by_id:
         return AggregatedEventDevice(devices_from_by_id, output=fake_device)
 
     # If no keyboards were found we can only use the fake device to send keys.
+    assert fake_device
     return fake_device
-
-
-def ensure_root():
-    if os.geteuid() != 0:
-        raise ImportError('You must be root to use this library on linux.')

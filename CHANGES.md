@@ -1,3 +1,79 @@
+# 0.13.5
+
+- Added LICENSE.txt file to PyPI packages.
+- Fixed typos in docstrings.
+- Merged #281 and #259 (thanks @luizeldorado and @schldwcht !).
+
+
+# 0.13.4
+
+- [All] Improve release process, fixing #233 and #269.
+
+
+# 0.13.3
+
+- [Windows] Fix overflow error on Python 3.7.
+- [Mac] Added alt gr -> alt mapping.
+- [Mac] Added support for right shift.
+- [All] Fixed numlock alias.
+- [All] Fixed example code.
+
+
+# 0.13.2
+
+- [Mac] Fixed "map_name" error (i.e. implement new backend API).
+- [Win] Improve detection of "right alt" key.
+- [All] Misc fixes for edge cases.
+
+
+# 0.13.1
+
+- [Windows/Linux] Fixed installation.
+
+
+# 0.13.0
+
+- [All] New `remap_` and `block_` functions.
+- [All] New high-level functions for parsing and converting hotkey names.
+- [All] Added `.modifiers` and `.is_keymap` attribute to events.
+- [All] Event name now matches character typed (e.g. now event from key `1` reports as `!` if shift is pressed). This gives `get_typed_strings` more precision.
+- [Windows] New key suppression system should fix most bugs with `suppress=True`.
+- [Linux] Added `.device` attribute to events.
+- [All] Many, many bugfixes.
+
+
+# 0.11.0
+
+- [Windows] Used explicit WinDLL to fix "expected CFunctionType instance instead of CFunctionType".
+- [Windows] Added more Windows virtual key codes for key name mapping (should fix .e.g "?").
+- [All] Fixed canonicalization removing too much space (thanks @iliazeus).
+- [All] Added `start_recording` and `stop_recording` for more flexible macros (thanks @softuser25 for the suggestion).
+- [All] Added `read_hotkey` function.
+- [All] Added `get_hotkey_name` function.
+- [All] Cleaned up `examples` folder and added more examples.
+
+
+# 0.10.4
+
+- [Mac] Added aliases for modifiers (control->ctrl, option->alt, command->windows).
+- [All] Add reference to mouse project.
+- [All] Use WinDLL for mouse part instead of raw ctypes.windll.user32.
+
+
+# 0.10.3
+
+- [All] Fix PyPI readme (https://github.com/pypa/setuptools/issues/1126).
+- [All] Remove bdist from release (PEP 527).
+
+
+# 0.10.2
+
+- [All] Removed ctypes type-hints to avoid runtime errors in unusual systems.
+- [All] Add mention of new `mouse` project.
+- [All] Add mention of experimental OS X support.
+- [All] Fixes to release process.
+
+
 # 0.10.0
 
 - [OS X] Added experimental OS X support (thanks @glitchassassin!).

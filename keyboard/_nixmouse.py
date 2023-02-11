@@ -2,7 +2,7 @@
 import struct
 from subprocess import check_output
 import re
-from ._nixcommon import EV_KEY, EV_REL, EV_MSC, EV_SYN, EV_ABS, aggregate_devices, ensure_root
+from ._nixcommon import EV_KEY, EV_REL, EV_MSC, EV_SYN, EV_ABS, aggregate_devices
 from ._mouse_event import ButtonEvent, WheelEvent, MoveEvent, LEFT, RIGHT, MIDDLE, X, X2, UP, DOWN
 
 import ctypes
@@ -68,7 +68,6 @@ device = None
 def build_device():
     global device
     if device: return
-    ensure_root()
     device = aggregate_devices('mouse')
 init = build_device
 
@@ -80,7 +79,7 @@ def listen(queue):
         if type == EV_SYN or type == EV_MSC:
             continue
 
-        event_type = None
+        event = None
         arg = None
 
         if type == EV_KEY:

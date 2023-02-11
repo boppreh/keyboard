@@ -58,7 +58,7 @@ class TestMouse(unittest.TestCase):
     def flush_events(self):
         self.wait_for_events_queue()
         events = list(self.events)
-        # Ugly, but requried to work in Python2. Python3 has list.clear
+        # Ugly, but required to work in Python2. Python3 has list.clear
         del self.events[:]
         return events
 
