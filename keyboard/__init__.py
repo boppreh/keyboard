@@ -1179,7 +1179,12 @@ def play(events, speed_factor=1.0):
         last_time = event.time
 
         key = event.scan_code or event.name
-        press(key) if event.event_type == KEY_DOWN else release(key)
+        if (key == 91) and event.event_type == KEY_DOWN:
+            press("left windows")
+        elif (key == 91) and event.event_type == KEY_UP:
+            release("left windows")
+        else:
+            press(key) if event.event_type == KEY_DOWN else release(key)
 
     restore_modifiers(state)
 replay = play
