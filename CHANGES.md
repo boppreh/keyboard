@@ -108,7 +108,7 @@ Thanks glitchassassin and BladeMight for the pull requests.
 
 # 0.9.11
 
-- [All] Fixed Python2 compatbility.
+- [All] Fixed Python2 compatibility.
 - [All] Updated release process to always run both Python2 and Python3 tests before publishing.
 
 
