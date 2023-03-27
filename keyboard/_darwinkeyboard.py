@@ -336,7 +336,10 @@ class KeyController(object):
             return (128+self.media_keys[character],[])
         else:
             return self.key_map.character_to_vk(character)
+        
     def map_scan_code(self, scan_code):
+        if scan_code == 0xff:
+            return "UNKNOWN"
         if scan_code >= 128:
             character = [k for k, v in enumerate(self.media_keys) if v == scan_code-128]
             if len(character):
