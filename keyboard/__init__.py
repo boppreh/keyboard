@@ -472,7 +472,16 @@ def parse_hotkey(hotkey):
 
     steps = []
     for step in _re.split(r',\s?', hotkey):
+        # if key combination is e.g. alt + '+' the regex fails, 
+        # filtering '++' from the keycombination and 
+        # appending the + to the keylist manually fixes this.
+        is_literal_plus = False
+        if step.endswith('++'):
+            step = step.removesuffix('++')
+            is_literal_plus = True
         keys = _re.split(r'\s?\+\s?', step)
+        if is_literal_plus:
+            keys.append('+')
         steps.append(tuple(key_to_scan_codes(key) for key in keys))
     return tuple(steps)
 
