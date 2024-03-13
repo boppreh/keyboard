@@ -128,11 +128,18 @@ def init():
 pressed_modifiers = set()
 
 def listen(callback):
+    global device
     build_device()
     build_tables()
 
     while True:
-        time, type, code, value, device_id = device.read_event()
+        try:
+            time, type, code, value, device_id = device.read_event()
+        except OSError:
+            #Try to reconect to the device
+            device = None
+            init()
+            continue
         if type != EV_KEY:
             continue
 
