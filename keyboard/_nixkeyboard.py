@@ -136,7 +136,7 @@ def listen(callback):
         try:
             time, type, code, value, device_id = device.read_event()
         except OSError:
-            #Try to reconect to the device
+            #Try to reconect to the device NOTE: if there are no keyboards connected after the disconection it will switch to a fake device
             device = None
             init()
             continue
