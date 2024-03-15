@@ -101,20 +101,44 @@ class AggregatedEventDevice(object):
         self.event_queue = Queue()
         self.devices = devices
         self.output = output or self.devices[0]
-        def start_reading(device):
-            while True:
-                self.event_queue.put(device.read_event())
-        for device in self.devices:
-            thread = Thread(target=start_reading, args=[device])
-            thread.daemon = True
-            thread.start()
 
+        for device in self.devices:
+            self.create_device_thread(device)
+        thread = Thread(target=self.check_for_new_devices)
+        thread.daemon = True
+        thread.start()
+
+    def check_for_new_devices(self):
+        while True:
+            devices_paths = [device.path for device in self.devices]
+            new_devices = [device.path for device in list_devices_from_proc("kbd")]
+
+            for new_device in new_devices:
+                if not(new_device in devices_paths):
+                    
+                    new_device_to_append = EventDevice(new_device)
+                    self.devices.append(new_device_to_append)
+                    self.create_device_thread(new_device_to_append)
     def read_event(self):
         return self.event_queue.get(block=True)
 
     def write_event(self, type, code, value):
         self.output.write_event(type, code, value)
 
+    def start_reading(self,device):
+        while True:
+            try:
+                self.event_queue.put(device.read_event())
+            except OSError:
+                if device in self.devices:
+                    self.devices.remove(device)
+                    
+                break
+
+    def create_device_thread(self, device):
+            thread = Thread(target=self.start_reading, args=[device])
+            thread.daemon = True
+            thread.start()
 import re
 from collections import namedtuple
 DeviceDescription = namedtuple('DeviceDescription', 'event_file is_mouse is_keyboard')
