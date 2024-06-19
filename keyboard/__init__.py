@@ -900,7 +900,7 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
     return add_hotkey(src, handler, suppress=suppress, trigger_on_release=trigger_on_release)
 unremap_hotkey = remove_hotkey
 
-def stash_state():
+def stash_state(release_keys=True):
     """
     Builds a list of all currently pressed scan codes, releases them and returns
     the list. Pairs well with `restore_state` and `restore_modifiers`.
@@ -908,8 +908,9 @@ def stash_state():
     # TODO: stash caps lock / numlock /scrollock state.
     with _pressed_events_lock:
         state = sorted(_pressed_events)
-    for scan_code in state:
-        _os_keyboard.release(scan_code)
+    if release_keys:
+        for scan_code in state:
+            _os_keyboard.release(scan_code)
     return state
 
 def restore_state(scan_codes):
