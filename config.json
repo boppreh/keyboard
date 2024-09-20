@@ -1,0 +1,18 @@
+{
+  "keymap": {
+    "a": "b",
+    "b": "c"
+  },
+  "hold_tap": {
+    "space": {
+      "hold_time_ms": 200,
+      "tap_action": "space",
+      "hold_action": "shift"
+    },
+    "capslock": {
+      "hold_time_ms": 300,
+      "tap_action": "esc",
+      "hold_action": "ctrl"
+    }
+  }
+}

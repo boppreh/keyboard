@@ -1,0 +1,19 @@
+{
+  "name": "keyboard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite-node -w main.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^22.5.2",
+    "node-vite": "0.0.0-alpha.0",
+    "readline": "^1.3.0",
+    "rxjs": "^7.8.1",
+    "vite-node": "^2.0.5"
+  }
+}

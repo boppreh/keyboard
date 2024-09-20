@@ -1,7 +1,8 @@
 coverage_html_report/
 docs/_build/
 test.py
-
+node_modules
+.venv
 #################
 ## Eclipse
 #################
