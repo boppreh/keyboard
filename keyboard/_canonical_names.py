@@ -76,6 +76,7 @@ canonical_names = {
     "left control": "left ctrl",
     "right control": "right ctrl",
     "left menu": "left alt",  # Windows...
+    "right menu": "right alt",
     "altgr": "alt gr",
     # https://www.x.org/releases/X11R7.6/doc/libX11/Compose/en_US.UTF-8.html
     # https://svn.apache.org/repos/asf/xmlgraphics/commons/tags/commons-1_0/src/java/org/apache/xmlgraphics/fonts/Glyphs.java

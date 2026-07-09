@@ -11,6 +11,7 @@ well documented on Microsoft's website and scattered examples.
 - No way to specify if user wants a numpad key or not in `map_char`.
 - Use SendInput instead of keybd_event to work on games (see https://pypi.org/project/PyDirectInput/).
 """
+
 from __future__ import unicode_literals
 import re
 import atexit
@@ -192,11 +193,6 @@ VkKeyScan.restype = c_short
 
 LLKHF_INJECTED = 0x00000010
 
-WM_KEYDOWN = 0x0100
-WM_KEYUP = 0x0101
-WM_SYSKEYDOWN = 0x104  # Used for ALT key
-WM_SYSKEYUP = 0x105
-
 ######
 # This marks the end of Win32 API declarations. The rest is ours.
 ######
@@ -204,11 +200,18 @@ WM_SYSKEYUP = 0x105
 # Represents a pressed or released key, along with the state of the keyboard.
 # Used to compute key names
 KeyInput = namedtuple("KeyInput", "scan_code vk is_extended modifiers")
+# Precomputed for most key presses, used to build KeyboardEvents.
+EventTemplate = namedtuple("EventTemplate", "scan_code name is_numpad modifiers char")
 
 
 class KeyMapper(object):
     """
     Class to group all the hardcoded lists and runtime tables need to identify key events.
+
+    Provides three important mappings
+    - win_scan_code, vk, is_extended, modifiers -> scan_code, name, char      (listener)
+    - scan_code -> win_scan_code, vk, is_extended                             (send)
+    - name -> scan_code, modifiers                                            (map_name)
     """
 
     # List taken from the official documentation, but stripped of the OEM-specific keys.
@@ -358,11 +361,9 @@ class KeyMapper(object):
         0xB5: "select media",
         0xB6: "start application 1",
         0xB7: "start application 2",
-        0xBB: "+",
-        0xBC: ",",
-        0xBD: "-",
-        0xBE: ".",
-        # 0xbe: '/',, # Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '/?.
+        # OEM keys (0xBA-0xE2, e.g. VK_OEM_PLUS) intentionally omitted: what they
+        # type depends on the keyboard layout, so they are named by their typed
+        # character instead (e.g. the US key 0xBB is named "=", not "+").
         0xE5: "ime process",
         0xF6: "attn",
         0xF7: "crsel",
@@ -376,37 +377,36 @@ class KeyMapper(object):
     }
 
     # List created manually.
-    numpad_keys = [
-        # (scan_code, virtual_key_code, is_extended)
-        (126, 194, 0),
-        (28, 13, 1),
-        (53, 111, 1),
-        (69, 144, 1),
-        (55, 106, 0),
-        (71, 103, 0),
-        (71, 36, 0),
-        (72, 104, 0),
-        (72, 38, 0),
-        (73, 105, 0),
-        (73, 33, 0),
-        (74, 109, 0),
-        (75, 100, 0),
-        (75, 37, 0),
-        (76, 101, 0),
-        (76, 12, 0),
-        (77, 102, 0),
-        (77, 39, 0),
-        (78, 107, 0),
-        (79, 35, 0),
-        (79, 97, 0),
-        (80, 40, 0),
-        (80, 98, 0),
-        (81, 34, 0),
-        (81, 99, 0),
-        (82, 45, 0),
-        (82, 96, 0),
-        (83, 110, 0),
-        (83, 46, 0),
+    numpad_inputs = [
+        KeyInput(126, 194, 0, modifiers=()),
+        KeyInput(28, 13, 1, modifiers=()),
+        KeyInput(53, 111, 1, modifiers=()),
+        KeyInput(69, 144, 1, modifiers=()),
+        KeyInput(55, 106, 0, modifiers=()),
+        KeyInput(71, 103, 0, modifiers=()),
+        KeyInput(71, 36, 0, modifiers=()),
+        KeyInput(72, 104, 0, modifiers=()),
+        KeyInput(72, 38, 0, modifiers=()),
+        KeyInput(73, 105, 0, modifiers=()),
+        KeyInput(73, 33, 0, modifiers=()),
+        KeyInput(74, 109, 0, modifiers=()),
+        KeyInput(75, 100, 0, modifiers=()),
+        KeyInput(75, 37, 0, modifiers=()),
+        KeyInput(76, 101, 0, modifiers=()),
+        KeyInput(76, 12, 0, modifiers=()),
+        KeyInput(77, 102, 0, modifiers=()),
+        KeyInput(77, 39, 0, modifiers=()),
+        KeyInput(78, 107, 0, modifiers=()),
+        KeyInput(79, 35, 0, modifiers=()),
+        KeyInput(79, 97, 0, modifiers=()),
+        KeyInput(80, 40, 0, modifiers=()),
+        KeyInput(80, 98, 0, modifiers=()),
+        KeyInput(81, 34, 0, modifiers=()),
+        KeyInput(81, 99, 0, modifiers=()),
+        KeyInput(82, 45, 0, modifiers=()),
+        KeyInput(82, 96, 0, modifiers=()),
+        KeyInput(83, 110, 0, modifiers=()),
+        KeyInput(83, 46, 0, modifiers=()),
     ]
 
     # Scan codes that have an "extended version", and we actually prefer using the extended key.
@@ -430,7 +430,7 @@ class KeyMapper(object):
     # Modifier combinations that may result in keys being named or typed differently.
     # Since the table of all combinations is pre-computed, we try to avoid useless
     # combinations like "ctrl" + something, since it never changes the name of the key.
-    char_modifiers = {"shift", "alt gr", "caps lock", "numlock"}
+    char_modifiers = {"shift", "alt gr", "caps lock", "num lock"}
 
     # Modifiers that, when present, signal that no char will be typed.
     non_char_modifiers = {"ctrl", "alt", "windows"}
@@ -439,16 +439,6 @@ class KeyMapper(object):
     # ignored_modifiers = ['scroll lock']
 
     def __init__(self):
-        # Maps KeyInputs to the character that they would type, or empty string if unknown/no characters would be typed.
-        # Used by the Listener class.
-        self.input_to_char = {}
-        # Maps scan codes (or negative vks) to the name of the key, usually what is printed on it, or None if unknown.
-        # Used by the `press` and `release` functions, that are provided only scan codes.
-        self.scan_code_to_name = {}
-        # Maps each name to the preferred key and way to input it.
-        # Used by `map_name` function.
-        self.name_to_inputs = defaultdict(list)
-
         # All combinations of modifiers that may affect the name or character typed by a key.
         # This complicated looking code is generating the powerset.
         modifiers_length_range = range(len(self.char_modifiers) + 1)
@@ -457,88 +447,180 @@ class KeyMapper(object):
         )
         char_modifier_combinations = list(itertools.chain.from_iterable(modifiers_combinations_by_range))
 
-        # List all keys by scan code, to cache their names. This cover all keys
-        # except media and IME keys.
-        for scan_code in range(0x01, 0x80):
-            vk = user32.MapVirtualKeyW(scan_code, MAPVK_VSC_TO_VK_EX)
+        self.input_to_event_template = {}
+        self.scan_code_to_input = {}
+        self.name_to_inputs = defaultdict(list)
+
+        self.char_by_input_cache = {}
+
+        # Map keys by virtual key code. This covers keys that don't have a
+        # dedicated scan code (e.g. media keys) and the numpad virtual keys.
+        for vk in self.official_virtual_keys:
+            win_scan_code = user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC_EX)
+            # MapVirtualKeyW reports extended keys as 0xE0/0xE1-prefixed scan
+            # codes, while the keyboard hook reports the low byte plus an
+            # "is extended" flag. Normalize to the hook's representation.
+            is_extended = win_scan_code >> 8 == 0xE0
+            if win_scan_code >> 8 in (0xE0, 0xE1):
+                win_scan_code &= 0xFF
+            key_input = KeyInput(win_scan_code, vk, is_extended, modifiers=())
+            self.scan_code_to_input[-vk] = key_input
+            if win_scan_code:
+                self.scan_code_to_input[win_scan_code] = key_input
+
+        # Map keys by scan code, taking the current keyboard layout into
+        # account. This covers all keys except media and IME keys, and
+        # overrides the entries above for positive scan codes. The negative
+        # slots use setdefault because the OS-preferred scan code from the
+        # loop above beats alias scan codes that map to the same virtual key.
+        for win_scan_code in range(0x01, 0x80):
+            is_extended = win_scan_code in self.prefer_extended_scan_codes
+            # The extended key must be queried with the 0xE0 prefix, otherwise
+            # we get its numpad counterpart (e.g. "numpad *" vs "print screen").
+            vk = user32.MapVirtualKeyW(0xE000 | win_scan_code if is_extended else win_scan_code, MAPVK_VSC_TO_VK_EX)
             if not vk:
                 continue
-            is_extended = (scan_code, vk) in self.prefer_extended_scan_codes
-            key_input = KeyInput(scan_code, vk, is_extended, modifiers=())
-            # Cache name.
-            self.get_name_by_input(key_input)
+            key_input = KeyInput(win_scan_code, vk, is_extended, modifiers=())
+            self.scan_code_to_input.setdefault(-vk, key_input)
+            self.scan_code_to_input[win_scan_code] = key_input
 
-            # For non-keypad keys, map what other characters they can type with
-            # different modifiers.
-            if not is_extended:
-                for modifier_combination in char_modifier_combinations:
-                    modified_input = key_input._replace(is_extended=False, modifiers=modifier_combination)
-                    # Cache char.
-                    self.get_char_by_input(modified_input)
+        # Numpad keys share scan codes and virtual key codes with their
+        # navigation counterparts (e.g. "numpad 7" and "home"). The navigation
+        # keys are reachable by positive scan code, so give the negative
+        # (vk-based) slots to the numpad variants.
+        for key_input in self.numpad_inputs:
+            self.scan_code_to_input[-key_input.vk] = key_input
 
-        # Map the other keys that have only virtual key codes.
-        for vk, ms_name in self.official_virtual_keys.items():
-            scan_code = user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC_EX)
-            if scan_code in self.scan_code_to_name:
+        # Precompute the event template of every known input, with every
+        # relevant combination of modifiers.
+        seen_inputs = set()
+        for key_input in list(self.scan_code_to_input.values()):
+            if key_input in seen_inputs:
+                # Most inputs are registered under two scan codes (-vk and positive).
                 continue
+            seen_inputs.add(key_input)
 
-            name = normalize_name(ms_name)
-            self.scan_code_to_name[scan_code] = name
-            self.scan_code_to_name[-vk] = name
-            key_input = KeyInput(scan_code, vk, is_extended=False, modifiers=())
-            self.name_to_inputs[name].append(key_input)
-
-        for scan_code, vk, is_extended in self.numpad_keys:
-            key_input = KeyInput(scan_code, vk, is_extended, ())
-            # Cache name with extended flag.
-            self.get_name_by_input(key_input)
-
+            scan_code = self.input_to_scan_code(key_input)
             char = self.get_char_by_input(key_input)
-            if char:
-                # Manually cache "numpad N" versions.
-                self.name_to_inputs["numpad " + char].append(key_input)
+            name = self.get_name_by_input(key_input)
+            is_numpad = self.is_input_numpad(key_input)
+
+            self.input_to_event_template[key_input] = EventTemplate(
+                scan_code, name=name, is_numpad=is_numpad, modifiers=(), char=char
+            )
+            if name:
+                self.name_to_inputs[name].append(key_input)
+
+            if key_input.scan_code and key_input.scan_code < 0x80 and not is_numpad:
+                for modifiers in char_modifier_combinations:
+                    key_input_with_modifiers = key_input._replace(modifiers=modifiers)
+                    modified_char = self.get_char_by_input(key_input_with_modifiers)
+                    self.input_to_event_template[key_input_with_modifiers] = EventTemplate(
+                        scan_code, name=name, is_numpad=is_numpad, modifiers=modifiers, char=modified_char
+                    )
+                    # Make characters that require modifiers (e.g. 'A', '@')
+                    # reachable by name. Lock keys are excluded because they
+                    # cannot be held as modifiers when sending events.
+                    if modified_char and modified_char != char and not (set(modifiers) & {"caps lock", "num lock"}):
+                        self.name_to_inputs[normalize_name(modified_char)].append(key_input_with_modifiers)
 
         # My alt gr has the VK of left control and an extremely high scan code.
         alt_gr_input = KeyInput(scan_code=541, vk=162, is_extended=False, modifiers=())
-        self.input_to_char[alt_gr_input] = ""
+        self.scan_code_to_input[541] = alt_gr_input
+        self.input_to_event_template[alt_gr_input] = EventTemplate(
+            541, "alt gr", is_numpad=False, char="", modifiers=()
+        )
         self.name_to_inputs["alt gr"].append(alt_gr_input)
-        self.scan_code_to_name[alt_gr_input.scan_code] = "alt gr"
+
+    def modifier_name_to_vk(self, modifier_name):
+        return [vk for vk, name in self.official_virtual_keys.items() if modifier_name in name]
 
     def get_inputs_by_name(self, name):
         return self.name_to_inputs.get(name, [])
 
+    def is_input_numpad(self, key_input):
+        return key_input._replace(modifiers=()) in self.numpad_inputs
+
+    def input_to_scan_code(self, key_input):
+        """
+        Returns the scan code that represents this input in the rest of the
+        library. That's the Windows scan code when it uniquely identifies the
+        key, and the negative virtual key code otherwise (e.g. numpad keys,
+        which share scan codes with navigation keys, and keys with no scan
+        code at all).
+        """
+        key_input = key_input._replace(modifiers=())
+        if key_input.scan_code and self.scan_code_to_input.get(key_input.scan_code) == key_input:
+            return key_input.scan_code
+        return -key_input.vk
+
     def get_input_by_scan_code(self, scan_code):
-        return self.name_to_inputs[self.scan_code_to_name[scan_code]][0]
+        """
+        Given a library scan code (positive Windows scan code or negative
+        virtual key code), returns the preferred way to input that key.
+        """
+        try:
+            return self.scan_code_to_input[scan_code]
+        except KeyError:
+            # Unknown scan code, e.g. hardcoded by the user. Send as-is.
+            if scan_code > 0:
+                vk = user32.MapVirtualKeyW(scan_code, MAPVK_VSC_TO_VK_EX)
+                return KeyInput(scan_code, vk, is_extended=False, modifiers=())
+            else:
+                return KeyInput(0, -scan_code, is_extended=False, modifiers=())
 
     def get_name_by_input(self, key_input):
         """
-        Given an input, returns what's the name of the key.
+        Given information about a pressed key, returns its base name, like
+        "a" or "numpad 7", or None if unknown.
         """
-        scan_code = self.input_to_scan_code(key_input)
-        if scan_code in self.scan_code_to_name:
-            return self.scan_code_to_name[scan_code]
-
-        simplified_input = key_input._replace(modifiers=())
-        char = self.get_char_by_input(simplified_input)
-        if char:
-            name = normalize_name(char)
-        elif key_input.vk in self.official_virtual_keys:
+        if key_input.vk in self.official_virtual_keys:
             name = normalize_name(self.official_virtual_keys[key_input.vk])
         else:
-            name = None
+            char = self.get_char_by_input(key_input._replace(modifiers=()))
+            name = normalize_name(char) if char else None
 
-        if name and self.is_input_numpad(key_input):
+        # "num lock" is physically a numpad key, but prefixing it would create
+        # the nonsensical name "numpad num lock".
+        if name and self.is_input_numpad(key_input) and name != "num lock":
             name = "numpad " + name
 
-        self.scan_code_to_name[scan_code] = name
-        self.name_to_inputs[name].append(simplified_input)
         return name
 
-    def is_input_numpad(self, key_input):
-        return (key_input.scan_code, key_input.vk, key_input.is_extended) in self.numpad_keys
+    def get_event_template(self, key_input):
+        """
+        Given a key input as reported by the keyboard hook, returns the
+        precomputed parts of the KeyboardEvent (library scan code, name,
+        is_numpad and char). Inputs not mapped at startup (e.g. media and IME
+        keys) are computed on the fly and cached.
+        """
+        simplified_modifiers = tuple(sorted(set(key_input.modifiers) & self.char_modifiers))
+        candidates = (
+            key_input._replace(modifiers=simplified_modifiers),
+            key_input._replace(modifiers=()),
+            # Tolerate a mismatched extended flag (e.g. unusual hardware).
+            key_input._replace(is_extended=not key_input.is_extended, modifiers=simplified_modifiers),
+            key_input._replace(is_extended=not key_input.is_extended, modifiers=()),
+        )
+        template = None
+        for candidate in candidates:
+            if candidate in self.input_to_event_template:
+                template = self.input_to_event_template[candidate]
+                break
+        if template is None:
+            template = EventTemplate(
+                scan_code=self.input_to_scan_code(key_input),
+                name=self.get_name_by_input(key_input),
+                is_numpad=self.is_input_numpad(key_input),
+                modifiers=simplified_modifiers,
+                char=self.get_char_by_input(key_input),
+            )
+            self.input_to_event_template[candidates[0]] = template
 
-    def modifier_name_to_vk(self, modifier_name):
-        return [vk for vk, name in self.official_virtual_keys.items() if modifier_name in name]
+        if self.non_char_modifiers & set(key_input.modifiers):
+            # This key combination will not type anything.
+            template = template._replace(char="")
+        return template
 
     def get_char_by_input(self, key_input):
         """
@@ -553,12 +635,11 @@ class KeyMapper(object):
             # This key combination will not type anything.
             return ""
 
-        simplified_input = key_input._replace(
-            modifiers=tuple(m for m in key_input.modifiers if m in self.char_modifiers)
+        key_input_simplified = key_input._replace(
+            modifiers=tuple(sorted(set(key_input.modifiers) & self.char_modifiers))
         )
-        if simplified_input in self.input_to_char:
-            # We found the typed character cache when unnecessary modifiers are ignored.
-            return self.input_to_char[simplified_input]
+        if key_input_simplified in self.char_by_input_cache:
+            return self.char_by_input_cache[key_input_simplified]
 
         # Buffers used during naming initialization. Created once and reused.
         unicode_buffer = ctypes.create_unicode_buffer(32)
@@ -584,35 +665,17 @@ class KeyMapper(object):
         else:
             char = ""
 
-        self.input_to_char[simplified_input] = char
-        if char:
-            self.name_to_inputs[normalize_name(char)].append(simplified_input)
+        self.char_by_input_cache[key_input_simplified] = char
         return char
-
-    def input_to_scan_code(self, key_input):
-        if self.is_input_numpad(key_input) or not key_input.scan_code:
-            # Force -vk for numpad items so that numpad differences are visible
-            # in upper levels of the library.
-            return -key_input.vk
-        else:
-            return key_input.scan_code
 
 
 key_mapper = None
+
 
 # Called by keyboard/__init__.py
 def init():
     global key_mapper
     key_mapper = KeyMapper()
-
-
-# Maps Windows' event types to this libraries types.
-keyboard_event_types = {
-    WM_KEYDOWN: KEY_DOWN,
-    WM_KEYUP: KEY_UP,
-    WM_SYSKEYDOWN: KEY_DOWN,
-    WM_SYSKEYUP: KEY_UP,
-}
 
 
 class Listener(object):
@@ -644,7 +707,7 @@ class Listener(object):
         the event is to be blocked.
         """
 
-        def process_key(event_type, vk, scan_code, is_extended):
+        def process_key(event_type, vk, win_scan_code, is_extended):
             # Pressing alt-gr also generates an extra "menu" event
             if vk in key_mapper.modifier_name_to_vk("menu") and self.ignore_next_right_alt:
                 self.ignore_next_right_alt = False
@@ -661,30 +724,25 @@ class Listener(object):
                 )
             )
 
-            key_input = KeyInput(scan_code, vk, is_extended, modifiers)
-            name = key_mapper.get_name_by_input(key_input)
-            char = key_mapper.get_char_by_input(key_input)
+            key_input = KeyInput(win_scan_code, vk, is_extended, modifiers)
+            event_template = key_mapper.get_event_template(key_input)
 
             # TODO: inaccurate when holding multiple different shifts.
             if vk in key_mapper.modifier_name_to_vk("shift"):
                 self.shift_is_pressed = event_type == KEY_DOWN
             if vk in key_mapper.modifier_name_to_vk("windows"):
                 self.win_is_pressed = event_type == KEY_DOWN
-            if scan_code == 541 and vk == 162:
+            if win_scan_code == 541 and vk == 162:
                 self.ignore_next_right_alt = True
                 self.altgr_is_pressed = event_type == KEY_DOWN
 
-            scan_code = key_mapper.input_to_scan_code(key_input)
-
-            is_numpad = key_mapper.is_input_numpad(key_input)
-            # print(name, char, scan_code, key_mapper.is_input_numpad(key_input), key_input)
             return callback(
                 KeyboardEvent(
                     event_type=event_type,
-                    scan_code=scan_code,
-                    name=name,
-                    char=char,
-                    is_numpad=is_numpad,
+                    scan_code=event_template.scan_code,
+                    name=event_template.name,
+                    char=event_template.char,
+                    is_numpad=event_template.is_numpad,
                     modifiers=modifiers,
                 )
             )
@@ -696,10 +754,10 @@ class Listener(object):
                 fake_alt = LLKHF_INJECTED | 0x20
                 # Ignore events generated by SendInput with Unicode.
                 if vk != VK_PACKET and lParam.contents.flags & fake_alt != fake_alt:
-                    event_type = keyboard_event_types[wParam]
+                    event_type = KEY_UP if wParam & 0x01 else KEY_DOWN
                     is_extended = lParam.contents.flags & 1
-                    scan_code = lParam.contents.scan_code
-                    should_continue = process_key(event_type, vk, scan_code, is_extended)
+                    win_scan_code = lParam.contents.scan_code
+                    should_continue = process_key(event_type, vk, win_scan_code, is_extended)
                     if not should_continue:
                         return -1
             except Exception as e:
