@@ -1218,11 +1218,20 @@ if platform.system() == "Darwin":
             "windows": "command",
             "cmd": "command",
             "win": "command",
+            "left command": "command",
+            "left cmd": "command",
+            "right cmd": "right command",
+            "left option": "left alt",
+            "right option": "right alt",
             "backspace": "delete",
             "alt gr": "alt",  # Issue #117
         }
     )
-    all_modifiers = {"alt", "ctrl", "shift", "windows"}
+    all_modifiers = (
+        {"alt", "ctrl", "shift", "windows", "command", "right command"}
+        | set("left " + n for n in sided_modifiers)
+        | set("right " + n for n in sided_modifiers)
+    )
 if platform.system() == "Linux":
     canonical_names.update(
         {

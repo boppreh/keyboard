@@ -2,7 +2,6 @@ import ctypes
 import ctypes.util
 import Quartz
 import time
-import os
 import threading
 from AppKit import NSEvent
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
@@ -28,11 +27,14 @@ class KeyMap(object):
             0x31: "space",
             0x33: "delete",
             0x35: "escape",
+            0x36: "right command",
             0x37: "command",
-            0x38: "shift",
+            # Physical left-side modifiers use sided names so that hotkeys
+            # like "ctrl+x" (which the core expands to left+right) match them.
+            0x38: "left shift",
             0x39: "capslock",
-            0x3A: "option",
-            0x3B: "control",
+            0x3A: "left option",
+            0x3B: "left control",
             0x3C: "right shift",
             0x3D: "right option",
             0x3E: "right control",
@@ -72,7 +74,58 @@ class KeyMap(object):
             0x7E: "up",
         }.items()
     )
-    layout_specific_keys = {}
+
+    # US-QWERTY defaults, used when UCKeyTranslate produces nothing for a key
+    # (reported on macOS Ventura, see issues #585/#668 and PR #587).
+    default_layout_specific_keys = {
+        0x00: ("a", "A"),
+        0x01: ("s", "S"),
+        0x02: ("d", "D"),
+        0x03: ("f", "F"),
+        0x04: ("h", "H"),
+        0x05: ("g", "G"),
+        0x06: ("z", "Z"),
+        0x07: ("x", "X"),
+        0x08: ("c", "C"),
+        0x09: ("v", "V"),
+        0x0B: ("b", "B"),
+        0x0C: ("q", "Q"),
+        0x0D: ("w", "W"),
+        0x0E: ("e", "E"),
+        0x0F: ("r", "R"),
+        0x10: ("y", "Y"),
+        0x11: ("t", "T"),
+        0x12: ("1", "!"),
+        0x13: ("2", "@"),
+        0x14: ("3", "#"),
+        0x15: ("4", "$"),
+        0x16: ("6", "^"),
+        0x17: ("5", "%"),
+        0x18: ("=", "+"),
+        0x19: ("9", "("),
+        0x1A: ("7", "&"),
+        0x1B: ("-", "_"),
+        0x1C: ("8", "*"),
+        0x1D: ("0", ")"),
+        0x1E: ("]", "}"),
+        0x1F: ("o", "O"),
+        0x20: ("u", "U"),
+        0x21: ("[", "{"),
+        0x22: ("i", "I"),
+        0x23: ("p", "P"),
+        0x25: ("l", "L"),
+        0x26: ("j", "J"),
+        0x27: ("'", '"'),
+        0x28: ("k", "K"),
+        0x29: (";", ":"),
+        0x2A: ("\\", "|"),
+        0x2B: (",", "<"),
+        0x2C: ("/", "?"),
+        0x2D: ("n", "N"),
+        0x2E: ("m", "M"),
+        0x2F: (".", ">"),
+        0x32: ("`", "~"),
+    }
 
     def __init__(self):
         # Virtual key codes are usually the same for any given key, unless you have a different
@@ -84,9 +137,11 @@ class KeyMap(object):
 
         CFTypeRef = ctypes.c_void_p
         CFDataRef = ctypes.c_void_p
-        CFIndex = ctypes.c_uint64
+        CFIndex = ctypes.c_int64
         OptionBits = ctypes.c_uint32
-        UniCharCount = ctypes.c_uint8
+        # UniCharCount is `unsigned long` (64-bit). Declaring it as a single
+        # byte made UCKeyTranslate overwrite memory next to actualStringLength.
+        UniCharCount = ctypes.c_uint64
         UniChar = ctypes.c_uint16
         UniChar4 = UniChar * 4
 
@@ -101,8 +156,10 @@ class KeyMap(object):
         kUCKeyActionDisplay = 3
         kUCKeyTranslateNoDeadKeysBit = 0
 
-        # Set up function calls:
-        Carbon.CFDataGetBytes.argtypes = [CFDataRef]  # , CFRange, UInt8
+        # Set up function calls. Note that CFRange is passed by value; leaving
+        # it out of argtypes breaks the call on ARM64 (Apple Silicon), where
+        # undeclared arguments are passed as varargs and end up as garbage.
+        Carbon.CFDataGetBytes.argtypes = [CFDataRef, CFRange, ctypes.c_void_p]
         Carbon.CFDataGetBytes.restype = None
         Carbon.CFDataGetLength.argtypes = [CFDataRef]
         Carbon.CFDataGetLength.restype = CFIndex
@@ -130,12 +187,23 @@ class KeyMap(object):
         ]
         Carbon.UCKeyTranslate.restype = ctypes.c_uint32
 
+        # Until proven otherwise by the current layout, assume US-QWERTY.
+        self.layout_specific_keys = dict(self.default_layout_specific_keys)
+
         # Get keyboard layout
         klis = Carbon.TISCopyCurrentKeyboardInputSource()
         k_layout = Carbon.TISGetInputSourceProperty(klis, kTISPropertyUnicodeKeyLayoutData)
         if k_layout is None:
+            # Non-unicode layout (e.g. Chinese/Japanese input sources); fall
+            # back to the current ASCII-capable layout (see PR #112).
+            Carbon.CFRelease(klis)
             klis = Carbon.TISCopyCurrentASCIICapableKeyboardLayoutInputSource()
             k_layout = Carbon.TISGetInputSourceProperty(klis, kTISPropertyUnicodeKeyLayoutData)
+        if k_layout is None:
+            # No layout data available at all; keep the default table
+            # (reported on macOS Ventura, see issue #585).
+            Carbon.CFRelease(klis)
+            return
         k_layout_size = Carbon.CFDataGetLength(k_layout)
         k_layout_buffer = ctypes.create_string_buffer(
             k_layout_size
@@ -180,7 +248,10 @@ class KeyMap(object):
 
             shifted_key = "".join(unichr(shifted_char[i]) for i in range(char_count.value))
 
-            self.layout_specific_keys[key_code] = (non_shifted_key, shifted_key)
+            # An empty result means UCKeyTranslate doesn't know this key;
+            # keep the US-QWERTY default instead (see PR #587).
+            if non_shifted_key:
+                self.layout_specific_keys[key_code] = (non_shifted_key, shifted_key)
         # Cleanup
         Carbon.CFRelease(klis)
 
@@ -267,6 +338,19 @@ class KeyController(object):
             Quartz.CGEventPost(0, ev.CGEvent())
         else:
             # Regular key
+            # Update modifiers first, so that a modifier key press carries its
+            # own flag (otherwise the key is not considered held down).
+            if key_code == 0x37 or key_code == 0x36:  # cmd or right cmd
+                self.current_modifiers["cmd"] = True
+            elif key_code == 0x38 or key_code == 0x3C:  # shift or right shift
+                self.current_modifiers["shift"] = True
+            elif key_code == 0x39:  # caps lock
+                self.current_modifiers["caps"] = True
+            elif key_code == 0x3A or key_code == 0x3D:  # alt or right alt
+                self.current_modifiers["alt"] = True
+            elif key_code == 0x3B or key_code == 0x3E:  # ctrl or right ctrl
+                self.current_modifiers["ctrl"] = True
+
             # Apply modifiers if necessary
             event_flags = 0
             if self.current_modifiers["shift"]:
@@ -279,18 +363,6 @@ class KeyController(object):
                 event_flags += Quartz.kCGEventFlagMaskControl
             if self.current_modifiers["cmd"]:
                 event_flags += Quartz.kCGEventFlagMaskCommand
-
-            # Update modifiers if necessary
-            if key_code == 0x37:  # cmd
-                self.current_modifiers["cmd"] = True
-            elif key_code == 0x38 or key_code == 0x3C:  # shift or right shift
-                self.current_modifiers["shift"] = True
-            elif key_code == 0x39:  # caps lock
-                self.current_modifiers["caps"] = True
-            elif key_code == 0x3A:  # alt
-                self.current_modifiers["alt"] = True
-            elif key_code == 0x3B:  # ctrl
-                self.current_modifiers["ctrl"] = True
             event = Quartz.CGEventCreateKeyboardEvent(None, key_code, True)
             Quartz.CGEventSetFlags(event, event_flags)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
@@ -315,15 +387,15 @@ class KeyController(object):
         else:
             # Regular key
             # Update modifiers if necessary
-            if key_code == 0x37:  # cmd
+            if key_code == 0x37 or key_code == 0x36:  # cmd or right cmd
                 self.current_modifiers["cmd"] = False
             elif key_code == 0x38 or key_code == 0x3C:  # shift or right shift
                 self.current_modifiers["shift"] = False
             elif key_code == 0x39:  # caps lock
                 self.current_modifiers["caps"] = False
-            elif key_code == 0x3A:  # alt
+            elif key_code == 0x3A or key_code == 0x3D:  # alt or right alt
                 self.current_modifiers["alt"] = False
-            elif key_code == 0x3B:  # ctrl
+            elif key_code == 0x3B or key_code == 0x3E:  # ctrl or right ctrl
                 self.current_modifiers["ctrl"] = False
 
             # Apply modifiers if necessary
@@ -351,30 +423,32 @@ class KeyController(object):
 
     def map_scan_code(self, scan_code):
         if scan_code >= 128:
-            character = [k for k, v in enumerate(self.media_keys) if v == scan_code - 128]
-            if len(character):
-                return character[0]
-            return None
+            names = [k for k, v in self.media_keys.items() if v == scan_code - 128]
+            return names[0] if names else None
         else:
-            return self.key_map.vk_to_character(scan_code)
+            try:
+                return self.key_map.vk_to_character(scan_code)
+            except ValueError:
+                # Unknown scan code; the event is still reported, just unnamed.
+                return None
 
 
 class Listener(object):
-    def __init__(self, blocking=False):
-        self.blocking = blocking
+    def __init__(self):
         self.listening = True
         self.tap = None
+        self.callback = None
         self.modifier_scancodes = defaultdict(list)
+        self.pressed_modifiers = set()
 
     def stop(self):
         self.listening = False
 
     def listen(self, callback):
         """Creates a listener and loops while waiting for an event. Intended to run as
-        a background thread."""
-        if not os.geteuid() == 0:
-            raise OSError("Error 13 - Must be run as administrator")
-
+        a background thread. Requires macOS Accessibility/Input Monitoring
+        permissions for the running process, but not root."""
+        self.callback = callback
         self.tap = Quartz.CGEventTapCreate(
             Quartz.kCGSessionEventTap,
             Quartz.kCGHeadInsertEventTap,
@@ -394,11 +468,16 @@ class Listener(object):
             Quartz.CFRunLoopRunInMode(Quartz.kCFRunLoopDefaultMode, 5, False)
 
     def handler(self, proxy, e_type, event, refcon):
+        # macOS disables event taps whose handlers take too long (or on
+        # certain user inputs); re-enable ours instead of dying silently.
+        if e_type in (Quartz.kCGEventTapDisabledByTimeout, Quartz.kCGEventTapDisabledByUserInput):
+            Quartz.CGEventTapEnable(self.tap, True)
+            return event
+
         scan_code = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
         key_name = name_from_scancode(scan_code)
         flags = Quartz.CGEventGetFlags(event)
         event_type = ""
-        is_keypad = flags & Quartz.kCGEventFlagMaskNumericPad
         if e_type == Quartz.kCGEventKeyDown:
             event_type = "down"
         elif e_type == Quartz.kCGEventKeyUp:
@@ -415,10 +494,12 @@ class Listener(object):
                 (Quartz.kCGEventFlagMaskShift, ("shift",)),
                 (Quartz.kCGEventFlagMaskAlphaShift, ("caps lock",)),
                 (Quartz.kCGEventFlagMaskControl, ("ctrl",)),
-                (Quartz.kCGEventFlagMaskCommand, ("command",)),
+                (Quartz.kCGEventFlagMaskCommand, ("command", "windows")),
                 (Quartz.kCGEventFlagMaskAlternate, ("option", "alt")),
             ):
-                ends_with_suffix = any(key_name.endswith(suffix) for suffix in key_name_suffixes)
+                ends_with_suffix = key_name is not None and any(
+                    key_name.endswith(suffix) for suffix in key_name_suffixes
+                )
                 if ends_with_suffix:
                     event_found = True
                     key_name_suffix = key_name_suffixes[
@@ -427,57 +508,100 @@ class Listener(object):
                     if not (flags & bitmask):
                         event_type = "up"
                         self.modifier_scancodes[key_name_suffix] = []  # just to be sure...
+                        for suffix in key_name_suffixes:
+                            self.pressed_modifiers.discard(suffix)
                     else:
                         if scan_code in self.modifier_scancodes[key_name_suffix]:
-                            self.modifier_scancodes[key_name_suffix].remove(scan_code)
                             event_type = "up"
+                            self.modifier_scancodes[key_name_suffix].remove(scan_code)
+                            for suffix in key_name_suffixes:
+                                self.pressed_modifiers.discard(suffix)
                         else:
-                            self.modifier_scancodes[key_name_suffix].append(scan_code)
                             event_type = "down"
-                    if event_found:
-                        break
+                            self.modifier_scancodes[key_name_suffix].append(scan_code)
+                            for suffix in key_name_suffixes:
+                                self.pressed_modifiers.add(suffix)
+                    break
             if not event_found:
                 event_type = "up"
 
-        if self.blocking:
-            return None
+        # The typed character depends on the layout and the shift state; other
+        # modifier effects (e.g. option-composed characters) are not tracked.
+        char = ""
+        if scan_code not in KeyMap.non_layout_keys:
+            pair = key_controller.key_map.layout_specific_keys.get(scan_code)
+            if pair:
+                char = pair[1] if "shift" in self.pressed_modifiers else pair[0]
 
-        callback(
+        should_continue = self.callback(
             KeyboardEvent(
-                event_type, scan_code, name=key_name, is_keypad=is_keypad, char=name[0] if len(name) == 1 else ""
+                event_type,
+                scan_code,
+                name=key_name,
+                is_numpad=bool(flags & Quartz.kCGEventFlagMaskNumericPad),
+                modifiers=tuple(sorted(self.pressed_modifiers)),
+                char=char,
             )
         )
-        return event
+        # Returning None suppresses the event.
+        return event if should_continue else None
 
 
-key_controller = KeyController()
+key_controller = None
 
 """ Exported functions below """
 
 
 def init():
-    key_controller = KeyController()
+    global key_controller
+    if key_controller is None:
+        key_controller = KeyController()
 
 
 def press(scan_code):
     """Sends a 'down' event for the specified scan code"""
+    if key_controller is None:
+        init()
     key_controller.press(scan_code)
 
 
 def release(scan_code):
     """Sends an 'up' event for the specified scan code"""
+    if key_controller is None:
+        init()
     key_controller.release(scan_code)
 
 
 def map_name(name):
     """Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code
     and ``modifiers`` is an array of string modifier names (like 'shift')"""
+    if key_controller is None:
+        init()
     yield key_controller.map_char(name)
 
 
 def name_from_scancode(scan_code):
     """Returns the name or character associated with the specified key code"""
+    if key_controller is None:
+        init()
     return key_controller.map_scan_code(scan_code)
+
+
+def list_available_keys():
+    """Returns a dict of key name -> set of associated scan codes."""
+    if key_controller is None:
+        init()
+    names = defaultdict(set)
+    for scan_code, name in KeyMap.non_layout_keys.items():
+        names[name].add(scan_code)
+    for scan_code, (unshifted, shifted) in key_controller.key_map.layout_specific_keys.items():
+        if scan_code in KeyMap.non_layout_keys:
+            continue
+        if unshifted:
+            names[unshifted].add(scan_code)
+        if shifted and shifted != unshifted:
+            names[shifted].add(scan_code)
+    return dict(names)
 
 
 def type_unicode(character):
