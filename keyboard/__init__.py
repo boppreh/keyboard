@@ -30,6 +30,7 @@ except NameError:
     from threading import Event as _UninterruptibleEvent
 _is_list = lambda x: isinstance(x, (list, tuple))
 
+
 # The "Event" class from `threading` ignores signals when waiting and is
 # impossible to interrupt with Ctrl+C. So we rewrite `wait` to wait in small,
 # interruptible intervals.
@@ -493,10 +494,8 @@ class _HotkeyHook(_SimpleHook):
         """
         transitions = _collections.defaultdict(lambda: 0)
         # Runs a sequence of input through the current transitions.
-        get_final_state = (
-            lambda sequence, state=0: state
-            if not sequence
-            else get_final_state(sequence[1:], state=transitions[state, sequence[0]])
+        get_final_state = lambda sequence, state=0: (
+            state if not sequence else get_final_state(sequence[1:], state=transitions[state, sequence[0]])
         )
 
         history = []
@@ -930,11 +929,9 @@ def unhook(callback_or_hook_or_hotkey):
     _listener.disable_hook_by_id(callback_or_hook_or_hotkey)
 
 
-unhook_key = (
-    unremap_key
-) = (
-    unremap_hotkey
-) = unblock_key = unregister_hotkey = clear_hotkey = remove_hotkey = remove_abbreviation = remove_word_listener = unhook
+unhook_key = unremap_key = unremap_hotkey = unblock_key = unregister_hotkey = clear_hotkey = remove_hotkey = (
+    remove_abbreviation
+) = remove_word_listener = unhook
 
 
 def unhook_all():
@@ -1104,6 +1101,8 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                 modifiers = [m for m in modifiers if m not in ("num lock", "scroll lock")]
             except (KeyError, ValueError, StopIteration):
                 _os_keyboard.type_unicode(letter)
+                if delay:
+                    _time.sleep(delay)
                 continue
 
             with ensure_state(*modifiers):
@@ -1366,7 +1365,8 @@ def add_word_listener(word, callback, triggers=["space"], match_suffix=False, ti
     state.time = -1
 
     def handler(event):
-        name = event.name
+        # Unnamed keys (e.g. some media keys) count as non-character keys.
+        name = event.name or ""
         if event.event_type == KEY_UP or name in all_modifiers:
             return
 

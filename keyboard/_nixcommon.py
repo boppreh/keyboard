@@ -2,7 +2,7 @@
 import struct
 import os
 import atexit
-from time import time as now
+from time import time as now, sleep
 from threading import Thread
 from glob import glob
 
@@ -64,7 +64,11 @@ class EventDevice(object):
                 self._input_file = open(self.path, "rb")
             except IOError as e:
                 if e.strerror == "Permission denied":
-                    print("Permission denied ({}). You must be sudo to access global events.".format(self.path))
+                    print(
+                        "# ERROR: Failed to read device '{}'. You must be in the 'input' group to access global events. Use 'sudo usermod -a -G input USERNAME' to add user to the required group.".format(
+                            self.path
+                        )
+                    )
                     exit()
 
             def try_close():
@@ -102,19 +106,52 @@ class EventDevice(object):
 
 
 class AggregatedEventDevice(object):
-    def __init__(self, devices, output=None):
-        self.event_queue = Queue()
-        self.devices = devices
-        self.output = output or self.devices[0]
+    # How often to look for devices that were plugged in after we started.
+    monitor_interval_seconds = 2
 
-        def start_reading(device):
-            while True:
-                self.event_queue.put(device.read_event())
+    def __init__(self, devices, output=None, list_devices=None):
+        self.event_queue = Queue()
+        self.devices = list(devices)
+        self.output = output or self.devices[0]
+        self.list_devices = list_devices
 
         for device in self.devices:
-            thread = Thread(target=start_reading, args=[device])
-            thread.daemon = True
-            thread.start()
+            self.start_reading(device)
+
+        if self.list_devices is not None:
+            monitor_thread = Thread(target=self.monitor_devices)
+            monitor_thread.daemon = True
+            monitor_thread.start()
+
+    def start_reading(self, device):
+        def read_loop():
+            while True:
+                try:
+                    self.event_queue.put(device.read_event())
+                except (OSError, IOError, struct.error):
+                    # The device was likely disconnected. Stop reading from it;
+                    # if it comes back, the monitor thread will pick it up again.
+                    if device in self.devices:
+                        self.devices.remove(device)
+                    break
+
+        thread = Thread(target=read_loop)
+        thread.daemon = True
+        thread.start()
+
+    def monitor_devices(self):
+        # Watch for devices connected (or reconnected) after startup.
+        while True:
+            sleep(self.monitor_interval_seconds)
+            try:
+                available_devices = list(self.list_devices())
+            except OSError:
+                continue
+            known_paths = set(device.path for device in self.devices)
+            for device in available_devices:
+                if device.path not in known_paths:
+                    self.devices.append(device)
+                    self.start_reading(device)
 
     def read_event(self):
         return self.event_queue.get(block=True)
@@ -173,7 +210,9 @@ def aggregate_devices(type_name):
 
     devices_from_proc = list(list_devices_from_proc(type_name))
     if devices_from_proc:
-        return AggregatedEventDevice(devices_from_proc, output=fake_device)
+        return AggregatedEventDevice(
+            devices_from_proc, output=fake_device, list_devices=lambda: list_devices_from_proc(type_name)
+        )
 
     # breaks on mouse for virtualbox
     # was getting /dev/input/by-id/usb-VirtualBox_USB_Tablet-event-mouse
@@ -181,13 +220,13 @@ def aggregate_devices(type_name):
         list_devices_from_by_id(type_name, by_id=False)
     )
     if devices_from_by_id:
-        return AggregatedEventDevice(devices_from_by_id, output=fake_device)
+        return AggregatedEventDevice(
+            devices_from_by_id,
+            output=fake_device,
+            list_devices=lambda: list(list_devices_from_by_id(type_name))
+            or list(list_devices_from_by_id(type_name, by_id=False)),
+        )
 
     # If no keyboards were found we can only use the fake device to send keys.
     assert fake_device
     return fake_device
-
-
-def ensure_root():
-    if os.geteuid() != 0:
-        raise ImportError("You must be root to use this library on linux.")

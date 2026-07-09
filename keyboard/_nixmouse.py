@@ -9,7 +9,6 @@ from ._nixcommon import (
     EV_SYN,
     EV_ABS,
     aggregate_devices,
-    ensure_root,
 )
 from ._mouse_event import (
     ButtonEvent,
@@ -104,7 +103,6 @@ def build_device():
     global device
     if device:
         return
-    ensure_root()
     device = aggregate_devices("mouse")
 
 
