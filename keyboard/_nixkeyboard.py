@@ -185,6 +185,12 @@ def write_event(scan_code, is_down):
     device.write_event(EV_KEY, scan_code, int(is_down))
 
 
+def list_available_keys():
+    """Returns a dict of key name -> set of associated scan codes."""
+    build_tables()
+    return {name: set(scan_code for scan_code, modifiers in entries) for name, entries in from_name.items()}
+
+
 def map_name(name):
     build_tables()
     for entry in from_name[name]:

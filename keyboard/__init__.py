@@ -883,7 +883,6 @@ def list_available_keys():
     """
     Returns a dictionary {name: scan_codes} for all known keys.
     """
-    # TODO: implement for Linux and Mac OS.
     return _os_keyboard.list_available_keys()
 
 
