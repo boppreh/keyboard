@@ -3,6 +3,8 @@ keyboard
 
 Take full control of your keyboard with this small Python library. Hook global events, register hotkeys, simulate key presses and much more.
 
+**Note**: this project has restarted activity after a long hiatus. Many bugs have been recently fixed!
+
 ## Features
 
 - **Global event hook** on all keyboards (captures keys regardless of focus).
