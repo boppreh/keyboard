@@ -6,6 +6,7 @@ import unittest
 import keyboard
 from keyboard import KEY_UP, KEY_DOWN, KeyboardEvent, SUPPRESS, ALLOW
 from threading import Thread
+import gc
 import itertools
 import time
 
@@ -408,6 +409,100 @@ class TestNewCore(unittest.TestCase):
         self.sim(PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(-1))
         events = keyboard.stop_recording()
         #self.assertEqual(events, PRESS(0)+RELEASE(0)+PRESS(-1)+PRESS(1)+RELEASE(-1))
+
+    def add_recording_hook(self):
+        # A suppressing hook that records events without affecting decisions.
+        seen = []
+        def callback(event):
+            seen.append(event)
+            return ALLOW
+        keyboard.hook(callback, suppress=True)
+        return seen
+
+    def use_echoing_os_keyboard(self):
+        # Replaces the default setUp mocks, which process sent events
+        # synchronously, with ones that only record them. Simulates platforms
+        # where our own events are reported back asynchronously by the OS
+        # (e.g. uinput on Linux), after `send` has already returned.
+        echoes = []
+        keyboard._os_keyboard.press = lambda key: echoes.append(make_event(KEY_DOWN, key))
+        keyboard._os_keyboard.release = lambda key: echoes.append(make_event(KEY_UP, key))
+        return echoes
+
+    def test_send_with_delayed_echo(self):
+        echoes = self.use_echoing_os_keyboard()
+        seen = self.add_recording_hook()
+
+        keyboard.send(1)
+        self.assertEqual(len(echoes), 2)
+        for echo in echoes:
+            # Our own events must be allowed through, but not processed.
+            self.assertTrue(keyboard._listener.process_sync_event(echo))
+        self.assertEqual(seen, [])
+
+        # A real event with the same scan code is processed normally.
+        real_event = make_event(KEY_DOWN, 1)
+        keyboard._listener.process_sync_event(real_event)
+        self.assertEqual(seen, [real_event])
+
+    def test_send_processed_with_delayed_echo(self):
+        echoes = self.use_echoing_os_keyboard()
+        seen = self.add_recording_hook()
+
+        # Only the events sent with process_events=True should be processed,
+        # even when the echoes all arrive late and interleaved.
+        keyboard.send(1, process_events=True)
+        keyboard.send(2)
+        keyboard.send(3, process_events=True)
+        for echo in echoes:
+            keyboard._listener.process_sync_event(echo)
+        self.assertEqual([e.scan_code for e in seen], [1, 1, 3, 3])
+
+    def test_lost_echo_expires(self):
+        # If a sent event is never reported back (e.g. device removed), the
+        # pending entry must expire instead of eating a future real event.
+        self.use_echoing_os_keyboard()
+        keyboard.send(1)
+        expired = time.time() - keyboard._KeyboardListener.REPLAY_EXPIRY_SECONDS - 1
+        keyboard._listener.replayed_events = [(s, t, expired) for s, t, _ in keyboard._listener.replayed_events]
+
+        seen = self.add_recording_hook()
+        real_event = make_event(KEY_DOWN, 1)
+        keyboard._listener.process_sync_event(real_event)
+        self.assertEqual(seen, [real_event])
+
+    def test_sync_processing_performance(self):
+        # Suppressing hooks run synchronously: on Windows the OS withholds
+        # each event from every application until we decide on it, so slow
+        # processing makes the whole system sluggish. Simulate a fast typist
+        # with 100 hotkeys registered and ensure every event is decided
+        # quickly. The thresholds leave room for slow machines and scheduling
+        # hiccups; a real regression to the sync path blows way past them.
+        for i in range(100):
+            keyboard.add_hotkey(500 + i, lambda: None, suppress=True)
+
+        events = []
+        for i in range(250):
+            # Mostly regular typing, but hit one of the hotkeys every 13th key.
+            scan_code = 500 + (i % 100) if i % 13 == 0 else (i * 7) % 26 + 1
+            events.extend(PRESS(scan_code) + RELEASE(scan_code))
+
+        timer = getattr(time, 'perf_counter', time.time)
+        gc.disable()
+        try:
+            durations = []
+            for event in events:
+                start = timer()
+                keyboard._listener.process_sync_event(event)
+                durations.append(timer() - start)
+        finally:
+            gc.enable()
+
+        durations.sort()
+        median = durations[len(durations) // 2]
+        slowest = durations[-1]
+        self.assertLess(median, 0.001, 'median processing time was %.3f ms' % (median * 1000))
+        self.assertLess(slowest, 0.005, 'slowest processing time was %.3f ms' % (slowest * 1000))
 
 if __name__ == '__main__':
     unittest.main()
