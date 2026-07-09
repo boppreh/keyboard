@@ -14,9 +14,7 @@ make_event = lambda event_type, scan_code, time=None: KeyboardEvent(event_type=e
 PRESS = lambda scan_code, time=None: [make_event(KEY_DOWN, scan_code, time)]
 RELEASE = lambda scan_code, time=None: [make_event(KEY_UP, scan_code, time)]
 def TRIGGER(n=1000):
-    keyboard._listener.is_replaying = True
     keyboard.release(n)
-    keyboard._listener.is_replaying = False
 TRIGGERED = lambda n=1000: [make_event(KEY_UP, n)]
 NAME_MAP = {'-2': [(-2, [])], '-1': [(-1, [])], '0': [(0, [])], '1': [(1, [])], '2': [(2, [])], '9': [(9, [-2, -1])], 'enter': [(99, [])]}
 

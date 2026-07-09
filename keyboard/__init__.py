@@ -109,9 +109,13 @@ class _KeyboardListener(object):
         self.active_modifiers = set()
         # Pairs of (event, modifiers).
         self.suspended_event_pairs = []
-        # Set when replaying a suspended event, that should not be processed
-        # again.
-        self.is_replaying = False
+        # Events that we injected ourselves (replayed suspended events, or
+        # `send` with process_events=False) and that should not be processed
+        # again when the OS reports them back to us. The OS may deliver our
+        # events with a delay (e.g. uinput on Linux), so instead of a global
+        # flag each entry is matched individually. Entries are
+        # (scan_code, event_type, timestamp) triples.
+        self.replayed_events = []
 
         # Maps pressed scan codes to the newest KEY_DOWN event.
         self.pressed_events = {}
@@ -221,6 +225,42 @@ class _KeyboardListener(object):
         # won't see the new flag_running object.
         self.flag_running = _Event()
 
+    # How long to wait for an injected event to be reported back to us by the
+    # OS before assuming it was lost.
+    REPLAY_EXPIRY_SECONDS = 2
+
+    def replay_press(self, scan_code):
+        self.replay_event(scan_code, KEY_DOWN)
+
+    def replay_release(self, scan_code):
+        self.replay_event(scan_code, KEY_UP)
+
+    def replay_event(self, scan_code, event_type):
+        """
+        Sends an artificial key event, marking it to be ignored when the OS
+        reports it back to us.
+        """
+        with self.lock:
+            self.replayed_events.append((scan_code, event_type, _time.time()))
+        if event_type == KEY_DOWN:
+            _os_keyboard.press(scan_code)
+        else:
+            _os_keyboard.release(scan_code)
+
+    def check_replayed(self, event):
+        """
+        Returns True if this event comes from a previous `replay_event` call
+        and should not be processed again.
+        """
+        with self.lock:
+            min_time = _time.time() - self.REPLAY_EXPIRY_SECONDS
+            self.replayed_events = [entry for entry in self.replayed_events if entry[2] >= min_time]
+            for i, (scan_code, event_type, timestamp) in enumerate(self.replayed_events):
+                if scan_code == event.scan_code and event_type == event.event_type:
+                    del self.replayed_events[i]
+                    return True
+        return False
+
     def run_sync_hooks(self, event):
         """
         Passes the given event through all sync hooks registered, deciding to
@@ -234,7 +274,6 @@ class _KeyboardListener(object):
         )
         hooks_decisions = [run_hook(hook) for hook in self.suppressing_hooks] or [{}]
         temporary_modifiers_state = set(self.active_modifiers)
-        _listener.is_replaying = True
 
         # Check for previously suspended events. Note that decisions for unrelated
         # keys are ignored.
@@ -257,19 +296,15 @@ class _KeyboardListener(object):
                     # replay the suspended event, then restore the state of the
                     # modifiers.
                     for modifier in temporary_modifiers_state - suspended_modifiers:
-                        _os_keyboard.release(modifier)
+                        self.replay_release(modifier)
                         temporary_modifiers_state.remove(modifier)
 
-                if suspended_event.event_type == KEY_DOWN:
-                    _os_keyboard.press(suspended_event.scan_code)
-                else:
-                    _os_keyboard.release(suspended_event.scan_code)
+                self.replay_event(suspended_event.scan_code, suspended_event.event_type)
                 self.suspended_event_pairs.remove((suspended_event, suspended_modifiers))
 
         # Restore state of modifiers.
         for modifier in self.active_modifiers - temporary_modifiers_state:
-            _os_keyboard.press(modifier)
-        _listener.is_replaying = False
+            self.replay_press(modifier)
 
         decision = max((decisions.get(event, ALLOW) for decisions in hooks_decisions))
         if decision is SUSPEND:
@@ -290,7 +325,7 @@ class _KeyboardListener(object):
         May replay previously suppressed events that hooks have suspended before
         but marked as allowed now.
         """
-        if self.is_replaying:
+        if self.check_replayed(event):
             decision = ALLOW
         else:
             # Update list of active modifiers and pressed keys.
@@ -801,21 +836,21 @@ def send(hotkey, do_press=True, do_release=True, process_events=False):
 
     Note: keys are released in the opposite order they were pressed.
     """
-    if not process_events:
-        _listener.is_replaying = True
-
     parsed = parse_hotkey(hotkey)
     for step in parsed.steps:
         if do_press:
             for key in step.keys:
-                _os_keyboard.press(key.scan_codes[0])
+                if process_events:
+                    _os_keyboard.press(key.scan_codes[0])
+                else:
+                    _listener.replay_press(key.scan_codes[0])
 
         if do_release:
             for key in reversed(step.keys):
-                _os_keyboard.release(key.scan_codes[0])
-
-    if not process_events:
-        _listener.is_replaying = False
+                if process_events:
+                    _os_keyboard.release(key.scan_codes[0])
+                else:
+                    _listener.replay_release(key.scan_codes[0])
 
 
 # Alias.
@@ -1039,17 +1074,13 @@ def restore_state(scan_codes):
     Given a list of scan_codes ensures these keys, and only these keys, are
     pressed. Pairs well with `stash_state`, alternative to `restore_modifiers`.
     """
-    _listener.is_replaying = True
-
     with _listener.lock:
         current = set(_listener.pressed_events)
     target = set(scan_codes)
     for scan_code in sorted(current - target):
-        _os_keyboard.release(scan_code)
+        _listener.replay_release(scan_code)
     for scan_code in sorted(target - current):
-        _os_keyboard.press(scan_code)
-
-    _listener.is_replaying = False
+        _listener.replay_press(scan_code)
 
 
 def restore_modifiers(scan_codes):
