@@ -56,6 +56,10 @@ from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
 from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
 
 _modifier_scan_codes = set()
+# Scan codes of modifiers that trigger OS behavior when tapped alone (start
+# menu, menu bar focus), and therefore need masking when we suppress the keys
+# pressed alongside them.
+_menu_mask_scan_codes = set()
 
 
 def is_modifier(key):
@@ -119,6 +123,10 @@ class _KeyboardListener(object):
 
         # Maps pressed scan codes to the newest KEY_DOWN event.
         self.pressed_events = {}
+
+        # True if a menu mask key was already sent during the current
+        # windows/alt press (see process_sync_event).
+        self.menu_mask_sent = False
 
         self.suppressing_hooks = []
         self.nonsuppressing_hooks = []
@@ -349,8 +357,21 @@ class _KeyboardListener(object):
                 self.logically_pressed_keys.add(event.scan_code)
             else:
                 self.logically_pressed_keys.discard(event.scan_code)
+            if event.scan_code in _menu_mask_scan_codes:
+                # A new windows/alt press may need a new mask key.
+                self.menu_mask_sent = False
             return True
         else:
+            # The OS reacts to windows and alt being tapped alone (start menu,
+            # menu bar focus). If we withhold an event while the OS believes
+            # one of those modifiers is held, the OS would see exactly such a
+            # "clean" tap once the modifier is released. Send a no-op mask key
+            # to dirty the tap (same technique as AutoHotkey's #MenuMaskKey).
+            if not self.menu_mask_sent and self.logically_pressed_keys & _menu_mask_scan_codes:
+                send_menu_mask_key = getattr(_os_keyboard, "send_menu_mask_key", None)
+                if send_menu_mask_key is not None:
+                    send_menu_mask_key()
+                self.menu_mask_sent = True
             return False
 
     def process_async_queue(self):
@@ -387,6 +408,8 @@ def start():
     _os_keyboard.init()
     _modifier_scan_codes.clear()
     _modifier_scan_codes.update(*(key_to_scan_codes(name, ()) for name in all_modifiers))
+    _menu_mask_scan_codes.clear()
+    _menu_mask_scan_codes.update(key_to_scan_codes("windows", ()) + key_to_scan_codes("alt", ()))
     _listener.start()
 
 
